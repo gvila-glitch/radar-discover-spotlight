@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## Project rules
+- All data access goes through src/lib/alertasRepo.ts (listAlertas, valorar); swap only that file when connecting Supabase.
+- supabase/migrations/0001_alertas.sql is prepared by the user spec and not yet applied; no Lovable Cloud.
