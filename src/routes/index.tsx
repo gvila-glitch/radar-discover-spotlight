@@ -69,8 +69,8 @@ function Index() {
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
           <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
-          <span className="rounded border px-1.5 py-0.5 text-[11px] uppercase tracking-wide text-muted-foreground">prototipo</span>
-          <span className="ml-auto rounded bg-warn-soft px-2 py-0.5 text-xs font-medium text-warn">Modo demo · datos de ejemplo</span>
+          <span className="text-xs text-muted-foreground">prototipo</span>
+          <span className="ml-auto font-mono text-xs text-warn">Modo demo · datos de ejemplo</span>
           <span className="text-xs text-muted-foreground">Usuario: {USUARIO_DEMO}</span>
           <button onClick={() => setDark((d) => !d)} aria-label={dark ? "Modo claro" : "Modo oscuro"} className="rounded-md border p-1.5 hover:bg-muted">
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -81,7 +81,7 @@ function Index() {
       <main className="mx-auto max-w-7xl px-4 py-6">
         <h2 className="font-serif text-3xl font-semibold">Alertas</h2>
 
-        <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
           <Kpi titulo="Útiles" valor={pct(k.pctUtiles)} ok={k.pctUtiles == null ? null : k.pctUtiles >= 50} sub="sobre valoradas · objetivo ≥ 50 %" />
           <Kpi titulo="Acabaron en pieza" valor={pct(k.pctPublicadas)} ok={k.pctPublicadas == null ? null : k.pctPublicadas >= 20} sub="sobre el total · objetivo ≥ 20 %" />
@@ -95,7 +95,7 @@ function Index() {
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <div className="rounded-lg border bg-card">
+          <div className="border bg-card">
             {isLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando alertas…</p>
               : visibles.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No hay alertas con estos filtros.</p>
               : (
@@ -106,13 +106,13 @@ function Index() {
                       <li key={a.id} data-id={a.id} role="option" aria-selected={on} tabIndex={on ? 0 : -1}
                         onClick={() => setSel(a.id)}
                         className={cn("flex cursor-pointer gap-3 px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-                          on ? "bg-accent" : "hover:bg-muted")}>
+                          on ? "bg-accent shadow-[inset_3px_0_0_var(--primary)]" : "hover:bg-muted")}>
                         <span className="w-12 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">{horaOFecha(a.creada_en)}</span>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2"><PrioridadTag p={a.prioridad} /><span className="truncate font-serif font-semibold">{a.entidad}</span></div>
+                          <div className="truncate font-serif font-semibold">{a.entidad}</div>
                           <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.contexto}</p>
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1"><LlegadaTag medios={a.medios_discover} /><EstadoTag e={a.estado} /></div>
+                        <div className="flex shrink-0 flex-col items-end gap-1"><PrioridadTag p={a.prioridad} /><LlegadaTag medios={a.medios_discover} /><EstadoTag e={a.estado} /></div>
                       </li>
                     );
                   })}
@@ -128,13 +128,10 @@ function Index() {
 
 function Kpi({ titulo, valor, sub, ok }: { titulo: string; valor: string; sub: string; ok: boolean | null }) {
   return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        {titulo}
-        {ok != null && <span className={cn("rounded px-1.5 text-[11px] font-medium", ok ? "bg-ok-soft text-ok" : "bg-bad-soft text-bad")}>{ok ? "Cumple" : "No cumple"}</span>}
-      </div>
+    <div className="p-4">
+      <div className="text-sm text-muted-foreground">{titulo}</div>
       <div className={cn("mt-1 font-mono text-3xl font-medium", ok == null ? "" : ok ? "text-ok" : "text-bad")}>{valor}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{sub}</div>
+      <div className="mt-1 text-xs text-muted-foreground">{ok != null && <span className={ok ? "text-ok" : "text-bad"}>{ok ? "✓ " : "✗ "}</span>}{sub}</div>
     </div>
   );
 }
