@@ -39,7 +39,7 @@ describe("selectores de filtros", () => {
     await waitFor(() => expect(screen.getByText("1 de 8")).toBeInTheDocument());
     const visibles = await alertasVisibles();
     expect(visibles).toHaveLength(1);
-    expect(visibles[0].textContent).toContain("Comparecencia en el Congreso");
+    expect(visibles[0]?.textContent).toContain("Comparecencia en el Congreso");
   });
 
   it("Prioridad Alta deja las 4 alertas altas", async () => {
