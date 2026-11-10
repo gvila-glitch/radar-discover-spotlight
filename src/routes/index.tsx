@@ -8,7 +8,7 @@ import { listAlertas, valorar, USUARIO_DEMO } from "@/lib/alertasRepo";
 import { desdePeriodo, claveDia, horaOFecha } from "@/lib/fechas";
 import { kpis } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
-import { EstadoTag, LlegadaTag, PrioridadTag, Segmented } from "@/components/radar/ui";
+import { EstadoTag, LlegadaTag, PrioridadTag, Selector } from "@/components/radar/ui";
 import { Detalle } from "@/components/radar/Detalle";
 
 export const Route = createFileRoute("/")({
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/")({
 
 type Periodo = "hoy" | "7d" | "30d" | "todo";
 
-function Index() {
+export function Index() {
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [prio, setPrio] = useState<"todas" | Prioridad>("todas");
   const [estado, setEstado] = useState<"todos" | Estado>("todos");
@@ -43,6 +43,8 @@ function Index() {
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
   const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && (estado === "todos" || a.estado === estado));
   const actual = visibles.find((a) => a.id === sel) ?? visibles[0];
+  const filtrosActivos = prio !== "todas" || estado !== "todos" || periodo !== "7d";
+  const restablecer = () => { setPrio("todas"); setEstado("todos"); setPeriodo("7d"); };
 
   async function onValorar(a: Alerta, nuevo: Estado, pieza_url: string | null = null) {
     const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: USUARIO_DEMO };
@@ -88,10 +90,18 @@ function Index() {
           <Kpi titulo="Llegada" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={k.medianaLlegada == null ? null : k.medianaLlegada <= 2} sub="mediana de medios ya en Discover · objetivo ≤ 2" />
         </section>
 
-        <div className="mt-5 flex flex-wrap gap-4">
-          <Segmented label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />
-          <Segmented label="Estado" value={estado} onChange={setEstado} options={[{ value: "todos", label: "Todos" }, { value: "pendiente", label: "Pendiente" }, { value: "util", label: "Útil" }, { value: "ruido", label: "Ruido" }, { value: "publicada", label: "Publicada" }]} />
-          <Segmented label="Periodo" value={periodo} onChange={setPeriodo} options={[{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }]} />
+        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
+          <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />
+          <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={[{ value: "todos", label: "Todos" }, { value: "pendiente", label: "Pendiente" }, { value: "util", label: "Útil" }, { value: "ruido", label: "Ruido" }, { value: "publicada", label: "Publicada" }]} />
+          <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={[{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }]} />
+          <span className="ml-auto flex items-center gap-4">
+            <span className="font-mono text-xs text-muted-foreground">{visibles.length} de {data.length}</span>
+            {filtrosActivos && (
+              <button onClick={restablecer} className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                Restablecer filtros
+              </button>
+            )}
+          </span>
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
