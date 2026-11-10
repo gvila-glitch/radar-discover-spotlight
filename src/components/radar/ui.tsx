@@ -29,21 +29,23 @@ export function EstadoTag({ e }: { e: Estado }) {
   );
 }
 
-export function Segmented<T extends string>({ label, value, options, onChange }: {
-  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void;
+export function Selector<T extends string>({ label, value, options, onChange, id }: {
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; id: string;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap gap-3 border-b">
-        {options.map((o) => (
-          <button key={o.value} role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}
-            className={cn("-mb-px border-b-2 pb-1 text-sm focus-visible:outline-2 focus-visible:outline-ring",
-              value === o.value ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            {o.label}
-          </button>
-        ))}
-      </div>
+    <div className="flex items-center gap-2">
+      <label htmlFor={id} className="text-xs text-muted-foreground">{label}</label>
+      <span className="relative inline-flex items-center">
+        <select
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value as T)}
+          className="cursor-pointer appearance-none border-b border-input bg-transparent py-1 pr-5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <ChevronDown aria-hidden className="pointer-events-none absolute right-0 size-3 text-muted-foreground" />
+      </span>
     </div>
   );
 }
