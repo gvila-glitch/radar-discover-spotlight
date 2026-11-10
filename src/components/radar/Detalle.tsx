@@ -19,7 +19,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
   );
 
   return (
-    <article className="rounded-lg border bg-card p-5" aria-label={`Detalle: ${a.entidad}`}>
+    <article className="border bg-card p-6" aria-label={`Detalle: ${a.entidad}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <PrioridadTag p={a.prioridad} /> <LlegadaTag medios={a.medios_discover} />
         <span className="font-mono">{fechaLarga(a.creada_en)}</span><span>·</span><span>{hace(a.creada_en)}</span>
@@ -28,23 +28,23 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
       <p className="mt-1 text-muted-foreground">{a.contexto}</p>
 
       <Seccion titulo="Señal">
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid divide-y border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <Bloque t="X (España)">{a.x_posicion ? <><span className="font-mono">#{a.x_posicion}</span> desde las <span className="font-mono">{a.x_desde && (esHoy(a.x_desde) ? hora24(a.x_desde) : fechaLarga(a.x_desde))}</span></> : "No"}</Bloque>
           <Bloque t="Google Trends">{a.trends_activo && a.trends_crecimiento ? <span className="font-mono">{a.trends_crecimiento}</span> : "Todavía no"}</Bloque>
           <Bloque t="Discover">{a.medios_discover > 0 ? <><span className="font-mono">{a.medios_discover}</span> {a.medios_discover === 1 ? "medio" : "medios"}<div className="mt-1 text-xs text-muted-foreground">{a.medios_lista.join(", ")}</div></> : "Nadie ha llegado aún"}</Bloque>
         </div>
       </Seccion>
 
-      <div className="mt-5 rounded-md border-l-4 border-primary bg-accent p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-accent-foreground">Ángulo sugerido · {a.seccion_sugerida}</div>
-        <p className="mt-1 text-foreground">{a.angulo}</p>
+      <div className="mt-6 border-y border-foreground/80 py-3">
+        <div className="text-xs text-muted-foreground">Ángulo sugerido <span className="text-foreground">→ {a.seccion_sugerida}</span></div>
+        <p className="mt-1 font-serif text-lg leading-snug">{a.angulo}</p>
       </div>
 
       <Seccion titulo="Lo que han sacado los medios de referencia SEO">
         {a.titulares_seo.length ? (
-          <ul className="divide-y rounded-md border">
+          <ul className="divide-y border-y">
             {a.titulares_seo.map((t, i) => (
-              <li key={i} className="px-3 py-2 text-sm"><span className="font-medium">{t.medio}</span> — {t.titular}</li>
+              <li key={i} className="flex gap-3 py-2 text-sm"><span className="w-20 shrink-0 text-muted-foreground">{t.medio}</span><span>{t.titular}</span></li>
             ))}
           </ul>
         ) : <p className="text-sm text-muted-foreground">Ningún medio de referencia ha publicado todavía sobre esto.</p>}
@@ -88,8 +88,8 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
 }
 
 function Seccion({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return <section className="mt-5"><h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h3>{children}</section>;
+  return <section className="mt-5"><h3 className="mb-2 text-sm font-semibold">{titulo}</h3>{children}</section>;
 }
 function Bloque({ t, children }: { t: string; children: React.ReactNode }) {
-  return <div className="rounded-md border bg-background p-3 text-sm"><div className="mb-1 text-xs text-muted-foreground">{t}</div>{children}</div>;
+  return <div className="p-3 text-sm"><div className="mb-1 text-xs text-muted-foreground">{t}</div>{children}</div>;
 }
