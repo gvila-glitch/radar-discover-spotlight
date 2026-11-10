@@ -1,3 +1,4 @@
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { llegada } from "@/lib/metricas";
 import type { Estado, Prioridad } from "@/lib/types";
