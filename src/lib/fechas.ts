@@ -27,7 +27,7 @@ export function desdePeriodo(p: "hoy" | "7d" | "30d" | "todo"): Date | null {
       new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" })
         .formatToParts(ahora).map((x) => [x.type, x.value]),
     );
-    const ms = ((+parts.hour * 60 + +parts.minute) * 60 + +parts.second) * 1000;
+    const ms = ((Number(parts['hour'] ?? 0) * 60 + Number(parts['minute'] ?? 0)) * 60 + Number(parts['second'] ?? 0)) * 1000;
     return new Date(ahora.getTime() - ms - ahora.getMilliseconds());
   }
   return new Date(Date.now() - (p === "7d" ? 7 : 30) * 86400_000);

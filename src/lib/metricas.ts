@@ -11,7 +11,7 @@ export function mediana(nums: number[]): number | null {
   if (!nums.length) return null;
   const s = [...nums].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 }
 
 export function kpis(alertas: Alerta[], hoyKey: (iso: string) => string, hoy: string) {

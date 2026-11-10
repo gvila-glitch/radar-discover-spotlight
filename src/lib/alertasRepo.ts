@@ -17,8 +17,8 @@ export async function listAlertas(desde: Date | null): Promise<Alerta[]> {
 
 export async function valorar(id: number, cambios: CambiosValoracion): Promise<Alerta> {
   await espera();
-  const i = db().findIndex((a) => a.id === id);
-  if (i < 0) throw new Error("Alerta no encontrada");
-  db()[i] = { ...db()[i], ...cambios };
-  return { ...db()[i] };
+  const actual = db().find((a) => a.id === id);
+  if (!actual) throw new Error("Alerta no encontrada");
+  Object.assign(actual, cambios);
+  return { ...actual };
 }
