@@ -82,6 +82,7 @@
 }
 
 :root {
+  color-scheme: light;
   --radius: 0.125rem;
   --background: oklch(0.955 0.004 250);
   --foreground: oklch(0.22 0.015 260);
@@ -111,6 +112,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.17 0.01 260);
   --foreground: oklch(0.93 0.005 250);
   --card: oklch(0.21 0.012 260);
@@ -147,5 +149,11 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+  }
+
+  /* Native <select> popups are drawn by the OS: keep their list on the app's palette. */
+  option {
+    background-color: var(--color-popover);
+    color: var(--color-popover-foreground);
   }
 }
