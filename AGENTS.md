@@ -35,3 +35,4 @@ use the editor.
 - Keep canonical portable SQL in supabase/migrations; Lovable applies schema through its migration tool and data-only SQL through the query tool.
 - Password invitations and recovery use a public reset route and the managed auth session; the root owns recovery events so protected routes never swallow password links.
 - Scheduled RSS ingestion uses a TanStack public route with authenticateCronRequest and a managed HTTP schedule; credentials stay platform-managed and XML parsing is isolated for portability and tests.
+- Trends conversion uses a cron-authenticated public route, pure tested selection rules and a server-only orchestrator; privileged alert access remains in alertasRepo so the provider contract and panel access stay isolated.

@@ -1,4 +1,6 @@
 # Cloud connection
+- [x] Create unscheduled Trends-to-alerts conversion; 21 tests passed, two manual calls created 3 then 2 distinct alerts, read back in authenticated panel; local unauthenticated POST returned 401; private credential scan found zero matches.
+- [ ] Verify Trends-to-alerts external unauthenticated POST returns 401: latest hosted preview returns 404 despite local success and build OK; requires hosted preview deployment or approved publication.
 - [x] Ingest Spain Google Trends RSS using managed cron authentication; external preview request returned 401; one manual read saved ten rows; private credential scan found zero matches.
 - [ ] Activate the scheduled production ingestion end-to-end: schedule exists every 15 minutes, but the new endpoint must be published first.
 - [x] Add 30-day Trends cleanup to the existing daily cleanup job without changing the panel or other tables.
