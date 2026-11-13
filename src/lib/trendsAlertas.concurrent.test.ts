@@ -3,6 +3,11 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { readFile } from "node:fs/promises";
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/integrations/supabase/types';
+import { conBloqueoRadar } from './jobLock.server';
+import { ingestX } from './xIngesta';
+import { vi } from 'vitest';
 
 const url = process.env["RADAR_TEST_DATABASE_URL"];
 if (url) {
@@ -20,7 +25,11 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
         trends_crecimiento: "2000+",
       }));
   beforeAll(async () => {
-    await db.unsafe(`create role anon; create role authenticated; create role service_role;
+    await db.unsafe(`DO $$ BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF;
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF;
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role; END IF;
+      END $$;
       create table public.config (clave text primary key, valor text);
       create table public.alertas (
         id bigint generated always as identity primary key, creada_en timestamptz default now(),
@@ -29,9 +38,11 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
         angulo text, seccion_sugerida text, motivo_afinidad text, estado text);
       insert into public.config values ('max_alertas_dia','8'), ('hora_inicio','0'), ('hora_fin','24');`);
     await db.unsafe(await readFile("supabase/migrations/0005_trends_alertas_atomicas.sql", "utf8"));
+    await db.unsafe(await readFile('drizzle/migrations/0005_bloqueos_ejecuciones_radar.sql', 'utf8'));
   });
   beforeEach(async () => {
     await db`delete from public.alertas`;
+    await db`delete from public.config where clave like '__job_lock_%'`;
   });
   afterAll(async () => {
     await db.end();
@@ -113,6 +124,67 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
       await db`select has_function_privilege('anon', 'public.guardar_alertas_trends_atomicas(jsonb)', 'EXECUTE') as anon,
       has_function_privilege('authenticated', 'public.guardar_alertas_trends_atomicas(jsonb)', 'EXECUTE') as usuario,
       has_function_privilege('service_role', 'public.guardar_alertas_trends_atomicas(jsonb)', 'EXECUTE') as interno`;
+    expect(rows[0]).toMatchObject({ anon: false, usuario: false, interno: true });
+  });
+
+  // Adapter to the real applied PostgreSQL RPCs, never a managed database or Apify.
+  const client = { rpc: async (fn: string, args: { trabajo: string; propietario: string }) => {
+    const rows = fn === 'adquirir_bloqueo_radar'
+      ? await db`select public.adquirir_bloqueo_radar(${args.trabajo}, ${args.propietario}::uuid) as result`
+      : await db`select public.liberar_bloqueo_radar(${args.trabajo}, ${args.propietario}::uuid) as result`;
+    return { data: rows[0]?.['result'], error: null };
+  } } as unknown as SupabaseClient<Database>;
+
+  async function twoExecutions(trabajo: 'x-ingesta' | 'trends-a-alertas', action: () => Promise<unknown>) {
+    let release: () => void = () => {}; let entered: () => void = () => {};
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const one = conBloqueoRadar(client, trabajo, async () => { entered(); await gate; return action(); });
+    await started;
+    let second: unknown;
+    try { second = await conBloqueoRadar(client, trabajo, action); } finally { release(); }
+    return [await one, second];
+  }
+
+  it('X simultaneous executions make exactly one simulated Apify call and one save', async () => {
+    const fetchApify = vi.fn().mockResolvedValue(new Response(JSON.stringify([{ rank: 1, name: 'Tema simulado' }])));
+    const save = vi.fn().mockResolvedValue(undefined);
+    const results = await twoExecutions('x-ingesta', () => ingestX({
+      now: new Date(), config: { hora_inicio: '0', hora_fin: '24' }, capturas: [],
+      token: () => 'mock-not-real', save, fetchApify,
+    }));
+    expect(fetchApify).toHaveBeenCalledTimes(1); expect(save).toHaveBeenCalledTimes(1);
+    expect(results[1]).toMatchObject({ saltada: true, motivo: 'ejecucion_en_curso', filas_guardadas: 0 });
+    const locks = await db`select count(*)::int as total from public.config where clave like '__job_lock_%'`;
+    expect(locks[0]?.['total']).toBe(0);
+  });
+
+  it('Trends simultaneous executions act once, create no duplicate and keep max_alertas_dia=8', async () => {
+    await db`insert into public.alertas (entidad) select 'Existente ' || n from generate_series(1,7) n`;
+    const action = vi.fn(async () => {
+      const rows = await db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(['[PRUEBA] Tema único', '[PRUEBA] Tema único']))}::jsonb) as result`;
+      return rows[0]?.['result'];
+    });
+    const results = await twoExecutions('trends-a-alertas', action);
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(results[1]).toMatchObject({ saltada: true, motivo: 'ejecucion_en_curso', alertas_creadas: 0 });
+    const rows = await db`select count(*)::int as total, count(*) filter (where entidad='[PRUEBA] Tema único')::int as nuevas from public.alertas`;
+    expect(rows[0]).toMatchObject({ total: 8, nuevas: 1 });
+  });
+
+  it('failed execution releases ownership; another owner cannot unlock; no unsafe automatic expiry', async () => {
+    await expect(conBloqueoRadar(client, 'x-ingesta', async () => { throw new Error('simulated failure'); })).rejects.toThrow('simulated failure');
+    const owner = crypto.randomUUID(); const other = crypto.randomUUID();
+    expect((await client.rpc('adquirir_bloqueo_radar', { trabajo: 'x-ingesta', propietario: owner })).data).toBe(true);
+    expect((await client.rpc('liberar_bloqueo_radar', { trabajo: 'x-ingesta', propietario: other })).data).toBe(false);
+    expect((await client.rpc('adquirir_bloqueo_radar', { trabajo: 'x-ingesta', propietario: other })).data).toBe(false);
+    expect((await client.rpc('liberar_bloqueo_radar', { trabajo: 'x-ingesta', propietario: owner })).data).toBe(true);
+  });
+
+  it('execution lock RPCs reject anonymous and ordinary users', async () => {
+    const rows = await db`select has_function_privilege('anon', 'public.adquirir_bloqueo_radar(text,uuid)', 'EXECUTE') as anon,
+      has_function_privilege('authenticated', 'public.liberar_bloqueo_radar(text,uuid)', 'EXECUTE') as usuario,
+      has_function_privilege('service_role', 'public.adquirir_bloqueo_radar(text,uuid)', 'EXECUTE') as interno`;
     expect(rows[0]).toMatchObject({ anon: false, usuario: false, interno: true });
   });
 });

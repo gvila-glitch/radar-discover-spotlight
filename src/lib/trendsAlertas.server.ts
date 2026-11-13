@@ -2,8 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { guardarAlertasTrends, leerAlertasParaTrends } from "./alertasRepo";
 import { inicioDiaMadrid, planificarAlertasTrends, type TendenciaAlerta } from "./trendsAlertas";
+import { conBloqueoRadar } from './jobLock.server';
 
 export async function convertirTrendsEnAlertas(client: SupabaseClient<Database>, now = new Date()) {
+  return conBloqueoRadar(client, 'trends-a-alertas', () => ejecutarConversion(client, now));
+}
+
+async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
   const trends: TendenciaAlerta[] = [];
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await client

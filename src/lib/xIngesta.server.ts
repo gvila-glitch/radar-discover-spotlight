@@ -2,8 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 import { inicioDiaMadrid } from './trendsAlertas';
 import { ingestX } from './xIngesta';
+import { conBloqueoRadar } from './jobLock.server';
 
 export async function ingestarX(client: SupabaseClient<Database>, ignorarHorario = false, now = new Date()) {
+  return conBloqueoRadar(client, 'x-ingesta', () => ejecutarX(client, ignorarHorario, now));
+}
+
+async function ejecutarX(client: SupabaseClient<Database>, ignorarHorario: boolean, now: Date) {
   const { data: settings, error: configError } = await client.from('config').select('clave,valor').in('clave', ['hora_inicio', 'hora_fin']);
   if (configError) throw new Error('No se pudo leer la configuración. No se llamó a Apify.');
   const since = new Date(Math.min(inicioDiaMadrid(now).getTime(), now.getTime() - 45 * 60_000));

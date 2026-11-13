@@ -1,4 +1,5 @@
 # Cloud connection
+- [x] Protect X and conversion with shared non-waiting execution locks; real isolated PostgreSQL plus mocked Apify simulation passed (33 tests), one action per job, no duplicate, cap 8 preserved. Schedule only X hourly at minute 00; production execution awaits publication.
 - [x] Add unscheduled X ingestion with paid-call safeguards and daily cleanup; manual capture saved 30 rows, immediate second call skipped, external preview unauthenticated POST returned 401; 13 unit tests passed.
 - [x] Add transaction-scoped concurrency protection without changing existing tables; 16 tests passed, including two genuinely blocked concurrent PostgreSQL sessions for deduplication and cap; two real local HTTP calls returned 200 with 0 creations at 8/8 today (13 total); conversion schedule absent.
 - [x] Create unscheduled Trends-to-alerts conversion; 21 tests passed, two manual calls created 3 then 2 distinct alerts, read back in authenticated panel; local unauthenticated POST returned 401; private credential scan found zero matches.

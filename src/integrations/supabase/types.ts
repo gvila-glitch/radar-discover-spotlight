@@ -306,10 +306,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adquirir_bloqueo_radar: {
+        Args: { propietario: string; trabajo: string }
+        Returns: boolean
+      }
       es_equipo: { Args: never; Returns: boolean }
       guardar_alertas_trends_atomicas: {
         Args: { candidatas: Json }
         Returns: Json
+      }
+      liberar_bloqueo_radar: {
+        Args: { propietario: string; trabajo: string }
+        Returns: boolean
       }
       limpiar_snoop: { Args: never; Returns: undefined }
       limpiar_trends: { Args: never; Returns: undefined }

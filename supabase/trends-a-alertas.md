@@ -1,6 +1,7 @@
 # Trends a alertas
 
 - HTTP boundary: `POST /api/public/trends-a-alertas`, empty JSON object; no schedule created.
+- A durable non-waiting execution lock covers the entire conversion: only the owner acts, concurrent calls skip immediately. Owner-checked release in finally; crashes require verified manual recovery (no unsafe expiry). Final transactional deduplication and daily-cap validation remain active independently.
 - The managed cron authentication helper verifies the private bearer credential before imports, reads or writes. Missing credentials return 401; ordinary user tokens do not authorize the job.
 - This modern project uses a TanStack server route, not a new Edge Function under `supabase/functions`.
 - Rules and tests: `src/lib/trendsAlertas.ts` and `src/lib/trendsAlertas.test.ts`. Privileged orchestration: `src/lib/trendsAlertas.server.ts`; all alert reads and writes remain in `src/lib/alertasRepo.ts`.

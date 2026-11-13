@@ -32,7 +32,7 @@ describe.skipIf(!gateway)('Permisos reales del panel', () => {
     expect(rows[0]?.['prosrc']).toContain("email = auth.jwt()->>'email'");
   });
   it('config conserva los seis valores solicitados', async () => {
-    const rows = await query('select clave, valor from public.config order by clave');
+    const rows = await query("select clave, valor from public.config where clave not like '__job_lock_%' order by clave");
     expect(Object.fromEntries(rows.map(r => [r['clave'], r['valor']]))).toEqual({ perfil_editorial: '', max_alertas_dia: '8', hora_inicio: '7', hora_fin: '24', umbral_alta_medios: '2', umbral_media_medios: '5' });
   });
   it('la limpieza elimina solo artículos de más de 30 días', async () => {
