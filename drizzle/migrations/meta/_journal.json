@@ -15,6 +15,13 @@
       "when": 1794590889697,
       "tag": "0001_limpieza_snoop",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794593031670,
+      "tag": "0002_0004_cron_trends",
+      "breakpoints": true
     }
   ]
 }

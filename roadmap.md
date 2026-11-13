@@ -1,4 +1,7 @@
 # Cloud connection
+- [x] Ingest Spain Google Trends RSS using managed cron authentication; external preview request returned 401; one manual read saved ten rows; private credential scan found zero matches.
+- [ ] Activate the scheduled production ingestion end-to-end: schedule exists every 15 minutes, but the new endpoint must be published first.
+- [x] Add 30-day Trends cleanup to the existing daily cleanup job without changing the panel or other tables.
 - [x] Refresh the eight existing test alerts with fictional political current-affairs scenarios, preserving signals and valuations.
 - [x] Prepare and insert eight fictional test alerts once; verify total; save cleanup without executing.
 - [x] Add secure password setup and forgotten-password flows without signup.

@@ -308,6 +308,7 @@ export type Database = {
     Functions: {
       es_equipo: { Args: never; Returns: boolean }
       limpiar_snoop: { Args: never; Returns: undefined }
+      limpiar_trends: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never
