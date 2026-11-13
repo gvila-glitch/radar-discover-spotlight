@@ -13,6 +13,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -34,6 +35,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicTrendsAAlertasRoute = ApiPublicTrendsAAlertasRouteImport.update({
+  id: '/api/public/trends-a-alertas',
+  path: '/api/public/trends-a-alertas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTrendsIngestaRoute = ApiPublicTrendsIngestaRouteImport.update({
   id: '/api/public/trends-ingesta',
   path: '/api/public/trends-ingesta',
@@ -44,12 +50,14 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
 }
 export interface FileRoutesById {
@@ -58,19 +66,31 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/reset-password' | '/api/public/trends-ingesta'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/reset-password'
+    | '/api/public/trends-a-alertas'
+    | '/api/public/trends-ingesta'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/reset-password' | '/' | '/api/public/trends-ingesta'
+  to:
+    | '/auth'
+    | '/reset-password'
+    | '/'
+    | '/api/public/trends-a-alertas'
+    | '/api/public/trends-ingesta'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
     | '/_authenticated/'
+    | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
   fileRoutesById: FileRoutesById
 }
@@ -78,6 +98,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicTrendsAAlertasRoute: typeof ApiPublicTrendsAAlertasRoute
   ApiPublicTrendsIngestaRoute: typeof ApiPublicTrendsIngestaRoute
 }
 
@@ -111,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/trends-a-alertas': {
+      id: '/api/public/trends-a-alertas'
+      path: '/api/public/trends-a-alertas'
+      fullPath: '/api/public/trends-a-alertas'
+      preLoaderRoute: typeof ApiPublicTrendsAAlertasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/trends-ingesta': {
       id: '/api/public/trends-ingesta'
       path: '/api/public/trends-ingesta'
@@ -136,6 +164,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicTrendsAAlertasRoute: ApiPublicTrendsAAlertasRoute,
   ApiPublicTrendsIngestaRoute: ApiPublicTrendsIngestaRoute,
 }
 export const routeTree = rootRouteImport
