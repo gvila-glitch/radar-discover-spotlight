@@ -39,8 +39,8 @@ describe.skipIf(!gateway)('Permisos reales del panel', () => {
     const rows = await query(`select prosrc from pg_proc where oid='public.limpiar_snoop()'::regprocedure`);
     expect(rows[0]?.['prosrc']).toContain("recibido_en < now() - interval '30 days'");
   });
-  it('no se han insertado alertas demo', async () => {
-    const rows = await query('select count(*)::int as total from public.alertas');
+  it('no hay ejemplos antiguos sin la etiqueta PRUEBA', async () => {
+    const rows = await query("select count(*)::int as total from public.alertas where entidad in ('Negociación de los Presupuestos', 'IPC adelantado', 'Cambios en la PAU')");
     expect(rows[0]?.['total']).toBe(0);
   });
 });

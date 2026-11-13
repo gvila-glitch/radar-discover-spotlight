@@ -1,4 +1,5 @@
 # Cloud connection
+- [x] Prepare and insert eight fictional test alerts once; verify total; save cleanup without executing.
 - [x] Add secure password setup and forgotten-password flows without signup.
 - [ ] Verify email-link delivery and password save on the published app: requires publishing and the user opening their private email link.
 - [x] Apply portable schema and restricted permissions.
