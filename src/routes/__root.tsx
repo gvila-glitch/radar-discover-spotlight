@@ -127,9 +127,23 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   useEffect(() => {
+    const type = new URLSearchParams(window.location.hash.slice(1)).get('type');
+    if (type === 'invite' || type === 'recovery') {
+      sessionStorage.setItem('radar-password-link', 'true');
+      if (window.location.pathname !== '/reset-password') {
+        void supabase.auth.getUser().then(({ data }) => {
+          if (data.user) void router.navigate({ to: '/reset-password' });
+        });
+      }
+    }
     const { data } = supabase.auth.onAuthStateChange(event => {
+      if (event === 'PASSWORD_RECOVERY') {
+        sessionStorage.setItem('radar-password-link', 'true');
+        if (window.location.pathname !== '/reset-password') void router.navigate({ to: '/reset-password' });
+        return;
+      }
       if (!['SIGNED_IN', 'SIGNED_OUT', 'USER_UPDATED'].includes(event)) return;
-      if (event === 'SIGNED_OUT') queryClient.clear();
+      if (event === 'SIGNED_OUT') { queryClient.clear(); sessionStorage.removeItem('radar-password-link'); }
       void router.invalidate();
       if (event !== 'SIGNED_OUT') void queryClient.invalidateQueries();
     });

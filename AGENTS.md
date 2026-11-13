@@ -33,3 +33,4 @@ use the editor.
 - All alert reads and writes go through src/lib/alertasRepo.ts; keep its listAlertas and valorar contract to isolate the data provider.
 - The authenticated layout owns session and team gating; RLS and column grants enforce access independently of the UI.
 - Keep canonical portable SQL in supabase/migrations; Lovable applies schema through its migration tool and data-only SQL through the query tool.
+- Password invitations and recovery use a public reset route and the managed auth session; the root owns recovery events so protected routes never swallow password links.
