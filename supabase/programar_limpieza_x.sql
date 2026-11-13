@@ -1,0 +1,2 @@
+-- Preserve existing daily 03:00 UTC cleanup; no X ingestion schedule.
+select cron.alter_job(1, command := 'select public.limpiar_snoop(); select public.limpiar_trends(); select public.limpiar_x_tendencias();');

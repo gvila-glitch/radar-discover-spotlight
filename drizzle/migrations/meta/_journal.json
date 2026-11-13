@@ -29,6 +29,13 @@
       "when": 1794594914531,
       "tag": "0003_trends_alertas_atomicas",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794596711837,
+      "tag": "0004_limpiar_x_tendencias",
+      "breakpoints": true
     }
   ]
 }

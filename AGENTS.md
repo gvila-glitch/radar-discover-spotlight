@@ -37,3 +37,4 @@ use the editor.
 - Scheduled RSS ingestion uses a TanStack public route with authenticateCronRequest and a managed HTTP schedule; credentials stay platform-managed and XML parsing is isolated for portability and tests.
 - Trends conversion uses a cron-authenticated public route, pure tested selection rules and a server-only orchestrator; privileged alert access remains in alertasRepo so the provider contract and panel access stay isolated.
 - Trends conversion commits through a service-role-only PostgreSQL RPC with a transaction-scoped advisory lock and fresh deduplication/day-cap/hour checks; a worker-local mutex cannot serialize distributed executions.
+- X ingestion isolates parsing/cost preflight in tested pure logic and privileged orchestration in a server-only module; use the explicitly requested plain provider secret, never retry paid calls automatically, and append cleanup to the existing SQL job.

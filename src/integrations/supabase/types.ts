@@ -313,6 +313,7 @@ export type Database = {
       }
       limpiar_snoop: { Args: never; Returns: undefined }
       limpiar_trends: { Args: never; Returns: undefined }
+      limpiar_x_tendencias: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

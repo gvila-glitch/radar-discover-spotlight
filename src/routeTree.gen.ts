@@ -15,6 +15,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
+import { Route as ApiPublicXIngestaRouteImport } from './routes/api/public/x-ingesta'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -45,6 +46,11 @@ const ApiPublicTrendsIngestaRoute = ApiPublicTrendsIngestaRouteImport.update({
   path: '/api/public/trends-ingesta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicXIngestaRoute = ApiPublicXIngestaRouteImport.update({
+  id: '/api/public/x-ingesta',
+  path: '/api/public/x-ingesta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
+  '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
+  '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
+  '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
+    | '/api/public/x-ingesta'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
+    | '/api/public/x-ingesta'
   id:
     | '__root__'
     | '/_authenticated'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
+    | '/api/public/x-ingesta'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -100,6 +112,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicTrendsAAlertasRoute: typeof ApiPublicTrendsAAlertasRoute
   ApiPublicTrendsIngestaRoute: typeof ApiPublicTrendsIngestaRoute
+  ApiPublicXIngestaRoute: typeof ApiPublicXIngestaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTrendsIngestaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/x-ingesta': {
+      id: '/api/public/x-ingesta'
+      path: '/api/public/x-ingesta'
+      fullPath: '/api/public/x-ingesta'
+      preLoaderRoute: typeof ApiPublicXIngestaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -166,6 +186,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicTrendsAAlertasRoute: ApiPublicTrendsAAlertasRoute,
   ApiPublicTrendsIngestaRoute: ApiPublicTrendsIngestaRoute,
+  ApiPublicXIngestaRoute: ApiPublicXIngestaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
