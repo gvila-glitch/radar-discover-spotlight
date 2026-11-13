@@ -10,10 +10,13 @@ export async function conBloqueoRadar<T>(client: SupabaseClient<Database>, traba
   try { return await actuar(); }
   finally {
     const { data: released, error: releaseError } = await client.rpc('liberar_bloqueo_radar', { trabajo, propietario });
-    if (releaseError || released !== true) {
-      // Fail closed: no automatic expiry/takeover that could overlap a stalled paid call.
-      console.error(`[${trabajo}] No se pudo liberar el bloqueo; se requiere revisión antes de ejecutar de nuevo.`);
-      throw new Error('No se pudo liberar el bloqueo. Revisa el resultado antes de repetir la ejecución.');
+    if (releaseError) {
+      console.error(`[${trabajo}] No se pudo liberar el bloqueo; caducará automáticamente a los cinco minutos de su adquisición.`);
+      throw new Error('No se pudo liberar el bloqueo; caducará automáticamente a los cinco minutos.');
+    }
+    if (released !== true) {
+      // A previous owner must never release a lease acquired after its expiry.
+      console.warn(`[${trabajo}] El bloqueo ya no pertenece a esta ejecución.`);
     }
   }
 }

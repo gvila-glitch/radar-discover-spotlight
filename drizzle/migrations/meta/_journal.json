@@ -43,6 +43,13 @@
       "when": 1794597028280,
       "tag": "0005_bloqueos_ejecuciones_radar",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794597354626,
+      "tag": "0006_bloqueos_caducidad",
+      "breakpoints": true
     }
   ]
 }

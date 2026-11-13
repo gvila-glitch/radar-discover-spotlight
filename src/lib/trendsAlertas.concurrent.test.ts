@@ -39,6 +39,7 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
       insert into public.config values ('max_alertas_dia','8'), ('hora_inicio','0'), ('hora_fin','24');`);
     await db.unsafe(await readFile("supabase/migrations/0005_trends_alertas_atomicas.sql", "utf8"));
     await db.unsafe(await readFile('drizzle/migrations/0005_bloqueos_ejecuciones_radar.sql', 'utf8'));
+    await db.unsafe(await readFile('drizzle/migrations/0006_bloqueos_caducidad.sql', 'utf8'));
   });
   beforeEach(async () => {
     await db`delete from public.alertas`;
@@ -172,7 +173,7 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
     expect(rows[0]).toMatchObject({ total: 8, nuevas: 1 });
   });
 
-  it('failed execution releases ownership; another owner cannot unlock; no unsafe automatic expiry', async () => {
+  it('failed execution releases ownership; another owner cannot unlock an active lease', async () => {
     await expect(conBloqueoRadar(client, 'x-ingesta', async () => { throw new Error('simulated failure'); })).rejects.toThrow('simulated failure');
     const owner = crypto.randomUUID(); const other = crypto.randomUUID();
     expect((await client.rpc('adquirir_bloqueo_radar', { trabajo: 'x-ingesta', propietario: owner })).data).toBe(true);
@@ -180,6 +181,44 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
     expect((await client.rpc('adquirir_bloqueo_radar', { trabajo: 'x-ingesta', propietario: other })).data).toBe(false);
     expect((await client.rpc('liberar_bloqueo_radar', { trabajo: 'x-ingesta', propietario: owner })).data).toBe(true);
   });
+
+  for (const trabajo of ['x-ingesta', 'trends-a-alertas'] as const) {
+    it(`${trabajo}: interrupted lease expires after exactly five minutes and recovery acts once`, async () => {
+      const owner = crypto.randomUUID();
+      const key = '__job_lock_' + trabajo;
+      const before = await db`select clock_timestamp() as time`;
+      expect((await client.rpc('adquirir_bloqueo_radar', { trabajo, propietario: owner })).data).toBe(true);
+      const lease = await db`select valor::jsonb as value, clock_timestamp() as time from public.config where clave=${key}`;
+      const expiry = new Date(lease[0]?.['value'].expira_en).getTime();
+      expect(expiry - new Date(before[0]?.['time']).getTime()).toBeGreaterThanOrEqual(300_000);
+      expect(expiry - new Date(lease[0]?.['time']).getTime()).toBeLessThanOrEqual(300_000);
+
+      // Simulate a crash: never release. Advance lease age, not the real provider.
+      await db`update public.config set valor=jsonb_set(valor::jsonb, '{expira_en}', to_jsonb(clock_timestamp() + interval '1 second'))::text where clave=${key}`;
+      const blockedAction = vi.fn();
+      expect(await conBloqueoRadar(client, trabajo, blockedAction)).toMatchObject({ motivo: 'ejecucion_en_curso' });
+      expect(blockedAction).not.toHaveBeenCalled();
+      await db`update public.config set valor=jsonb_set(valor::jsonb, '{expira_en}', to_jsonb(clock_timestamp()))::text where clave=${key}`;
+      const fetchApify = vi.fn().mockResolvedValue(new Response(JSON.stringify([{ rank: 1, name: 'Tema simulado' }])));
+      const save = vi.fn().mockResolvedValue(undefined);
+      const action = vi.fn(async () => {
+        // Late finally from the interrupted owner must not delete the new lease.
+        expect((await client.rpc('liberar_bloqueo_radar', { trabajo, propietario: owner })).data).toBe(false);
+        if (trabajo === 'x-ingesta') return ingestX({ now: new Date(), config: { hora_inicio: '0', hora_fin: '24' }, capturas: [], token: () => 'mock-not-real', save, fetchApify });
+        const rows = await db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(['[PRUEBA] Recuperación', '[PRUEBA] Recuperación']))}::jsonb) as result`;
+        return rows[0]?.['result'];
+      });
+      if (trabajo === 'trends-a-alertas') await db`insert into public.alertas (entidad) select 'Existente ' || n from generate_series(1,7) n`;
+      const results = await twoExecutions(trabajo, action);
+      expect(action).toHaveBeenCalledTimes(1);
+      expect(results[1]).toMatchObject({ motivo: 'ejecucion_en_curso' });
+      if (trabajo === 'x-ingesta') { expect(fetchApify).toHaveBeenCalledTimes(1); expect(save).toHaveBeenCalledTimes(1); }
+      else {
+        const rows = await db`select count(*)::int as total, count(*) filter (where entidad='[PRUEBA] Recuperación')::int as nuevas from public.alertas`;
+        expect(rows[0]).toMatchObject({ total: 8, nuevas: 1 });
+      }
+    });
+  }
 
   it('execution lock RPCs reject anonymous and ordinary users', async () => {
     const rows = await db`select has_function_privilege('anon', 'public.adquirir_bloqueo_radar(text,uuid)', 'EXECUTE') as anon,
