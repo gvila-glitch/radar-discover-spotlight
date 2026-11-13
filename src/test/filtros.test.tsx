@@ -1,9 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { Index } from "@/routes/index";
+import { Index } from "@/routes/_authenticated/index";
 
+import { crearDemoAlertas } from '@/data/demoAlertas';
+vi.mock('@/lib/alertasRepo', () => ({ listAlertas: vi.fn(async () => crearDemoAlertas()), valorar: vi.fn() }));
 // Datos de ejemplo: 8 alertas en los últimos 7 días (la más antigua, hace 65 h).
 // estado "ruido" -> 1 (Comparecencia en el Congreso); prioridad "alta" -> 4.
 function renderPanel() {

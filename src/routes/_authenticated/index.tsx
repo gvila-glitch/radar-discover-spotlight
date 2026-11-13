@@ -4,14 +4,17 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { listAlertas, valorar, USUARIO_DEMO } from "@/lib/alertasRepo";
+import { listAlertas, valorar } from "@/lib/alertasRepo";
 import { desdePeriodo, claveDia, horaOFecha } from "@/lib/fechas";
 import { kpis } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
 import { EstadoTag, LlegadaTag, PrioridadTag, Selector } from "@/components/radar/ui";
+import { usePanelEmail } from '@/lib/panelAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 import { Detalle } from "@/components/radar/Detalle";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   ssr: false,
   head: () => ({
     meta: [
@@ -29,6 +32,7 @@ export const Route = createFileRoute("/")({
 type Periodo = "hoy" | "7d" | "30d" | "todo";
 
 export function Index() {
+  const email = usePanelEmail();
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [prio, setPrio] = useState<"todas" | Prioridad>("todas");
   const [estado, setEstado] = useState<"todos" | Estado>("todos");
@@ -38,7 +42,7 @@ export function Index() {
 
   const qc = useQueryClient();
   const key = ["alertas", periodo];
-  const { data = [], isLoading } = useQuery({ queryKey: key, queryFn: () => listAlertas(desdePeriodo(periodo)) });
+  const { data = [], isLoading, isError } = useQuery({ queryKey: key, queryFn: () => listAlertas(desdePeriodo(periodo)) });
 
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
   const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && (estado === "todos" || a.estado === estado));
@@ -47,10 +51,10 @@ export function Index() {
   const restablecer = () => { setPrio("todas"); setEstado("todos"); setPeriodo("7d"); };
 
   async function onValorar(a: Alerta, nuevo: Estado, pieza_url: string | null = null) {
-    const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: USUARIO_DEMO };
+    const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: email };
     const prev = qc.getQueryData<Alerta[]>(key);
     qc.setQueryData<Alerta[]>(key, (l) => l?.map((x) => (x.id === a.id ? { ...x, ...cambios } : x)));
-    try { await valorar(a.id, cambios); }
+    try { const saved = await valorar(a.id, cambios); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? saved : x)); }
     catch { qc.setQueryData(key, prev); toast.error("No se pudo guardar la valoración. Inténtalo de nuevo."); }
     finally { qc.invalidateQueries({ queryKey: ["alertas"], refetchType: "none" }); }
   }
@@ -72,8 +76,8 @@ export function Index() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
           <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
           <span className="text-xs text-muted-foreground">prototipo</span>
-          <span className="ml-auto font-mono text-xs text-warn">Modo demo · datos de ejemplo</span>
-          <span className="text-xs text-muted-foreground">Usuario: {USUARIO_DEMO}</span>
+          <span className="ml-auto break-all text-xs text-muted-foreground">Usuario: {email}</span>
+          <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>
           <button onClick={() => setDark((d) => !d)} aria-label={dark ? "Modo claro" : "Modo oscuro"} className="rounded-md border p-1.5 hover:bg-muted">
             {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
           </button>
@@ -106,7 +110,8 @@ export function Index() {
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div className="border bg-card">
-            {isLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando alertas…</p>
+            {isError ? <p role="alert" className="p-4 text-sm text-destructive">No se pudieron cargar las alertas. Inténtalo de nuevo.</p>
+              : isLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando alertas…</p>
               : visibles.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No hay alertas con estos filtros.</p>
               : (
                 <ul ref={listRef} role="listbox" aria-label="Alertas" onKeyDown={onKey} className="divide-y">

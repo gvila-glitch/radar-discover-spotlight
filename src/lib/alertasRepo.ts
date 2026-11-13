@@ -1,24 +1,32 @@
-// Único punto de acceso a datos. Sustituir por llamadas a Supabase más adelante.
-import { crearDemoAlertas } from "@/data/demoAlertas";
-import type { Alerta, CambiosValoracion } from "./types";
-
-export const USUARIO_DEMO = "demo";
-let store: Alerta[] | null = null;
-const db = () => (store ??= crearDemoAlertas());
-const espera = () => new Promise((r) => setTimeout(r, 250));
-
+// Único acceso a alertas: el cliente aplica RLS como el usuario.
+import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+import type { Alerta, CambiosValoracion } from './types';
+const rowSchema = z.object({
+  prioridad: z.enum(['alta', 'media']), estado: z.enum(['pendiente', 'util', 'ruido', 'publicada']),
+  titulares_seo: z.array(z.object({ medio: z.string(), titular: z.string() })),
+}).passthrough();
+function alerta(row: unknown): Alerta { return rowSchema.parse(row) as unknown as Alerta; }
 export async function listAlertas(desde: Date | null): Promise<Alerta[]> {
-  await espera();
-  return db()
-    .filter((a) => !desde || new Date(a.creada_en) >= desde)
-    .sort((a, b) => b.creada_en.localeCompare(a.creada_en))
-    .map((a) => ({ ...a }));
+  const rows: Alerta[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    let query = supabase.from('alertas').select('*').order('creada_en', { ascending: false }).order('id', { ascending: false }).range(offset, offset + 999);
+    if (desde) query = query.gte('creada_en', desde.toISOString());
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data ?? []).map(alerta));
+    if (!data || data.length < 1000) return rows;
+  }
 }
-
 export async function valorar(id: number, cambios: CambiosValoracion): Promise<Alerta> {
-  await espera();
-  const actual = db().find((a) => a.id === id);
-  if (!actual) throw new Error("Alerta no encontrada");
-  Object.assign(actual, cambios);
-  return { ...actual };
+  const { data: identity, error: authError } = await supabase.auth.getUser();
+  if (authError || !identity.user?.email) throw new Error('Sesión no válida');
+  const { data, error } = await supabase.from('alertas').update({
+    estado: cambios.estado,
+    pieza_url: cambios.estado === 'publicada' ? cambios.pieza_url : null,
+    estado_actualizado_en: cambios.estado_actualizado_en,
+    estado_por: identity.user.email,
+  }).eq('id', id).select('*').single();
+  if (error) throw error;
+  return alerta(data);
 }

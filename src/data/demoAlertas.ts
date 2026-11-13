@@ -6,7 +6,7 @@ export function crearDemoAlertas(): Alerta[] {
   return [
     {
       id: 8, creada_en: h(0.4), entidad: "Negociación de los Presupuestos", contexto: "Reunión clave entre Gobierno y socios parlamentarios esta tarde",
-      prioridad: "alta", x_posicion: 3, x_desde: h(1.2), trends_activo: true, trends_crecimiento: "+400 %",
+      prioridad: "alta", x_posicion: 3, x_desde: h(1.2), trends_activo: true, trends_crecimiento: "2000+",
       medios_discover: 1, medios_lista: ["Medio A"],
       titulares_seo: [{ medio: "Medio A", titular: "Titular de ejemplo: claves de la negociación presupuestaria" }],
       angulo: "Qué partidas están en juego y qué cambia para cada comunidad si no hay acuerdo", seccion_sugerida: "Política",
@@ -15,7 +15,7 @@ export function crearDemoAlertas(): Alerta[] {
     },
     {
       id: 7, creada_en: h(2.5), entidad: "IPC adelantado", contexto: "El INE publica el dato adelantado de inflación del mes",
-      prioridad: "media", x_posicion: null, x_desde: null, trends_activo: true, trends_crecimiento: "+180 %",
+      prioridad: "media", x_posicion: null, x_desde: null, trends_activo: true, trends_crecimiento: "1000+",
       medios_discover: 0, medios_lista: [], titulares_seo: [],
       angulo: "Explicador: qué componentes empujan la inflación y cómo afecta a la cesta de la compra", seccion_sugerida: "Economía",
       motivo_afinidad: "Dato macro con lectura práctica para el lector; nuestra sección de Economía tiene buen rendimiento en explicadores.",
@@ -23,7 +23,7 @@ export function crearDemoAlertas(): Alerta[] {
     },
     {
       id: 6, creada_en: h(5), entidad: "Ley de vivienda: topes al alquiler", contexto: "Nuevas zonas tensionadas declaradas en varias ciudades",
-      prioridad: "alta", x_posicion: 7, x_desde: h(6), trends_activo: true, trends_crecimiento: "+250 %",
+      prioridad: "alta", x_posicion: 7, x_desde: h(6), trends_activo: true, trends_crecimiento: "5000+",
       medios_discover: 4, medios_lista: ["Medio A", "Medio B", "Medio C", "Medio D"],
       titulares_seo: [
         { medio: "Medio B", titular: "Titular de ejemplo: así quedan los alquileres en las zonas tensionadas" },
@@ -44,7 +44,7 @@ export function crearDemoAlertas(): Alerta[] {
     },
     {
       id: 4, creada_en: h(26), entidad: "Tipos de interés del BCE", contexto: "Reunión del Consejo de Gobierno del BCE esta semana",
-      prioridad: "alta", x_posicion: 5, x_desde: h(28), trends_activo: true, trends_crecimiento: "+300 %",
+      prioridad: "alta", x_posicion: 5, x_desde: h(28), trends_activo: true, trends_crecimiento: "10000+",
       medios_discover: 2, medios_lista: ["Medio B", "Medio F"],
       titulares_seo: [
         { medio: "Medio B", titular: "Titular de ejemplo: qué esperar de la decisión del BCE" },
@@ -64,7 +64,7 @@ export function crearDemoAlertas(): Alerta[] {
     },
     {
       id: 2, creada_en: h(50), entidad: "Premio de novela", contexto: "Fallo de un importante premio literario con polémica sobre el jurado",
-      prioridad: "media", x_posicion: 15, x_desde: h(52), trends_activo: true, trends_crecimiento: "+120 %",
+      prioridad: "media", x_posicion: 15, x_desde: h(52), trends_activo: true, trends_crecimiento: "500+",
       medios_discover: 0, medios_lista: [], titulares_seo: [],
       angulo: "Contexto: historia del premio y el debate sobre la independencia de los jurados", seccion_sugerida: "Cultura",
       motivo_afinidad: "Debate cultural con trasfondo, ideal para nuestra sección de Cultura y su público fiel.",
