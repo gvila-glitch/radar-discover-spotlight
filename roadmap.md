@@ -1,4 +1,5 @@
 # Cloud connection
+- [x] Add transaction-scoped concurrency protection without changing existing tables; 16 tests passed, including two genuinely blocked concurrent PostgreSQL sessions for deduplication and cap; two real local HTTP calls returned 200 with 0 creations at 8/8 today (13 total); conversion schedule absent.
 - [x] Create unscheduled Trends-to-alerts conversion; 21 tests passed, two manual calls created 3 then 2 distinct alerts, read back in authenticated panel; local unauthenticated POST returned 401; private credential scan found zero matches.
 - [ ] Verify Trends-to-alerts external unauthenticated POST returns 401: latest hosted preview returns 404 despite local success and build OK; requires hosted preview deployment or approved publication.
 - [x] Ingest Spain Google Trends RSS using managed cron authentication; external preview request returned 401; one manual read saved ten rows; private credential scan found zero matches.

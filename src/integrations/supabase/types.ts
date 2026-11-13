@@ -307,6 +307,10 @@ export type Database = {
     }
     Functions: {
       es_equipo: { Args: never; Returns: boolean }
+      guardar_alertas_trends_atomicas: {
+        Args: { candidatas: Json }
+        Returns: Json
+      }
       limpiar_snoop: { Args: never; Returns: undefined }
       limpiar_trends: { Args: never; Returns: undefined }
     }

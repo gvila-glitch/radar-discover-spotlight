@@ -1,0 +1,118 @@
+// @vitest-environment node
+// Run only against an isolated disposable PostgreSQL database, never the managed DB.
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import postgres from "postgres";
+import { readFile } from "node:fs/promises";
+
+const url = process.env["RADAR_TEST_DATABASE_URL"];
+if (url) {
+  const target = new URL(url);
+  if (target.hostname !== "127.0.0.1" || target.port !== "55432") {
+    throw new Error("Concurrency tests require the disposable local database on 127.0.0.1:55432.");
+  }
+}
+describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () => {
+  const db = postgres(url ?? "postgres://localhost/unused", { max: 4, ssl: false });
+  const candidates = (names: string[]) =>
+      names.map((entidad) => ({
+        entidad,
+        contexto: "Titular de ejemplo de concurrencia",
+        trends_crecimiento: "2000+",
+      }));
+  beforeAll(async () => {
+    await db.unsafe(`create role anon; create role authenticated; create role service_role;
+      create table public.config (clave text primary key, valor text);
+      create table public.alertas (
+        id bigint generated always as identity primary key, creada_en timestamptz default now(),
+        entidad text not null, contexto text, prioridad text, trends_activo boolean, trends_crecimiento text,
+        x_posicion integer, x_desde timestamptz, medios_discover integer, medios_lista text[], titulares_seo jsonb,
+        angulo text, seccion_sugerida text, motivo_afinidad text, estado text);
+      insert into public.config values ('max_alertas_dia','8'), ('hora_inicio','0'), ('hora_fin','24');`);
+    await db.unsafe(await readFile("supabase/migrations/0005_trends_alertas_atomicas.sql", "utf8"));
+  });
+  beforeEach(async () => {
+    await db`delete from public.alertas`;
+  });
+  afterAll(async () => {
+    await db.end();
+  });
+
+  // Deliberately hold the real lock; confirm both sessions are waiting before release.
+  async function overlap(first: string[], second: string[]) {
+    let release: () => void = () => {};
+    let ready: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const locked = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const blocker = db.begin(async (tx) => {
+      await tx`select pg_advisory_xact_lock(734210, 1)`;
+      ready();
+      await gate;
+    });
+    await locked;
+    const one =
+      db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(first))}::jsonb) as result`.execute();
+    const two =
+      db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(second))}::jsonb) as result`.execute();
+    let waiting = 0;
+    try {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const rows =
+          await db`select count(*)::int as count from pg_locks where locktype = 'advisory' and not granted and classid = 734210 and objid = 1`;
+        waiting = rows[0]?.["count"] ?? 0;
+        if (waiting === 2) break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    } finally {
+      release();
+    }
+    const results = await Promise.all([one, two]);
+    await blocker;
+    expect(waiting).toBe(2);
+    return results.map((rows) => rows[0]?.["result"]);
+  }
+
+  it("two overlapping executions cannot duplicate a normalized entity", async () => {
+    const results = await overlap(["[PRUEBA] Debate Ficticio"], ["DEBATE FICTICIO"]);
+    expect(results.map((r) => r.creadas.length).sort()).toEqual([0, 1]);
+    expect(results.flatMap((r) => r.descartadas).map((d) => d.motivo)).toEqual(["ya_avisada"]);
+    const count = await db`select count(*)::int as total from public.alertas`;
+    expect(count[0]?.["total"]).toBe(1);
+  });
+  it("two overlapping executions cannot exceed max_alertas_dia=8 with one place left", async () => {
+    await db`insert into public.alertas (entidad) select 'Existente ' || n from generate_series(1,7) n`;
+    const results = await overlap(["[PRUEBA] Tema A"], ["[PRUEBA] Tema B"]);
+    expect(results.map((r) => r.creadas.length).sort()).toEqual([0, 1]);
+    expect(results.flatMap((r) => r.descartadas).map((d) => d.motivo)).toEqual(["tope_diario"]);
+    const count = await db`select count(*)::int as total from public.alertas`;
+    expect(count[0]?.["total"]).toBe(8);
+  });
+  it("rollback releases the lock and removes the entire failed batch", async () => {
+    const batch = [{ entidad: "[PRUEBA] Válida" }, { entidad: null }];
+    // Null is discarded, so provoke a SQL error by passing a non-array, then call again.
+    await expect(db`select public.guardar_alertas_trends_atomicas('{}'::jsonb)`).rejects.toThrow();
+    await db
+      .begin(async (tx) => {
+        await tx`select public.guardar_alertas_trends_atomicas(${tx.json(batch)}::jsonb)`;
+        throw new Error("forced rollback");
+      })
+      .catch((error) => {
+        expect(error.message).toBe("forced rollback");
+      });
+    const rows =
+      await db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(["[PRUEBA] Válida"]))}::jsonb) as result`;
+    expect(rows[0]?.["result"].creadas).toHaveLength(1);
+    const count = await db`select count(*)::int as total from public.alertas`;
+    expect(count[0]?.["total"]).toBe(1);
+  });
+  it("ordinary users and anonymous callers cannot execute the privileged RPC", async () => {
+    const rows =
+      await db`select has_function_privilege('anon', 'public.guardar_alertas_trends_atomicas(jsonb)', 'EXECUTE') as anon,
+      has_function_privilege('authenticated', 'public.guardar_alertas_trends_atomicas(jsonb)', 'EXECUTE') as usuario,
+      has_function_privilege('service_role', 'public.guardar_alertas_trends_atomicas(jsonb)', 'EXECUTE') as interno`;
+    expect(rows[0]).toMatchObject({ anon: false, usuario: false, interno: true });
+  });
+});
