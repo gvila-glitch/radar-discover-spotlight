@@ -32,6 +32,3 @@ describe.skipIf(!process.env['AGW_URL'])('Alertas ficticias cargadas', () => {
     expect(data[0]?.['enlaces']).toBe(1);
   });
 });
-it('la limpieza guardada afecta solo a entidades etiquetadas PRUEBA', () => {
-  expect(readFileSync('supabase/limpiar_pruebas.sql', 'utf8')).toContain("delete from alertas where entidad like '[PRUEBA] %';");
-});

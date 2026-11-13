@@ -1,4 +1,5 @@
 # Cloud connection
+- [x] Removed 13 PRUEBA alerts once; new conversion entities use SIN DISCOVER and both prefixes deduplicate; cleanup updated without rerunning on live data. 24 tests passed; three sequential conversions created 3+3+2, total 8 verified in database and signed-in panel; schedules and locks unchanged.
 - [x] Both execution locks expire after five minutes; applied function definitions verified, 34 tests passed including interrupted-run recovery and concurrent takeover using isolated PostgreSQL and mocked Apify; schedules unchanged.
 - [x] Protect X and conversion with shared non-waiting execution locks; real isolated PostgreSQL plus mocked Apify simulation passed (33 tests), one action per job, no duplicate, cap 8 preserved. Schedule only X hourly at minute 00; production execution awaits publication.
 - [x] Add unscheduled X ingestion with paid-call safeguards and daily cleanup; manual capture saved 30 rows, immediate second call skipped, external preview unauthenticated POST returned 401; 13 unit tests passed.

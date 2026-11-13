@@ -40,6 +40,7 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
     await db.unsafe(await readFile("supabase/migrations/0005_trends_alertas_atomicas.sql", "utf8"));
     await db.unsafe(await readFile('drizzle/migrations/0005_bloqueos_ejecuciones_radar.sql', 'utf8'));
     await db.unsafe(await readFile('drizzle/migrations/0006_bloqueos_caducidad.sql', 'utf8'));
+    await db.unsafe(await readFile('supabase/migrations/0008_trends_prefijos.sql', 'utf8'));
   });
   beforeEach(async () => {
     await db`delete from public.alertas`;
@@ -101,6 +102,19 @@ describe.skipIf(!url)("transactional Trends concurrency (real PostgreSQL)", () =
     expect(results.flatMap((r) => r.descartadas).map((d) => d.motivo)).toEqual(["tope_diario"]);
     const count = await db`select count(*)::int as total from public.alertas`;
     expect(count[0]?.["total"]).toBe(8);
+  });
+  it('transactional deduplication ignores both PRUEBA and SIN DISCOVER prefixes', async () => {
+    const first = await db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(['[PRUEBA] Debate Ficticio']))}::jsonb) as result`;
+    const second = await db`select public.guardar_alertas_trends_atomicas(${db.json(candidates(['[SIN DISCOVER] DEBATE FICTICIO', 'debate ficticio']))}::jsonb) as result`;
+    expect(first[0]?.['result'].creadas).toHaveLength(1);
+    expect(second[0]?.['result'].creadas).toHaveLength(0);
+    expect(second[0]?.['result'].descartadas.map((d: { motivo: string }) => d.motivo)).toEqual(['ya_avisada', 'ya_avisada']);
+  });
+  it('updated cleanup deletes either test prefix and leaves unlabelled alerts intact', async () => {
+    await db`insert into public.alertas (entidad) values ('[PRUEBA] A'), ('[SIN DISCOVER] B'), ('Entidad sin prefijo')`;
+    await db.unsafe(await readFile('supabase/limpiar_pruebas.sql', 'utf8'));
+    const rows = await db`select entidad from public.alertas`;
+    expect(rows.map(r => r['entidad'])).toEqual(['Entidad sin prefijo']);
   });
   it("rollback releases the lock and removes the entire failed batch", async () => {
     const batch = [{ entidad: "[PRUEBA] Válida" }, { entidad: null }];

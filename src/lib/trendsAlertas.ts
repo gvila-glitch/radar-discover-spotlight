@@ -40,7 +40,7 @@ export function inicioDiaMadrid(now: Date): Date {
 }
 
 export function normalizarEntidad(value: string): string {
-  return value.replace(/^\[PRUEBA\]\s*/i, '').trim().toLocaleLowerCase('es-ES');
+  return value.replace(/^\[(?:PRUEBA|SIN DISCOVER)\]\s*/i, '').trim().toLocaleLowerCase('es-ES');
 }
 
 export function volumenNumerico(value: string | null): number {
@@ -91,7 +91,7 @@ export function planificarAlertasTrends(input: {
     const first = Array.isArray(t.noticias) ? t.noticias[0] as unknown : null;
     const news = z.object({ titular: z.string() }).safeParse(first);
     nuevas.push({
-      entidad: '[PRUEBA] ' + termino,
+      entidad: '[SIN DISCOVER] ' + termino,
       contexto: (news.success && news.data.titular.trim() ? news.data.titular : 'Tendencia en Google España') + ' · Fuente: Google Trends',
       prioridad: 'media', trends_activo: true, trends_crecimiento: t.volumen,
       x_posicion: null, x_desde: null, medios_discover: 0, medios_lista: [], titulares_seo: [],
