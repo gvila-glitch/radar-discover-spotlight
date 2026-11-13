@@ -19,7 +19,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
   );
 
   return (
-    <article className="border bg-card p-6" aria-label={`Detalle: ${a.entidad}`}>
+    <article className="break-words border bg-card p-6" aria-label={`Detalle: ${a.entidad}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <PrioridadTag p={a.prioridad} /> <LlegadaTag medios={a.medios_discover} />
         <span className="font-mono">{fechaLarga(a.creada_en)}</span><span>·</span><span>{hace(a.creada_en)}</span>

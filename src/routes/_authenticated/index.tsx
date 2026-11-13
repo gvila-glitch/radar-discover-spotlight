@@ -109,7 +109,7 @@ export function Index() {
         </div>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <div className="border bg-card">
+          <div className="min-w-0 border bg-card">
             {isError ? <p role="alert" className="p-4 text-sm text-destructive">No se pudieron cargar las alertas. Inténtalo de nuevo.</p>
               : isLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando alertas…</p>
               : visibles.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No hay alertas con estos filtros.</p>
@@ -134,7 +134,7 @@ export function Index() {
                 </ul>
               )}
           </div>
-          <div>{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} /> : null}</div>
+          <div className="min-w-0">{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} /> : null}</div>
         </div>
       </main>
     </div>
