@@ -1,5 +1,11 @@
 import type { Alerta } from "./types";
 
+// Las alertas que salen sin datos de Discover llevan el prefijo [SIN DISCOVER]: su 0 no significa
+// «nadie ha llegado», sino «no lo sabemos», así que no deben contar como «a tiempo» ni en la mediana.
+export function sinDatosDiscover(a: Pick<Alerta, "entidad">): boolean {
+  return typeof a.entidad === "string" && /^\[SIN DISCOVER\]/i.test(a.entidad);
+}
+
 export function llegada(mediosDiscover: number) {
   const puesto = mediosDiscover + 1;
   const nivel = mediosDiscover <= 2 ? "ok" : mediosDiscover <= 5 ? "warn" : "bad";
@@ -23,7 +29,7 @@ export function kpis(alertas: Alerta[], hoyKey: (iso: string) => string, hoy: st
     pendientesHoy: deHoy.filter((a) => a.estado === "pendiente").length,
     pctUtiles: valoradas.length ? (utiles / valoradas.length) * 100 : null,
     pctPublicadas: alertas.length ? (alertas.filter((a) => a.estado === "publicada").length / alertas.length) * 100 : null,
-    medianaLlegada: mediana(alertas.map((a) => a.medios_discover)),
+    medianaLlegada: mediana(alertas.filter((a) => !sinDatosDiscover(a)).map((a) => a.medios_discover)),
   };
 }
 

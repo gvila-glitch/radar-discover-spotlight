@@ -15,6 +15,7 @@ import { usePanelEmail } from '@/lib/panelAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Detalle } from "@/components/radar/Detalle";
+import { Leyenda, PrimerosPasos } from "@/components/radar/Ayuda";
 
 export const Route = createFileRoute("/_authenticated/")({
   ssr: false,
@@ -88,12 +89,14 @@ export function Index() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
+        <Leyenda />
+        <PrimerosPasos />
 
         <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
           <Kpi titulo="Útiles" valor={pct(k.pctUtiles)} ok={k.pctUtiles == null ? null : k.pctUtiles >= 50} sub="sobre valoradas · objetivo ≥ 50 %" />
           <Kpi titulo="Acabaron en pieza" valor={pct(k.pctPublicadas)} ok={k.pctPublicadas == null ? null : k.pctPublicadas >= 20} sub="sobre el total · objetivo ≥ 20 %" />
-          <Kpi titulo="Llegada" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={k.medianaLlegada == null ? null : k.medianaLlegada <= 2} sub="mediana de medios ya en Discover · objetivo ≤ 2" />
+          <Kpi titulo="Llegada" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={k.medianaLlegada == null ? null : k.medianaLlegada <= 2} sub={k.medianaLlegada == null ? "sin datos de Discover todavía · objetivo ≤ 2" : "mediana de medios ya en Discover · objetivo ≤ 2"} />
         </section>
 
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
@@ -129,7 +132,7 @@ export function Index() {
                           <div className="flex items-center gap-1.5 font-semibold tracking-tight"><span className="truncate">{nombreVisible(a.entidad)}</span>{a.medios_discover > 0 && <Radar aria-label={`En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`} className="size-3.5 shrink-0 text-primary"><title>{`En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`}</title></Radar>}</div>
                           <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.contexto}</p>
                         </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1"><PrioridadTag p={a.prioridad} /><LlegadaTag medios={a.medios_discover} /><EstadoTag e={a.estado} /></div>
+                        <div className="flex shrink-0 flex-col items-end gap-1"><PrioridadTag p={a.prioridad} /><LlegadaTag a={a} /><EstadoTag e={a.estado} /></div>
                       </li>
                     );
                   })}

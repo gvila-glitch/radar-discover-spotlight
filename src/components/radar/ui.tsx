@@ -1,12 +1,13 @@
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { llegada } from "@/lib/metricas";
-import type { Estado, Prioridad } from "@/lib/types";
+import { llegada, sinDatosDiscover } from "@/lib/metricas";
+import type { Alerta, Estado, Prioridad } from "@/lib/types";
 
 const nivelCls = { ok: "text-ok", warn: "text-warn", bad: "text-bad" };
 
-export function LlegadaTag({ medios }: { medios: number }) {
-  const l = llegada(medios);
+export function LlegadaTag({ a }: { a: Pick<Alerta, "entidad" | "medios_discover"> }) {
+  if (sinDatosDiscover(a)) return null;
+  const l = llegada(a.medios_discover);
   return <span className={cn("font-mono text-xs whitespace-nowrap", nivelCls[l.nivel])}>{l.label}</span>;
 }
 

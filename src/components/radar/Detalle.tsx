@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
-import { nombreVisible } from "@/lib/metricas";
+import { nombreVisible, sinDatosDiscover } from "@/lib/metricas";
 import { LlegadaTag, PrioridadTag } from "./ui";
 import { AdvisorInvitation } from '@/components/payments/AdvisorInvitation';
 
@@ -23,7 +23,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
   return (
     <article className="break-words border bg-card p-6" aria-label={`Detalle: ${a.entidad}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <PrioridadTag p={a.prioridad} /> <LlegadaTag medios={a.medios_discover} />
+        <PrioridadTag p={a.prioridad} /> <LlegadaTag a={a} />
         <span className="font-mono">{fechaLarga(a.creada_en)}</span><span>·</span><span>{hace(a.creada_en)}</span>
       </div>
       <h2 className="mt-3 tracking-tight text-3xl font-semibold leading-tight">{nombreVisible(a.entidad)}</h2>
@@ -35,7 +35,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
           <Bloque t="X (España)">{a.x_posicion ? <><span className="font-mono">#{a.x_posicion}</span> desde las <span className="font-mono">{a.x_desde && (esHoy(a.x_desde) ? hora24(a.x_desde) : fechaLarga(a.x_desde))}</span></> : "No"}</Bloque>
           <Bloque t="Volumen en Google">{a.trends_activo && a.trends_crecimiento ? <span className="font-mono">{a.trends_crecimiento}</span> : "Todavía no"}</Bloque>
           <Bloque t="Wikipedia">{a.wikipedia_ratio ? <><span className="font-mono">×{Number(a.wikipedia_ratio).toLocaleString("es-ES")}</span> sobre su media<div className="mt-1 text-xs text-muted-foreground">{(a.wikipedia_visitas ?? 0).toLocaleString("es-ES")} visitas en un día</div></> : "Sin pico"}</Bloque>
-          <Bloque t="Discover">{a.medios_discover > 0 ? <><span className="font-mono">{a.medios_discover}</span> {a.medios_discover === 1 ? "medio" : "medios"}<div className="mt-1 text-xs text-muted-foreground">{a.medios_lista.join(", ")}</div></> : "Nadie ha llegado aún"}</Bloque>
+          <Bloque t="Discover">{a.medios_discover > 0 ? <><span className="font-mono">{a.medios_discover}</span> {a.medios_discover === 1 ? "medio" : "medios"}<div className="mt-1 text-xs text-muted-foreground">{a.medios_lista.join(", ")}</div></> : sinDatosDiscover(a) ? "Sin datos de Discover todavía" : "Nadie ha llegado aún"}</Bloque>
         </div>
       </Seccion>
 
