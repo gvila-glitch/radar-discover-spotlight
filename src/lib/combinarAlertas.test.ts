@@ -35,6 +35,11 @@ describe("entidadesEquivalentes", () => {
     ["[SIN DISCOVER] Microsoft", "microsoft"],
     ["Núcleo Nacional", "nucleo nacional"],
     ["Díaz Ayuso Isabel", "Isabel Díaz Ayuso"],
+    ["Díaz Ayuso", "Isabel Díaz Ayuso"],
+    ["Isabel Díaz", "Isabel Díaz Ayuso"],
+    ["MARINA VALVERDE", "Marina Valverde"],
+    ["Marina Valverde", "Marina Valverde (cantante)"],
+    ["Marina Valverde (cantante)", "marina valverde (Cantante)"],
   ];
   const no: [string, string][] = [
     ["Pablo Sánchez", "Pedro Sánchez"],
@@ -48,6 +53,11 @@ describe("entidadesEquivalentes", () => {
     ["(cantante)", "(actor)"],
     ["Luis Díaz", "Díaz Ayuso"],
     ["Pedro", "Pedro Sánchez"],
+    // Defectos hallados por Lovable en las pruebas de fusión:
+    ["Juan Valverde", "Juan Carlos Valverde"],
+    ["Marina Valverde (política)", "Marina Valverde (cantante)"],
+    ["Marina Valverde", "Pablo Valverde"],
+    ["Isabel Ayuso", "Isabel Díaz Ayuso"],
   ];
   it.each(si)("%s ≈ %s", (a, b) => {
     expect(entidadesEquivalentes(a, b)).toBe(true);

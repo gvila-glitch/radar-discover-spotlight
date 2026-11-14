@@ -266,15 +266,27 @@ function palabrasClave(clave: string): string[] {
   return clave.split(" ").filter((t) => t.length >= 3 && !PALABRAS_VACIAS.has(t));
 }
 
+/** Lo que dicen los paréntesis de un nombre («cantante», «política»…), normalizado; vacío si no tiene. */
+function parentesisEntidad(valor: string): string {
+  return [...valor.matchAll(/\(([^)]*)\)/g)].map((m) => claveEntidad(m[1] ?? "")).join(" ");
+}
+
 /**
- * Iguales, con las mismas palabras (sin artículos ni orden), o uno contenido en el otro:
- * si el corto es UNA palabra, debe ser la última del largo (el apellido: «abascal» en «santiago abascal», pero no
- * «pedro» en «pedro sanchez») y tener al menos 5 letras; si tiene varias, todas deben estar en el largo.
+ * ¿Dos nombres son lo mismo?
+ * - Si los dos llevan paréntesis y dicen cosas distintas («Marina Valverde (política)» y «(cantante)»): no.
+ * - Iguales, o con las mismas palabras (sin artículos ni orden): sí.
+ * - Si el corto es UNA palabra, debe ser la última del largo (el apellido: «abascal» en «santiago abascal», pero no
+ *   «pedro» en «pedro sanchez») y tener al menos 5 letras.
+ * - Si el corto tiene varias palabras, deben aparecer SEGUIDAS y en orden en el largo («isabel diaz» en
+ *   «isabel diaz ayuso», pero no «juan valverde» en «juan carlos valverde»).
  */
 export function entidadesEquivalentes(a: string, b: string): boolean {
   const ka = claveEntidad(a);
   const kb = claveEntidad(b);
   if (!ka || !kb) return false;
+  const pa = parentesisEntidad(a);
+  const pb = parentesisEntidad(b);
+  if (pa !== "" && pb !== "" && pa !== pb) return false;
   if (ka === kb) return true;
   const oa = palabrasClave(ka);
   const ob = palabrasClave(kb);
@@ -282,13 +294,15 @@ export function entidadesEquivalentes(a: string, b: string): boolean {
   const tb = new Set(ob);
   if (ta.size === 0 || tb.size === 0) return false;
   if (ta.size === tb.size && [...ta].every((t) => tb.has(t))) return true;
-  const [corto, largoOrdenado] = ta.size <= tb.size ? ([ta, ob] as const) : ([tb, oa] as const);
-  const largo = new Set(largoOrdenado);
-  if (corto.size === 1) {
-    const [unica = ""] = [...corto];
-    return unica.length >= 5 && unica === largoOrdenado[largoOrdenado.length - 1];
+  const [cortoOrd, largoOrd] = ta.size <= tb.size ? ([oa, ob] as const) : ([ob, oa] as const);
+  if (cortoOrd.join("").length < 5) return false;
+  const n = cortoOrd.length;
+  const m = largoOrd.length;
+  if (n === 1) return cortoOrd[0] === largoOrd[m - 1];
+  for (let i = 0; i + n <= m; i++) {
+    if (cortoOrd.every((t, j) => largoOrd[i + j] === t)) return true;
   }
-  return [...corto].join("").length >= 5 && [...corto].every((t) => largo.has(t));
+  return false;
 }
 
 export function volumenNumerico(value: string | null): number {

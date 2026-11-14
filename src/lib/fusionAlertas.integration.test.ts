@@ -47,6 +47,8 @@ describe.skipIf(!url)('source fusion using the deployed SQL migration', () => {
       INSERT INTO public.config VALUES ('max_alertas_dia','8'),('hora_inicio','0'),('hora_fin','24');
     `);
     await db.unsafe(await readFile('drizzle/migrations/0015_fusion_alertas_fuentes.sql', 'utf8'));
+    // Corrige los tres defectos hallados en las primeras pruebas (ver supabase/fusion-pruebas.md).
+    await db.unsafe(await readFile('supabase/fusion-reglas-v2.sql', 'utf8'));
   });
   beforeEach(async () => {
     await db`delete from public.alertas`;
@@ -154,20 +156,20 @@ describe.skipIf(!url)('source fusion using the deployed SQL migration', () => {
     expect(rows[1]?.['wikipedia_ratio']).toBeNull();
   });
 
-  // Expected-failure regressions document existing unsafe behavior, not a fix.
-  it.fails('KNOWN DEFECT: uppercase names must match the same entity', async () => {
+  // Regresiones de los defectos que se corrigieron en supabase/fusion-reglas-v2.sql.
+  it('uppercase names match the same entity', async () => {
     await seed();
     const result = await rpc('trends', [{ entidad: 'MARINA VALVERDE', x_posicion: 7, trends_activo: false }]);
     expect(result.combinadas).toHaveLength(1);
     expect(result.creadas).toHaveLength(0);
   });
-  it.fails('KNOWN DEFECT: an extra given name must not conflate two distinct people', async () => {
+  it('an extra given name does not conflate two distinct people', async () => {
     await seed('Juan Valverde');
     const result = await rpc('wikipedia', [{ entidad: 'Juan Carlos Valverde', wikipedia_visitas: 12000, wikipedia_ratio: 4 }]);
     expect(result.combinadas).toHaveLength(0);
     expect(result.creadas).toHaveLength(1);
   });
-  it.fails('KNOWN DEFECT: disambiguating parentheses must not conflate two namesakes', async () => {
+  it('disambiguating parentheses do not conflate two namesakes', async () => {
     await seed('Marina Valverde (política)');
     const result = await rpc('trends', [{ entidad: 'Marina Valverde (cantante)', x_posicion: 5, trends_activo: false }]);
     expect(result.combinadas).toHaveLength(0);
