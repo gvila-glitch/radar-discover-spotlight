@@ -3,6 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { listarUsuarios, altaUsuario, cambiarRol, bajaUsuario } from "@/lib/usuarios.functions";
+import type { Rol } from "@/lib/usuariosReglas";
 import { APARTADOS, apartadoValido, type Apartado } from "@/lib/configApartados";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +55,7 @@ function Paneles() {
   return (
     <div className="mt-5 space-y-6">
       <p className="text-sm text-muted-foreground">{titulo}</p>
-      <div className="min-w-0 space-y-6"><div hidden={tab === "medios"} className="space-y-6"><FormAjustes tab={tab === "medios" ? "perfil" : tab} /></div>{tab === "medios" && <Medios />}</div>
+      <div className="min-w-0 space-y-6"><div hidden={tab === "medios" || tab === "usuarios"} className="space-y-6"><FormAjustes tab={tab === "medios" || tab === "usuarios" ? "perfil" : tab} /></div>{tab === "medios" && <Medios />}{tab === "usuarios" && <Usuarios />}</div>
     </div>
   );
 }
@@ -67,7 +70,7 @@ function Seccion({ titulo, ayuda, children }: { titulo: string; ayuda?: string; 
   );
 }
 
-function FormAjustes({ tab }: { tab: Exclude<Pestana, "medios"> }) {
+function FormAjustes({ tab }: { tab: Exclude<Pestana, "medios" | "usuarios"> }) {
   const q = useQuery({ queryKey: ["ajustes"], queryFn: leerAjustes });
   const [f, setF] = useState<Ajustes | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -161,6 +164,49 @@ function Medios() {
                   <input type="checkbox" checked={!!m.top5} onChange={(e) => top5(m.dominio, e.target.checked)} /> Top 5
                 </label>
                 <button onClick={() => quitar(m.dominio)} aria-label={`Quitar ${m.dominio}`} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="size-4" /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+    </Seccion>
+  );
+}
+
+const errorTexto = (e: unknown) => (e instanceof Error && e.message && e.message.length < 120 ? e.message : "No se pudo completar la acción.");
+
+function Usuarios() {
+  const qc = useQueryClient();
+  const listar = useServerFn(listarUsuarios), alta = useServerFn(altaUsuario), rol = useServerFn(cambiarRol), baja = useServerFn(bajaUsuario);
+  const q = useQuery({ queryKey: ["usuarios"], queryFn: () => listar() });
+  const [email, setEmail] = useState("");
+  const [nuevoRol, setNuevoRol] = useState<Rol>("usuario");
+  const [ocupado, setOcupado] = useState(false);
+  const refrescar = () => qc.invalidateQueries({ queryKey: ["usuarios"] });
+  async function accion(fn: () => Promise<unknown>, ok: string) {
+    setOcupado(true);
+    try { await fn(); toast.success(ok); refrescar(); } catch (e) { toast.error(errorTexto(e)); } finally { setOcupado(false); }
+  }
+  return (
+    <Seccion titulo="Usuarios" ayuda="Las personas invitadas reciben un correo para elegir su propia contraseña. Los admin ven Configuración; los usuarios, solo las alertas.">
+      <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); accion(async () => { const r = await alta({ data: { email, rol: nuevoRol } }); setEmail(""); return r; }, "Usuario dado de alta. Se ha enviado la invitación si no tenía cuenta."); }}>
+        <Input aria-label="Email" type="email" placeholder="persona@eldiario.es" value={email} onChange={(e) => setEmail(e.target.value)} className="w-64" />
+        <select aria-label="Rol" value={nuevoRol} onChange={(e) => setNuevoRol(e.target.value as Rol)} className="h-9 rounded-md border bg-background px-2 text-sm">
+          <option value="usuario">Usuario</option><option value="admin">Admin</option>
+        </select>
+        <Button type="submit" disabled={!email.trim() || ocupado}>Dar de alta</Button>
+      </form>
+      {q.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Cargando…</p>
+        : q.isError ? <p role="alert" className="mt-3 text-sm text-destructive">No se pudo cargar la lista.</p>
+        : (
+          <ul className="mt-3 divide-y border">
+            {q.data?.map((u) => (
+              <li key={u.email} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                <div className="min-w-0 flex-1"><span className="font-mono">{u.email}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">{u.activado ? "Activa" : u.cuenta ? "Invitación pendiente" : "Sin cuenta"}</span></div>
+                <select aria-label={`Rol de ${u.email}`} value={u.rol} disabled={ocupado} onChange={(e) => accion(() => rol({ data: { email: u.email, rol: e.target.value as Rol } }), "Rol actualizado.")} className="h-8 rounded-md border bg-background px-2 text-xs">
+                  <option value="usuario">Usuario</option><option value="admin">Admin</option>
+                </select>
+                <button disabled={ocupado} onClick={() => { if (confirm(`¿Quitar el acceso a ${u.email}?`)) accion(() => baja({ data: { email: u.email } }), "Acceso retirado."); }} aria-label={`Quitar acceso a ${u.email}`} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="size-4" /></button>
               </li>
             ))}
           </ul>
