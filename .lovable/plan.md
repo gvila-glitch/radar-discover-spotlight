@@ -23,3 +23,10 @@
 - Añadir `{ id: "usuarios", label: "Usuarios" }` a `APARTADOS` y su sección en `configuracion.tsx`.
 - Tests de las reglas (rol válido, no auto-baja, mínimo un admin) y actualizar `seguridad.test.ts` si procede.
 - Nota en `AGENTS.md`: gestión de usuarios solo vía server functions admin-verificadas.
+
+## Contraseña y verificación (recomendación)
+- **La contraseña la crea el propio usuario** desde el enlace de invitación; el admin nunca la ve ni la escribe. Es la opción más segura.
+- La invitación ya funciona como **doble opt-in**: solo quien controla ese correo puede activar la cuenta. El enlace caduca y es de un solo uso.
+- Se activa la **comprobación de contraseñas filtradas** (rechaza contraseñas que aparecen en filtraciones conocidas) y se mantiene el mínimo de 8 caracteres.
+- Se exige la **contraseña actual** para cambiarla estando ya dentro.
+- **Doble factor (código de app tipo Google Authenticator)**: es la capa extra más fuerte; se propone como fase posterior opcional, ya que añade un paso en cada entrada.
