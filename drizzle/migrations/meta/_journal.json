@@ -99,6 +99,13 @@
       "when": 1794666872701,
       "tag": "0013_retirar_premium_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794666951708,
+      "tag": "0014_revocar_lectura_anonima_sobrante",
+      "breakpoints": true
     }
   ]
 }
