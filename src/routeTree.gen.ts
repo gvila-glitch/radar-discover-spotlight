@@ -14,10 +14,12 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authenticated/configuracion'
+import { Route as AuthenticatedPremiumRouteImport } from './routes/_authenticated/premium'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
 import { Route as ApiPublicWikipediaAAlertasRouteImport } from './routes/api/public/wikipedia-a-alertas'
 import { Route as ApiPublicXIngestaRouteImport } from './routes/api/public/x-ingesta'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
@@ -44,6 +46,11 @@ const AuthenticatedConfiguracionRoute =
     path: '/configuracion',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPremiumRoute = AuthenticatedPremiumRouteImport.update({
+  id: '/premium',
+  path: '/premium',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicTrendsAAlertasRoute = ApiPublicTrendsAAlertasRouteImport.update({
   id: '/api/public/trends-a-alertas',
   path: '/api/public/trends-a-alertas',
@@ -65,26 +72,36 @@ const ApiPublicXIngestaRoute = ApiPublicXIngestaRouteImport.update({
   path: '/api/public/x-ingesta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/premium': typeof AuthenticatedPremiumRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
   '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
   '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/premium': typeof AuthenticatedPremiumRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
   '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
   '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -92,11 +109,13 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/_authenticated/premium': typeof AuthenticatedPremiumRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
   '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
   '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -105,31 +124,37 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/configuracion'
+    | '/premium'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
     | '/api/public/wikipedia-a-alertas'
     | '/api/public/x-ingesta'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
     | '/reset-password'
     | '/configuracion'
+    | '/premium'
     | '/'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
     | '/api/public/wikipedia-a-alertas'
     | '/api/public/x-ingesta'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
     | '/reset-password'
     | '/_authenticated/configuracion'
+    | '/_authenticated/premium'
     | '/_authenticated/'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
     | '/api/public/wikipedia-a-alertas'
     | '/api/public/x-ingesta'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -140,6 +165,7 @@ export interface RootRouteChildren {
   ApiPublicTrendsIngestaRoute: typeof ApiPublicTrendsIngestaRoute
   ApiPublicWikipediaAAlertasRoute: typeof ApiPublicWikipediaAAlertasRoute
   ApiPublicXIngestaRoute: typeof ApiPublicXIngestaRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -179,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/premium': {
+      id: '/_authenticated/premium'
+      path: '/premium'
+      fullPath: '/premium'
+      preLoaderRoute: typeof AuthenticatedPremiumRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/trends-a-alertas': {
       id: '/api/public/trends-a-alertas'
       path: '/api/public/trends-a-alertas'
@@ -207,16 +240,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicXIngestaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracionRoute: typeof AuthenticatedConfiguracionRoute
+  AuthenticatedPremiumRoute: typeof AuthenticatedPremiumRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracionRoute: AuthenticatedConfiguracionRoute,
+  AuthenticatedPremiumRoute: AuthenticatedPremiumRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
@@ -231,6 +273,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTrendsIngestaRoute: ApiPublicTrendsIngestaRoute,
   ApiPublicWikipediaAAlertasRoute: ApiPublicWikipediaAAlertasRoute,
   ApiPublicXIngestaRoute: ApiPublicXIngestaRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

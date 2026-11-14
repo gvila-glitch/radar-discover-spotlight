@@ -85,6 +85,13 @@
       "when": 1794651085860,
       "tag": "0011_wikipedia_picos",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794657385347,
+      "tag": "0012_premium_subscriptions",
+      "breakpoints": true
     }
   ]
 }

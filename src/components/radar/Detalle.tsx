@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
 import { LlegadaTag, PrioridadTag } from "./ui";
+import { AdvisorInvitation } from '@/components/payments/AdvisorInvitation';
 
 export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void }) {
   const [editUrl, setEditUrl] = useState(false);
@@ -26,6 +27,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
       </div>
       <h2 className="mt-3 font-serif text-3xl font-semibold leading-tight">{a.entidad}</h2>
       <p className="mt-1 text-muted-foreground">{a.contexto}</p>
+      <div className="mt-4"><AdvisorInvitation /></div>
 
       <Seccion titulo="Señal">
         <div className="grid divide-y border sm:grid-cols-2 lg:grid-cols-4 sm:divide-x sm:divide-y-0">
