@@ -13,7 +13,6 @@ import { usePanelEmail } from '@/lib/panelAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Detalle } from "@/components/radar/Detalle";
-import { Nav } from "@/components/radar/Nav";
 
 export const Route = createFileRoute("/_authenticated/")({
   ssr: false,
@@ -77,7 +76,6 @@ export function Index() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
           <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
           <span className="text-xs text-muted-foreground">prototipo</span>
-          <Nav />
           <span className="ml-auto break-all text-xs text-muted-foreground">Usuario: {email}</span>
           <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>
           <button onClick={() => setDark((d) => !d)} aria-label={dark ? "Modo claro" : "Modo oscuro"} className="rounded-md border p-1.5 hover:bg-muted">

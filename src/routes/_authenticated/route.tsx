@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect } from '@tanstack/react-router';
 import { supabase } from '@/integrations/supabase/client';
 import { PanelIdentity } from '@/lib/panelAuth';
 import { Button } from '@/components/ui/button';
+import { Sidebar } from '@/components/radar/Nav';
 export const Route = createFileRoute('/_authenticated')({
   ssr: false,
   beforeLoad: async () => {
@@ -23,5 +24,5 @@ function TeamLayout() {
     <p role="alert" className="my-6">Tu cuenta no tiene acceso a este panel</p>
     <Button variant="outline" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>
   </main>;
-  return <PanelIdentity.Provider value={email}><Outlet /></PanelIdentity.Provider>;
+  return <PanelIdentity.Provider value={email}><div className="flex"><Sidebar /><div className="min-w-0 flex-1"><Outlet /></div></div></PanelIdentity.Provider>;
 }

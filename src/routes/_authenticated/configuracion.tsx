@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { esAdmin, leerPerfilEditorial, guardarPerfilEditorial } from "@/lib/configRepo";
-import { Nav } from "@/components/radar/Nav";
 
 export const Route = createFileRoute("/_authenticated/configuracion")({
   ssr: false,
@@ -41,7 +40,6 @@ function Configuracion() {
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 py-3">
           <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
-          <Nav />
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6">
