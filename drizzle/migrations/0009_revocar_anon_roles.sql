@@ -1,0 +1,1 @@
+REVOKE ALL ON public.equipo_roles FROM anon, authenticated;

@@ -110,6 +110,21 @@ export type Database = {
         }
         Relationships: []
       }
+      equipo_roles: {
+        Row: {
+          email: string
+          rol: string
+        }
+        Insert: {
+          email: string
+          rol: string
+        }
+        Update: {
+          email?: string
+          rol?: string
+        }
+        Relationships: []
+      }
       exclusiones: {
         Row: {
           activo: boolean | null
@@ -310,6 +325,7 @@ export type Database = {
         Args: { propietario: string; trabajo: string }
         Returns: boolean
       }
+      es_admin: { Args: never; Returns: boolean }
       es_equipo: { Args: never; Returns: boolean }
       guardar_alertas_trends_atomicas: {
         Args: { candidatas: Json }

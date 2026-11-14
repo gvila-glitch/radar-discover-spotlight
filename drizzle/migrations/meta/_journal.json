@@ -57,6 +57,20 @@
       "when": 1794597599548,
       "tag": "0007_trends_prefijos",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794650048019,
+      "tag": "0008_roles_configuracion",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794650113822,
+      "tag": "0009_revocar_anon_roles",
+      "breakpoints": true
     }
   ]
 }
