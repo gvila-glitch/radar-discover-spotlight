@@ -8,7 +8,7 @@ import { APARTADOS } from "@/lib/configApartados";
 
 export function Sidebar() {
   const { data: admin } = useQuery({ queryKey: ["es_admin"], queryFn: esAdmin });
-  const [abierta, setAbierta] = useState(true);
+  const [abierta, setAbierta] = useState(() => typeof window === "undefined" || window.innerWidth >= 768);
   const enConfig = useLocation({ select: (l) => l.pathname.startsWith("/configuracion") });
   const [sub, setSub] = useState(true);
   const item = "flex items-center gap-3 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground";
