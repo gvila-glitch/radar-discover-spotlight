@@ -1,19 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { esAdmin, leerPerfilEditorial, guardarPerfilEditorial } from "@/lib/configRepo";
+import { esAdmin, leerAjustes, guardarAjustes, listarMedios, anadirMedio, quitarMedio, marcarTop5, type Ajustes } from "@/lib/configRepo";
 
 export const Route = createFileRoute("/_authenticated/configuracion")({
   ssr: false,
   head: () => ({
     meta: [
       { title: "Configuración · Radar Discover" },
-      { name: "description", content: "Ajustes del Radar Discover: perfil editorial." },
+      { name: "description", content: "Ajustes del Radar Discover: perfil editorial, umbrales y medios de referencia." },
       { property: "og:title", content: "Configuración · Radar Discover" },
-      { property: "og:description", content: "Ajustes del Radar Discover: perfil editorial." },
+      { property: "og:description", content: "Ajustes del Radar Discover." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -23,40 +25,130 @@ export const Route = createFileRoute("/_authenticated/configuracion")({
 
 function Configuracion() {
   const admin = useQuery({ queryKey: ["es_admin"], queryFn: esAdmin });
-  const perfil = useQuery({ queryKey: ["perfil_editorial"], queryFn: leerPerfilEditorial, enabled: admin.data === true });
-  const [texto, setTexto] = useState("");
+  return (
+    <div className="min-h-screen">
+      <header className="border-b bg-card">
+        <div className="mx-auto flex max-w-7xl items-center px-4 py-3">
+          <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
+        </div>
+      </header>
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+        <h2 className="font-serif text-3xl font-semibold">Configuración</h2>
+        {admin.isLoading ? <p className="text-sm text-muted-foreground">Cargando…</p>
+          : !admin.data ? <p role="alert" className="text-sm">No tienes permiso para ver esta sección. <Link to="/" className="underline">Volver a alertas</Link></p>
+          : <><FormAjustes /><Medios /></>}
+      </main>
+    </div>
+  );
+}
+
+function Seccion({ titulo, ayuda, children }: { titulo: string; ayuda?: string; children: React.ReactNode }) {
+  return (
+    <section className="border bg-card p-4">
+      <h3 className="font-serif text-lg font-semibold">{titulo}</h3>
+      {ayuda && <p className="mt-1 text-xs text-muted-foreground">{ayuda}</p>}
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function FormAjustes() {
+  const q = useQuery({ queryKey: ["ajustes"], queryFn: leerAjustes });
+  const [f, setF] = useState<Ajustes | null>(null);
   const [guardando, setGuardando] = useState(false);
-  useEffect(() => { if (perfil.data !== undefined) setTexto(perfil.data); }, [perfil.data]);
+  useEffect(() => { if (q.data) setF(q.data); }, [q.data]);
+  if (q.isError) return <p role="alert" className="text-sm text-destructive">No se pudo cargar la configuración.</p>;
+  if (!f || !q.data) return <p className="text-sm text-muted-foreground">Cargando…</p>;
+  const orig = q.data;
+  const cambios = Object.fromEntries(Object.entries(f).filter(([k, v]) => v !== orig[k as keyof Ajustes])) as Partial<Ajustes>;
+  const set = (k: keyof Ajustes) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
+  const numeros: (keyof Ajustes)[] = ["max_alertas_dia", "umbral_alta_medios", "umbral_media_medios"];
+  const invalido = numeros.some((k) => !/^\d+$/.test(f[k].trim()));
 
   async function guardar() {
     setGuardando(true);
-    try { await guardarPerfilEditorial(texto); await perfil.refetch(); toast.success("Perfil editorial guardado."); }
+    try { await guardarAjustes(cambios); await q.refetch(); toast.success("Configuración guardada."); }
     catch { toast.error("No se pudo guardar. Inténtalo de nuevo."); }
     finally { setGuardando(false); }
   }
 
+  const texto = (k: keyof Ajustes, titulo: string, ayuda: string, rows = 8) => (
+    <Seccion titulo={titulo} ayuda={ayuda}>
+      <Textarea aria-label={titulo} value={f[k]} onChange={set(k)} rows={rows} className="text-sm" />
+    </Seccion>
+  );
+  const num = (k: keyof Ajustes, label: string, ayuda: string) => (
+    <label className="block text-sm">
+      <span className="font-medium">{label}</span>
+      <Input type="number" min={0} value={f[k]} onChange={set(k)} className="mt-1 w-28 font-mono" />
+      <span className="mt-1 block text-xs text-muted-foreground">{ayuda}</span>
+    </label>
+  );
+
   return (
-    <div className="min-h-screen">
-      <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-6 px-4 py-3">
-          <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
+    <>
+      {texto("perfil_editorial", "Perfil editorial", "Describe al periódico y orienta qué alertas son relevantes.", 12)}
+      {texto("ambito", "Ámbito", "Qué temas entran y cuáles no.")}
+      {texto("excepciones", "Excepciones", "Casos que deben avisarse o descartarse aunque no encajen en el ámbito.")}
+      <Seccion titulo="Límites y umbrales">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {num("max_alertas_dia", "Alertas por día", "Máximo de alertas diarias.")}
+          {num("umbral_alta_medios", "Umbral prioridad alta", "Máximo de medios ya en Discover para prioridad alta.")}
+          {num("umbral_media_medios", "Umbral prioridad media", "Máximo de medios ya en Discover para prioridad media.")}
         </div>
-      </header>
-      <main className="mx-auto max-w-3xl px-4 py-6">
-        <h2 className="font-serif text-3xl font-semibold">Configuración</h2>
-        {admin.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Cargando…</p>
-          : !admin.data ? <p role="alert" className="mt-4 text-sm">No tienes permiso para ver esta sección. <Link to="/" className="underline">Volver a alertas</Link></p>
-          : (
-            <section className="mt-6 border bg-card p-4">
-              <label htmlFor="perfil" className="font-serif text-lg font-semibold">Perfil editorial</label>
-              <p className="mt-1 text-xs text-muted-foreground">Instrucciones que describen al periódico y orientan qué alertas son relevantes.</p>
-              <Textarea id="perfil" value={texto} onChange={(e) => setTexto(e.target.value)} rows={14} className="mt-3 font-mono text-sm" disabled={perfil.isLoading} />
-              <div className="mt-3 flex justify-end">
-                <Button onClick={guardar} disabled={guardando || perfil.isLoading || texto === (perfil.data ?? "")}>{guardando ? "Guardando…" : "Guardar"}</Button>
-              </div>
-            </section>
-          )}
-      </main>
-    </div>
+        {invalido && <p role="alert" className="mt-3 text-xs text-destructive">Los límites y umbrales deben ser números enteros.</p>}
+      </Seccion>
+      <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background py-3">
+        <Button variant="outline" disabled={!Object.keys(cambios).length || guardando} onClick={() => setF(orig)}>Descartar</Button>
+        <Button onClick={guardar} disabled={!Object.keys(cambios).length || guardando || invalido}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>
+      </div>
+    </>
+  );
+}
+
+function Medios() {
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["medios"], queryFn: listarMedios });
+  const [dominio, setDominio] = useState("");
+  const [nombre, setNombre] = useState("");
+  const refrescar = () => qc.invalidateQueries({ queryKey: ["medios"] });
+
+  async function anadir(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dominio.trim()) return;
+    try { await anadirMedio(dominio, nombre); setDominio(""); setNombre(""); refrescar(); toast.success("Medio añadido."); }
+    catch { toast.error("No se pudo añadir. ¿Ya estaba en la lista?"); }
+  }
+  async function quitar(d: string) {
+    if (!confirm(`¿Quitar ${d} de los medios de referencia?`)) return;
+    try { await quitarMedio(d); refrescar(); } catch { toast.error("No se pudo quitar."); }
+  }
+  async function top5(d: string, v: boolean) {
+    try { await marcarTop5(d, v); refrescar(); } catch { toast.error("No se pudo guardar."); }
+  }
+
+  return (
+    <Seccion titulo="Medios de referencia" ayuda="Medios cuya presencia en Discover se vigila. Marca los cinco principales.">
+      <form onSubmit={anadir} className="flex flex-wrap gap-2">
+        <Input aria-label="Dominio" placeholder="dominio.com" value={dominio} onChange={(e) => setDominio(e.target.value)} className="w-48" />
+        <Input aria-label="Nombre" placeholder="Nombre (opcional)" value={nombre} onChange={(e) => setNombre(e.target.value)} className="w-48" />
+        <Button type="submit" disabled={!dominio.trim()}>Añadir</Button>
+      </form>
+      {q.isLoading ? <p className="mt-3 text-sm text-muted-foreground">Cargando…</p>
+        : !q.data?.length ? <p className="mt-3 text-sm text-muted-foreground">Todavía no hay medios.</p>
+        : (
+          <ul className="mt-3 divide-y border">
+            {q.data.map((m) => (
+              <li key={m.dominio} className="flex items-center gap-3 px-3 py-2 text-sm">
+                <div className="min-w-0 flex-1"><span className="font-mono">{m.dominio}</span>{m.nombre && <span className="ml-2 text-muted-foreground">{m.nombre}</span>}</div>
+                <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <input type="checkbox" checked={!!m.top5} onChange={(e) => top5(m.dominio, e.target.checked)} /> Top 5
+                </label>
+                <button onClick={() => quitar(m.dominio)} aria-label={`Quitar ${m.dominio}`} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="size-4" /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+    </Seccion>
   );
 }

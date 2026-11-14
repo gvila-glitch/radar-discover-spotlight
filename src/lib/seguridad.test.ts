@@ -22,9 +22,9 @@ describe.skipIf(!gateway)('Permisos reales del panel', () => {
       order by column_name`);
     expect(rows.map(r => r['column_name'])).toEqual(['estado','estado_actualizado_en','estado_por','pieza_url']);
   });
-  it('solo alertas y el perfil editorial de config tienen políticas', async () => {
+  it('solo alertas, ajustes de config y medios tienen políticas', async () => {
     const rows = await query(`select tablename from pg_policies where schemaname='public' order by tablename`);
-    expect(rows.map(r => r['tablename'])).toEqual(['alertas', 'alertas', 'config', 'config']);
+    expect(rows.map(r => r['tablename'])).toEqual(['alertas', 'alertas', 'config', 'config', 'medios_referencia', 'medios_referencia', 'medios_referencia', 'medios_referencia']);
   });
   it('equipo se valida mediante el email del JWT, no metadatos editables', async () => {
     const rows = await query(`select prosrc, prosecdef from pg_proc where oid='public.es_equipo()'::regprocedure`);
