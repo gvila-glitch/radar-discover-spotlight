@@ -403,8 +403,17 @@ export type Database = {
         Args: { propietario: string; trabajo: string }
         Returns: boolean
       }
+      clave_entidad: { Args: { texto: string }; Returns: string }
+      entidades_equivalentes: {
+        Args: { a: string; b: string }
+        Returns: boolean
+      }
       es_admin: { Args: never; Returns: boolean }
       es_equipo: { Args: never; Returns: boolean }
+      fusionar_alerta_reciente: {
+        Args: { fila: Json; instante: string }
+        Returns: Json
+      }
       guardar_alertas_trends_atomicas: {
         Args: { candidatas: Json }
         Returns: Json
