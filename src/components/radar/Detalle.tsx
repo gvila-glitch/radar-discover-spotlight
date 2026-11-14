@@ -28,9 +28,10 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
       <p className="mt-1 text-muted-foreground">{a.contexto}</p>
 
       <Seccion titulo="Señal">
-        <div className="grid divide-y border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="grid divide-y border sm:grid-cols-2 lg:grid-cols-4 sm:divide-x sm:divide-y-0">
           <Bloque t="X (España)">{a.x_posicion ? <><span className="font-mono">#{a.x_posicion}</span> desde las <span className="font-mono">{a.x_desde && (esHoy(a.x_desde) ? hora24(a.x_desde) : fechaLarga(a.x_desde))}</span></> : "No"}</Bloque>
           <Bloque t="Volumen en Google">{a.trends_activo && a.trends_crecimiento ? <span className="font-mono">{a.trends_crecimiento}</span> : "Todavía no"}</Bloque>
+          <Bloque t="Wikipedia">{a.wikipedia_ratio ? <><span className="font-mono">×{Number(a.wikipedia_ratio).toLocaleString("es-ES")}</span> sobre su media<div className="mt-1 text-xs text-muted-foreground">{(a.wikipedia_visitas ?? 0).toLocaleString("es-ES")} visitas en un día</div></> : "Sin pico"}</Bloque>
           <Bloque t="Discover">{a.medios_discover > 0 ? <><span className="font-mono">{a.medios_discover}</span> {a.medios_discover === 1 ? "medio" : "medios"}<div className="mt-1 text-xs text-muted-foreground">{a.medios_lista.join(", ")}</div></> : "Nadie ha llegado aún"}</Bloque>
         </div>
       </Seccion>

@@ -33,6 +33,8 @@ export type Database = {
           titulares_seo: Json
           trends_activo: boolean
           trends_crecimiento: string | null
+          wikipedia_ratio: number | null
+          wikipedia_visitas: number | null
           x_desde: string | null
           x_posicion: number | null
         }
@@ -54,6 +56,8 @@ export type Database = {
           titulares_seo?: Json
           trends_activo?: boolean
           trends_crecimiento?: string | null
+          wikipedia_ratio?: number | null
+          wikipedia_visitas?: number | null
           x_desde?: string | null
           x_posicion?: number | null
         }
@@ -75,6 +79,8 @@ export type Database = {
           titulares_seo?: Json
           trends_activo?: boolean
           trends_crecimiento?: string | null
+          wikipedia_ratio?: number | null
+          wikipedia_visitas?: number | null
           x_desde?: string | null
           x_posicion?: number | null
         }
@@ -289,6 +295,36 @@ export type Database = {
         }
         Relationships: []
       }
+      wikipedia_picos: {
+        Row: {
+          articulo: string
+          capturado_en: string
+          dia: string
+          id: number
+          media_previa: number
+          ratio: number
+          visitas: number
+        }
+        Insert: {
+          articulo: string
+          capturado_en?: string
+          dia: string
+          id?: never
+          media_previa: number
+          ratio: number
+          visitas: number
+        }
+        Update: {
+          articulo?: string
+          capturado_en?: string
+          dia?: string
+          id?: never
+          media_previa?: number
+          ratio?: number
+          visitas?: number
+        }
+        Relationships: []
+      }
       x_tendencias: {
         Row: {
           capturado_en: string | null
@@ -331,12 +367,17 @@ export type Database = {
         Args: { candidatas: Json }
         Returns: Json
       }
+      guardar_alertas_wikipedia_atomicas: {
+        Args: { candidatas: Json }
+        Returns: Json
+      }
       liberar_bloqueo_radar: {
         Args: { propietario: string; trabajo: string }
         Returns: boolean
       }
       limpiar_snoop: { Args: never; Returns: undefined }
       limpiar_trends: { Args: never; Returns: undefined }
+      limpiar_wikipedia_picos: { Args: never; Returns: undefined }
       limpiar_x_tendencias: { Args: never; Returns: undefined }
     }
     Enums: {

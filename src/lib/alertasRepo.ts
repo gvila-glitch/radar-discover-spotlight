@@ -5,6 +5,7 @@ import type { Alerta, CambiosValoracion } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AlertaReciente, NuevaAlertaTrends } from "./trendsAlertas";
+import type { NuevaAlertaWikipedia } from "./wikipediaPicos";
 const rowSchema = z
   .object({
     prioridad: z.enum(["alta", "media"]),
@@ -70,13 +71,7 @@ export async function leerAlertasParaTrends(
   }
 }
 
-export async function guardarAlertasTrends(
-  client: SupabaseClient<Database>,
-  rows: NuevaAlertaTrends[],
-) {
-  const { data, error } = await client.rpc("guardar_alertas_trends_atomicas", { candidatas: rows });
-  if (error) throw new Error("No se pudieron guardar las alertas de Trends.");
-  return z
+const guardadoSchema = z
     .object({
       creadas: z.array(z.object({ id: z.number(), entidad: z.string(), contexto: z.string() })),
       descartadas: z.array(
@@ -88,6 +83,18 @@ export async function guardarAlertasTrends(
       total_hoy_antes: z.number().int(),
       total_hoy_despues: z.number().int(),
       max_alertas_dia: z.number().int(),
-    })
-    .parse(data);
+    });
+
+export async function guardarAlertasTrends(client: SupabaseClient<Database>, rows: NuevaAlertaTrends[]) {
+  const { data, error } = await client.rpc("guardar_alertas_trends_atomicas", { candidatas: rows });
+  if (error) throw new Error("No se pudieron guardar las alertas de Trends.");
+  return guardadoSchema.parse(data);
+}
+
+// Shares the Trends transaction lock, daily cap and 24-hour deduplication.
+export async function guardarAlertasWikipedia(client: SupabaseClient<Database>, rows: NuevaAlertaWikipedia[]) {
+  if (rows.length === 0) return { creadas: [], descartadas: [], total_hoy_antes: 0, total_hoy_despues: 0, max_alertas_dia: 0 };
+  const { data, error } = await client.rpc("guardar_alertas_wikipedia_atomicas", { candidatas: rows });
+  if (error) throw new Error("No se pudieron guardar las alertas de Wikipedia.");
+  return guardadoSchema.parse(data);
 }

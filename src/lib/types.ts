@@ -10,6 +10,8 @@ export interface Alerta {
   x_desde: string | null;
   trends_activo: boolean;
   trends_crecimiento: string | null;
+  wikipedia_visitas?: number | null;
+  wikipedia_ratio?: number | null;
   medios_discover: number;
   medios_lista: string[];
   titulares_seo: { medio: string; titular: string }[];

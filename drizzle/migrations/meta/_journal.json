@@ -78,6 +78,13 @@
       "when": 1794650401442,
       "tag": "0010_admin_config_ampliada",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794651085860,
+      "tag": "0011_wikipedia_picos",
+      "breakpoints": true
     }
   ]
 }

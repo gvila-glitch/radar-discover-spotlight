@@ -16,6 +16,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authenticated/configuracion'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
+import { Route as ApiPublicWikipediaAAlertasRouteImport } from './routes/api/public/wikipedia-a-alertas'
 import { Route as ApiPublicXIngestaRouteImport } from './routes/api/public/x-ingesta'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -53,6 +54,12 @@ const ApiPublicTrendsIngestaRoute = ApiPublicTrendsIngestaRouteImport.update({
   path: '/api/public/trends-ingesta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWikipediaAAlertasRoute =
+  ApiPublicWikipediaAAlertasRouteImport.update({
+    id: '/api/public/wikipedia-a-alertas',
+    path: '/api/public/wikipedia-a-alertas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicXIngestaRoute = ApiPublicXIngestaRouteImport.update({
   id: '/api/public/x-ingesta',
   path: '/api/public/x-ingesta',
@@ -66,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/configuracion': typeof AuthenticatedConfiguracionRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
+  '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
   '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
 }
 export interface FileRoutesByTo {
@@ -75,6 +83,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
+  '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
   '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
 }
 export interface FileRoutesById {
@@ -86,6 +95,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
+  '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
   '/api/public/x-ingesta': typeof ApiPublicXIngestaRoute
 }
 export interface FileRouteTypes {
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
+    | '/api/public/wikipedia-a-alertas'
     | '/api/public/x-ingesta'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
+    | '/api/public/wikipedia-a-alertas'
     | '/api/public/x-ingesta'
   id:
     | '__root__'
@@ -116,6 +128,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
+    | '/api/public/wikipedia-a-alertas'
     | '/api/public/x-ingesta'
   fileRoutesById: FileRoutesById
 }
@@ -125,6 +138,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicTrendsAAlertasRoute: typeof ApiPublicTrendsAAlertasRoute
   ApiPublicTrendsIngestaRoute: typeof ApiPublicTrendsIngestaRoute
+  ApiPublicWikipediaAAlertasRoute: typeof ApiPublicWikipediaAAlertasRoute
   ApiPublicXIngestaRoute: typeof ApiPublicXIngestaRoute
 }
 
@@ -179,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTrendsIngestaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/wikipedia-a-alertas': {
+      id: '/api/public/wikipedia-a-alertas'
+      path: '/api/public/wikipedia-a-alertas'
+      fullPath: '/api/public/wikipedia-a-alertas'
+      preLoaderRoute: typeof ApiPublicWikipediaAAlertasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/x-ingesta': {
       id: '/api/public/x-ingesta'
       path: '/api/public/x-ingesta'
@@ -208,6 +229,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicTrendsAAlertasRoute: ApiPublicTrendsAAlertasRoute,
   ApiPublicTrendsIngestaRoute: ApiPublicTrendsIngestaRoute,
+  ApiPublicWikipediaAAlertasRoute: ApiPublicWikipediaAAlertasRoute,
   ApiPublicXIngestaRoute: ApiPublicXIngestaRoute,
 }
 export const routeTree = rootRouteImport

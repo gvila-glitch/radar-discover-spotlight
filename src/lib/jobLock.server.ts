@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/integrations/supabase/types';
 
-export async function conBloqueoRadar<T>(client: SupabaseClient<Database>, trabajo: 'x-ingesta' | 'trends-a-alertas', actuar: () => Promise<T>) {
+export async function conBloqueoRadar<T>(client: SupabaseClient<Database>, trabajo: 'x-ingesta' | 'trends-a-alertas' | 'wikipedia-a-alertas', actuar: () => Promise<T>) {
   // An ownership identifier, not a credential. The service-role-only RPC verifies access.
   const propietario = crypto.randomUUID();
   const { data, error } = await client.rpc('adquirir_bloqueo_radar', { trabajo, propietario });
