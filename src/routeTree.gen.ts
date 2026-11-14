@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authenticated/configuracion'
+import { Route as ApiPublicSnoopReceptorRouteImport } from './routes/api/public/snoop-receptor'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
 import { Route as ApiPublicWikipediaAAlertasRouteImport } from './routes/api/public/wikipedia-a-alertas'
@@ -44,6 +45,11 @@ const AuthenticatedConfiguracionRoute =
     path: '/configuracion',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicSnoopReceptorRoute = ApiPublicSnoopReceptorRouteImport.update({
+  id: '/api/public/snoop-receptor',
+  path: '/api/public/snoop-receptor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicTrendsAAlertasRoute = ApiPublicTrendsAAlertasRouteImport.update({
   id: '/api/public/trends-a-alertas',
   path: '/api/public/trends-a-alertas',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
   '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
   '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/configuracion': typeof AuthenticatedConfiguracionRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
   '/api/public/wikipedia-a-alertas': typeof ApiPublicWikipediaAAlertasRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/configuracion'
+    | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
     | '/api/public/wikipedia-a-alertas'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/configuracion'
     | '/'
+    | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
     | '/api/public/wikipedia-a-alertas'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/configuracion'
     | '/_authenticated/'
+    | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
     | '/api/public/wikipedia-a-alertas'
@@ -136,6 +148,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicSnoopReceptorRoute: typeof ApiPublicSnoopReceptorRoute
   ApiPublicTrendsAAlertasRoute: typeof ApiPublicTrendsAAlertasRoute
   ApiPublicTrendsIngestaRoute: typeof ApiPublicTrendsIngestaRoute
   ApiPublicWikipediaAAlertasRoute: typeof ApiPublicWikipediaAAlertasRoute
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/configuracion'
       preLoaderRoute: typeof AuthenticatedConfiguracionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/snoop-receptor': {
+      id: '/api/public/snoop-receptor'
+      path: '/api/public/snoop-receptor'
+      fullPath: '/api/public/snoop-receptor'
+      preLoaderRoute: typeof ApiPublicSnoopReceptorRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/trends-a-alertas': {
       id: '/api/public/trends-a-alertas'
@@ -227,6 +247,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicSnoopReceptorRoute: ApiPublicSnoopReceptorRoute,
   ApiPublicTrendsAAlertasRoute: ApiPublicTrendsAAlertasRoute,
   ApiPublicTrendsIngestaRoute: ApiPublicTrendsIngestaRoute,
   ApiPublicWikipediaAAlertasRoute: ApiPublicWikipediaAAlertasRoute,
