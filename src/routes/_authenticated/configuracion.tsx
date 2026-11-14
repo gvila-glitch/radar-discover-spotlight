@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,12 +33,37 @@ function Configuracion() {
           <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         <h2 className="font-serif text-3xl font-semibold">Configuración</h2>
-        {admin.isLoading ? <p className="text-sm text-muted-foreground">Cargando…</p>
-          : !admin.data ? <p role="alert" className="text-sm">No tienes permiso para ver esta sección. <Link to="/" className="underline">Volver a alertas</Link></p>
-          : <><FormAjustes /><Medios /></>}
+        {admin.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Cargando…</p>
+          : !admin.data ? <p role="alert" className="mt-4 text-sm">No tienes permiso para ver esta sección. <Link to="/" className="underline">Volver a alertas</Link></p>
+          : <Paneles />}
       </main>
+    </div>
+  );
+}
+
+const PESTANAS = [
+  { id: "perfil", label: "Perfil editorial" },
+  { id: "ambito", label: "Ámbito y excepciones" },
+  { id: "limites", label: "Límites y umbrales" },
+  { id: "medios", label: "Medios de referencia" },
+] as const;
+type Pestana = (typeof PESTANAS)[number]["id"];
+
+function Paneles() {
+  const [tab, setTab] = useState<Pestana>("perfil");
+  return (
+    <div className="mt-5 grid gap-6 md:grid-cols-[12rem_minmax(0,1fr)]">
+      <nav aria-label="Apartados de configuración" className="flex gap-1 overflow-x-auto border-b md:flex-col md:border-b-0 md:border-r md:pr-3">
+        {PESTANAS.map((p) => (
+          <button key={p.id} onClick={() => setTab(p.id)} aria-current={tab === p.id ? "page" : undefined}
+            className={cn("whitespace-nowrap rounded-md px-3 py-2 text-left text-sm", tab === p.id ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+            {p.label}
+          </button>
+        ))}
+      </nav>
+      <div className="min-w-0 space-y-6"><div hidden={tab === "medios"} className="space-y-6"><FormAjustes tab={tab === "medios" ? "perfil" : tab} /></div>{tab === "medios" && <Medios />}</div>
     </div>
   );
 }
@@ -52,7 +78,7 @@ function Seccion({ titulo, ayuda, children }: { titulo: string; ayuda?: string; 
   );
 }
 
-function FormAjustes() {
+function FormAjustes({ tab }: { tab: Exclude<Pestana, "medios"> }) {
   const q = useQuery({ queryKey: ["ajustes"], queryFn: leerAjustes });
   const [f, setF] = useState<Ajustes | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -87,17 +113,18 @@ function FormAjustes() {
 
   return (
     <>
-      {texto("perfil_editorial", "Perfil editorial", "Describe al periódico y orienta qué alertas son relevantes.", 12)}
-      {texto("ambito", "Ámbito", "Qué temas entran y cuáles no.")}
-      {texto("excepciones", "Excepciones", "Casos que deben avisarse o descartarse aunque no encajen en el ámbito.")}
-      <Seccion titulo="Límites y umbrales">
+      {tab === "perfil" && texto("perfil_editorial", "Perfil editorial", "Describe al periódico y orienta qué alertas son relevantes.", 16)}
+      {tab === "ambito" && texto("ambito", "Ámbito", "Qué temas entran y cuáles no.")}
+      {tab === "ambito" && texto("excepciones", "Excepciones", "Casos que deben avisarse o descartarse aunque no encajen en el ámbito.")}
+      {tab === "limites" && <Seccion titulo="Límites y umbrales">
         <div className="grid gap-4 sm:grid-cols-3">
           {num("max_alertas_dia", "Alertas por día", "Máximo de alertas diarias.")}
           {num("umbral_alta_medios", "Umbral prioridad alta", "Máximo de medios ya en Discover para prioridad alta.")}
           {num("umbral_media_medios", "Umbral prioridad media", "Máximo de medios ya en Discover para prioridad media.")}
         </div>
         {invalido && <p role="alert" className="mt-3 text-xs text-destructive">Los límites y umbrales deben ser números enteros.</p>}
-      </Seccion>
+      </Seccion>}
+      {Object.keys(cambios).length > 0 && <p className="text-xs text-muted-foreground">Hay cambios sin guardar ({Object.keys(cambios).length}). Se conservan al cambiar de apartado.</p>}
       <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background py-3">
         <Button variant="outline" disabled={!Object.keys(cambios).length || guardando} onClick={() => setF(orig)}>Descartar</Button>
         <Button onClick={guardar} disabled={!Object.keys(cambios).length || guardando || invalido}>{guardando ? "Guardando…" : "Guardar cambios"}</Button>
