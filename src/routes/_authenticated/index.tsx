@@ -1,3 +1,5 @@
+import { Radar } from "lucide-react";
+import { nombreVisible } from "@/lib/metricas";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState, useEffect } from "react";
@@ -74,7 +76,7 @@ export function Index() {
     <div className="min-h-screen">
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
-          <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
+          <h1 className="tracking-tight text-xl font-semibold">Radar Discover</h1>
           <span className="text-xs text-muted-foreground">prototipo</span>
           <span className="ml-auto break-all text-xs text-muted-foreground">Usuario: {email}</span>
           <Button variant="outline" size="sm" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>
@@ -85,7 +87,7 @@ export function Index() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6">
-        <h2 className="font-serif text-3xl font-semibold">Alertas</h2>
+        <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
 
         <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
@@ -124,7 +126,7 @@ export function Index() {
                           on ? "bg-accent shadow-[inset_3px_0_0_var(--primary)]" : "hover:bg-muted")}>
                         <span className="w-12 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">{horaOFecha(a.creada_en)}</span>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate font-serif font-semibold">{a.entidad}</div>
+                          <div className="flex items-center gap-1.5 font-semibold tracking-tight"><span className="truncate">{nombreVisible(a.entidad)}</span>{a.medios_discover > 0 && <Radar aria-label={`En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`} className="size-3.5 shrink-0 text-primary"><title>{`En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`}</title></Radar>}</div>
                           <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.contexto}</p>
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1"><PrioridadTag p={a.prioridad} /><LlegadaTag medios={a.medios_discover} /><EstadoTag e={a.estado} /></div>

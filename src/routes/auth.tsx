@@ -22,7 +22,7 @@ function Login() {
   const [sent, setSent] = useState(false);
   function changeMode(next: 'login' | 'setup' | 'forgot') { setMode(next); setError(''); setSent(false); setPassword(''); }
   return <main className="mx-auto max-w-sm px-4 py-16">
-    <h1 className="font-serif text-3xl font-semibold">Radar Discover</h1>
+    <h1 className="tracking-tight text-3xl font-semibold">Radar Discover</h1>
     <h2 className="mt-6 text-lg font-medium">{mode === 'login' ? 'Iniciar sesión' : mode === 'setup' ? 'Establecer contraseña' : 'Recuperar contraseña'}</h2>
     <form className="mt-5 space-y-4" onSubmit={async e => {
       e.preventDefault(); setBusy(true); setError('');

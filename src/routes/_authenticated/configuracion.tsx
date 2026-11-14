@@ -34,11 +34,11 @@ function Configuracion() {
     <div className="min-h-screen">
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-7xl items-center px-4 py-3">
-          <h1 className="font-serif text-xl font-semibold">Radar Discover</h1>
+          <h1 className="tracking-tight text-xl font-semibold">Radar Discover</h1>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-6">
-        <h2 className="font-serif text-3xl font-semibold">Configuración</h2>
+        <h2 className="tracking-tight text-3xl font-semibold">Configuración</h2>
         {admin.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Cargando…</p>
           : !admin.data ? <p role="alert" className="mt-4 text-sm">No tienes permiso para ver esta sección. <Link to="/" className="underline">Volver a alertas</Link></p>
           : <Paneles />}
@@ -63,7 +63,7 @@ function Paneles() {
 function Seccion({ titulo, ayuda, children }: { titulo: string; ayuda?: string; children: React.ReactNode }) {
   return (
     <section className="border bg-card p-4">
-      <h3 className="font-serif text-lg font-semibold">{titulo}</h3>
+      <h3 className="tracking-tight text-lg font-semibold">{titulo}</h3>
       {ayuda && <p className="mt-1 text-xs text-muted-foreground">{ayuda}</p>}
       <div className="mt-3">{children}</div>
     </section>

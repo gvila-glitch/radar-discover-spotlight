@@ -20,7 +20,7 @@ function TeamLayout() {
   const { email } = Route.useRouteContext();
   const { allowed } = Route.useLoaderData();
   if (!allowed) return <main className="mx-auto max-w-lg px-4 py-16">
-    <h1 className="font-serif text-3xl font-semibold">Radar Discover</h1>
+    <h1 className="tracking-tight text-3xl font-semibold">Radar Discover</h1>
     <p role="alert" className="my-6">Tu cuenta no tiene acceso a este panel</p>
     <Button variant="outline" onClick={() => supabase.auth.signOut()}>Cerrar sesión</Button>
   </main>;

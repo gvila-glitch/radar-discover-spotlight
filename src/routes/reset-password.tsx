@@ -31,7 +31,7 @@ function ResetPassword() {
     return () => { active = false; };
   }, []);
   return <main className="mx-auto max-w-sm px-4 py-16">
-    <h1 className="font-serif text-3xl font-semibold">Radar Discover</h1>
+    <h1 className="tracking-tight text-3xl font-semibold">Radar Discover</h1>
     <h2 className="mt-6 text-lg font-medium">Establecer contraseña</h2>
     {status === 'checking' && <p className="mt-5 text-sm text-muted-foreground">Comprobando enlace…</p>}
     {status === 'invalid' && <div className="mt-5 space-y-4">

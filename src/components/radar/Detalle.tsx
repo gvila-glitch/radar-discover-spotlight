@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
+import { nombreVisible } from "@/lib/metricas";
 import { LlegadaTag, PrioridadTag } from "./ui";
 import { AdvisorInvitation } from '@/components/payments/AdvisorInvitation';
 
@@ -25,7 +26,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
         <PrioridadTag p={a.prioridad} /> <LlegadaTag medios={a.medios_discover} />
         <span className="font-mono">{fechaLarga(a.creada_en)}</span><span>·</span><span>{hace(a.creada_en)}</span>
       </div>
-      <h2 className="mt-3 font-serif text-3xl font-semibold leading-tight">{a.entidad}</h2>
+      <h2 className="mt-3 tracking-tight text-3xl font-semibold leading-tight">{nombreVisible(a.entidad)}</h2>
       <p className="mt-1 text-muted-foreground">{a.contexto}</p>
       <div className="mt-4"><AdvisorInvitation /></div>
 
@@ -40,7 +41,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
 
       <div className="mt-6 border-y border-foreground/80 py-3">
         <div className="text-xs text-muted-foreground">Ángulo sugerido <span className="text-foreground">→ {a.seccion_sugerida}</span></div>
-        <p className="mt-1 font-serif text-lg leading-snug">{a.angulo}</p>
+        <p className="mt-1 tracking-tight text-lg leading-snug">{a.angulo}</p>
       </div>
 
       <Seccion titulo="Lo que han sacado los medios de referencia SEO">

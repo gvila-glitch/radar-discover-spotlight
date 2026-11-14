@@ -48,13 +48,13 @@ function PremiumPage() {
     <PaymentTestModeBanner />
     <main className="mx-auto max-w-3xl px-4 py-8 sm:px-8">
       <Button variant="ghost" size="sm" asChild><Link to="/"><ArrowLeft />Alertas</Link></Button>
-      <div className="mt-8 flex items-center gap-3"><LockKeyhole className="size-6 text-muted-foreground" /><h1 className="font-serif text-3xl font-semibold">IA Advisor · Premium</h1></div>
+      <div className="mt-8 flex items-center gap-3"><LockKeyhole className="size-6 text-muted-foreground" /><h1 className="tracking-tight text-3xl font-semibold">IA Advisor · Premium</h1></div>
       <p className="mt-3 text-sm text-muted-foreground">Próximamente. IA Advisor todavía no está disponible y ningún pago activa el servicio.</p>
       <div className="my-6 border-y py-5"><span className="font-mono text-4xl">10 €</span><span className="text-muted-foreground"> / mes</span>
         <p className="mt-2 text-sm text-muted-foreground">Suscripción recurrente mensual de prueba. El formulario muestra el total y los impuestos aplicables antes de confirmar.</p>
       </div>
       {active ? <section className="space-y-4">
-        <h2 className="font-serif text-xl">Premium de prueba activo</h2><p className="text-sm">Tu suscripción no activa IA Advisor. No se ha cobrado dinero real.</p>
+        <h2 className="tracking-tight text-xl">Premium de prueba activo</h2><p className="text-sm">Tu suscripción no activa IA Advisor. No se ha cobrado dinero real.</p>
         {sub.cancel_at_period_end ? <p className="text-sm">Cancelada la renovación{ sub.current_period_end ? ` · Finaliza el ${new Date(sub.current_period_end).toLocaleDateString('es-ES')}` : ''}.</p> : <Button variant="outline" disabled={busy} onClick={cancelar}>{busy ? 'Cancelando…' : 'Cancelar renovación'}</Button>}
       </section> : <>
         {sub && <p className="mb-4 text-sm text-muted-foreground">Estado de la suscripción: {sub.status === 'incomplete' ? 'pago pendiente' : sub.status === 'canceled' ? 'cancelada' : sub.status}.</p>}

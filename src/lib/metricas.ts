@@ -26,3 +26,7 @@ export function kpis(alertas: Alerta[], hoyKey: (iso: string) => string, hoy: st
     medianaLlegada: mediana(alertas.map((a) => a.medios_discover)),
   };
 }
+
+export function nombreVisible(entidad: string): string {
+  return entidad.replace(/^\[(SIN DISCOVER|PRUEBA)\]\s*/i, "");
+}

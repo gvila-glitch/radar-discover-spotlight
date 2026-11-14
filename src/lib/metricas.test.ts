@@ -17,3 +17,12 @@ describe("kpis", () => {
   it("publicadas sobre total", () => expect(k.pctPublicadas).toBe(25));
   it("mediana", () => expect(mediana([0, 0, 0, 4])).toBe(0));
 });
+
+import { nombreVisible } from "./metricas";
+describe("nombreVisible", () => {
+  it("oculta los prefijos al mostrar", () => {
+    expect(nombreVisible("[SIN DISCOVER] Abascal")).toBe("Abascal");
+    expect(nombreVisible("[PRUEBA] Persona")).toBe("Persona");
+    expect(nombreVisible("Rosalía")).toBe("Rosalía");
+  });
+});
