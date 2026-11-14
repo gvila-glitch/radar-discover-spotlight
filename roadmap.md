@@ -1,4 +1,5 @@
 # Cloud connection
+- [x] Tested source fusion against SQL identical to deployed functions (all five definition hashes matched): 23 assertions/tests passed and 3 known-failure regressions reproduced; no live writes, provider calls or schedule changes. Fusion keeps one ID, daily total 8, and three-creation limit; distinct given names stay separate, but name containment, removed parentheses and uppercase normalization are unsafe. No production fix requested or applied.
 - [x] Removed Premium entirely after the Stripe integration was disconnected: Stripe dependencies uninstalled, subscriptions table deprecated and unused; no payment UI remains.
 - [x] Wikipedia spikes as a new alert source: real run created 3 alerts from 20 stored spikes; hourly schedule at :30; 5 tests passed; unauthenticated POST 401.
 - [x] Removed 13 PRUEBA alerts once; new conversion entities use SIN DISCOVER and both prefixes deduplicate; cleanup updated without rerunning on live data. 24 tests passed; three sequential conversions created 3+3+2, total 8 verified in database and signed-in panel; schedules and locks unchanged.
