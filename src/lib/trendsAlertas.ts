@@ -26,7 +26,13 @@ export type NuevaAlertaTrends = {
   estado: "pendiente";
 };
 export type MotivoDescarte =
-  "exclusion" | "reglas" | "ya_avisada" | "fuera_de_horario" | "tope_diario" | "limite_ejecucion" | "sin_termino";
+  | "exclusion"
+  | "reglas"
+  | "ya_avisada"
+  | "fuera_de_horario"
+  | "tope_diario"
+  | "limite_ejecucion"
+  | "sin_termino";
 export type Descarte = { termino: string; motivo: MotivoDescarte };
 // ---- Filtro por reglas (sin IA): las listas viven en la tabla config (reglas_si, reglas_no y reglas_modo) ----
 export type Regla = { texto: string; prefijo: boolean; seccion: string | null };
@@ -75,22 +81,34 @@ function coincide(textoNormalizado: string, regla: Regla, dentroDelTexto: boolea
   if (!textoNormalizado) return false;
   if (dentroDelTexto) return textoNormalizado.includes(regla.texto);
   const envuelto = ` ${textoNormalizado}`;
-  return regla.prefijo ? envuelto.includes(` ${regla.texto}`) : `${envuelto} `.includes(` ${regla.texto} `);
+  return regla.prefijo
+    ? envuelto.includes(` ${regla.texto}`)
+    : `${envuelto} `.includes(` ${regla.texto} `);
 }
 
 // Descartar: solo se mira el término (para que un titular no tumbe una tendencia buena).
 // Afín: se mira el término y también el titular de la noticia asociada.
-export function clasificarPorReglas(termino: string, titular: string | null, reglas: Reglas): ResultadoReglas {
+export function clasificarPorReglas(
+  termino: string,
+  titular: string | null,
+  reglas: Reglas,
+): ResultadoReglas {
   const esHashtag = termino.trim().startsWith("#");
   const textoTermino = normalizarTexto(termino);
   const textoTitular = titular ? normalizarTexto(titular) : "";
   const no = reglas.no.find((regla) => coincide(textoTermino, regla, esHashtag));
-  if (no) return { decision: "descartar", motivo: `Descartada por reglas: «${no.texto}»`, seccion: null };
+  if (no)
+    return { decision: "descartar", motivo: `Descartada por reglas: «${no.texto}»`, seccion: null };
   const si = reglas.si.find(
     (regla) => coincide(textoTermino, regla, esHashtag) || coincide(textoTitular, regla, false),
   );
-  if (si) return { decision: "afin", motivo: `Encaja por reglas: «${si.texto}»`, seccion: si.seccion };
-  return { decision: "sin_clasificar", motivo: "Sin clasificar: no coincide con ninguna regla", seccion: null };
+  if (si)
+    return { decision: "afin", motivo: `Encaja por reglas: «${si.texto}»`, seccion: si.seccion };
+  return {
+    decision: "sin_clasificar",
+    motivo: "Sin clasificar: no coincide con ninguna regla",
+    seccion: null,
+  };
 }
 
 // ---- Tendencias de X como fuente de candidatas ----
@@ -128,15 +146,25 @@ export function xActuales(
       if (!porCaptura.get(captura)?.has(clave)) break;
       desde = captura;
     }
-    resultado.set(clave, { nombre: fila.nombre.trim(), posicion: fila.posicion, desde: new Date(desde).toISOString() });
+    resultado.set(clave, {
+      nombre: fila.nombre.trim(),
+      posicion: fila.posicion,
+      desde: new Date(desde).toISOString(),
+    });
   }
   return resultado;
 }
 
-function contextoAlerta(titular: string | null, hayTrends: boolean, x: { posicion: number } | null): string {
+function contextoAlerta(
+  titular: string | null,
+  hayTrends: boolean,
+  x: { posicion: number } | null,
+): string {
   if (hayTrends) {
     const base = titular ?? "Tendencia en Google España";
-    return x ? `${base} · Fuentes: Google Trends y X (puesto ${x.posicion})` : `${base} · Fuente: Google Trends`;
+    return x
+      ? `${base} · Fuentes: Google Trends y X (puesto ${x.posicion})`
+      : `${base} · Fuente: Google Trends`;
   }
   return `En tendencia en X España (puesto ${x?.posicion ?? 0}) · Fuente: X`;
 }
@@ -202,11 +230,74 @@ export function normalizarEntidad(value: string): string {
     .toLocaleLowerCase("es-ES");
 }
 
+// ---- Cuándo dos nombres son «lo mismo» (el SQL hace exactamente lo mismo: clave_entidad y entidades_equivalentes) ----
+const ORIGEN =
+  "ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝàáâãäåçèéêëìíîïðñòóôõöøùúûüýÿĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĨĩĪīĬĭĮįİıĴĵĶķĹĺĻļĽľŁłŃńŅņŇňŌōŎŏŐőŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const DESTINO =
+  "aaaaaaceeeeiiiidnoooooouuuuyaaaaaaceeeeiiiidnoooooouuuuyyaaaaaaccccccccddddeeeeeeeeeegggggggghhiiiiiiiiiijjkkllllllllnnnnnnoooooorrrrrrssssssssttttuuuuuuuuuuuuwwyyyzzzzzzabcdefghijklmnopqrstuvwxyz";
+const MAPA_LETRAS = new Map([...ORIGEN].map((c, i) => [c, DESTINO[i] ?? ""] as const));
+const PALABRAS_VACIAS = new Set([
+  "de",
+  "del",
+  "la",
+  "el",
+  "los",
+  "las",
+  "y",
+  "e",
+  "en",
+  "con",
+  "por",
+  "para",
+  "al",
+]);
+
+/** Sin prefijo [SIN DISCOVER]/[PRUEBA], sin paréntesis «(cantante)», sin tildes ni mayúsculas. */
+export function claveEntidad(valor: string): string {
+  return [...valor.replace(/^\[(?:PRUEBA|SIN DISCOVER)\]\s*/i, "").replace(/\s*\([^)]*\)/g, "")]
+    .map((c) => MAPA_LETRAS.get(c) ?? c)
+    .join("")
+    .replace(/[^a-z0-9#]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function palabrasClave(clave: string): string[] {
+  return clave.split(" ").filter((t) => t.length >= 3 && !PALABRAS_VACIAS.has(t));
+}
+
+/**
+ * Iguales, con las mismas palabras (sin artículos ni orden), o uno contenido en el otro:
+ * si el corto es UNA palabra, debe ser la última del largo (el apellido: «abascal» en «santiago abascal», pero no
+ * «pedro» en «pedro sanchez») y tener al menos 5 letras; si tiene varias, todas deben estar en el largo.
+ */
+export function entidadesEquivalentes(a: string, b: string): boolean {
+  const ka = claveEntidad(a);
+  const kb = claveEntidad(b);
+  if (!ka || !kb) return false;
+  if (ka === kb) return true;
+  const oa = palabrasClave(ka);
+  const ob = palabrasClave(kb);
+  const ta = new Set(oa);
+  const tb = new Set(ob);
+  if (ta.size === 0 || tb.size === 0) return false;
+  if (ta.size === tb.size && [...ta].every((t) => tb.has(t))) return true;
+  const [corto, largoOrdenado] = ta.size <= tb.size ? ([ta, ob] as const) : ([tb, oa] as const);
+  const largo = new Set(largoOrdenado);
+  if (corto.size === 1) {
+    const [unica = ""] = [...corto];
+    return unica.length >= 5 && unica === largoOrdenado[largoOrdenado.length - 1];
+  }
+  return [...corto].join("").length >= 5 && [...corto].every((t) => largo.has(t));
+}
+
 export function volumenNumerico(value: string | null): number {
   const match = /^\s*([\d.,]+)\s*([KMB]?)\s*\+?\s*$/i.exec(value ?? "");
   if (!match?.[1]) return 0;
   const suffix = match[2]?.toUpperCase();
-  const number = suffix ? Number(match[1].replace(",", ".")) : Number(match[1].replace(/[.,]/g, ""));
+  const number = suffix
+    ? Number(match[1].replace(",", "."))
+    : Number(match[1].replace(/[.,]/g, ""));
   return Number.isFinite(number)
     ? number * (suffix === "K" ? 1000 : suffix === "M" ? 1000000 : suffix === "B" ? 1000000000 : 1)
     : 0;
@@ -225,10 +316,16 @@ export function planificarAlertasTrends(input: {
   xTendencias?: TendenciaX[] | undefined;
 }) {
   const config = configSchema.safeParse(input.config);
-  if (!config.success || Object.values(input.config).some((value) => value === null || value?.trim() === "")) {
+  if (
+    !config.success ||
+    Object.values(input.config).some((value) => value === null || value?.trim() === "")
+  ) {
     throw new Error("Configuración de horario o máximo diario no válida.");
   }
-  const reglas = input.reglas && (input.reglas.si.length > 0 || input.reglas.no.length > 0) ? input.reglas : undefined;
+  const reglas =
+    input.reglas && (input.reglas.si.length > 0 || input.reglas.no.length > 0)
+      ? input.reglas
+      : undefined;
   const end = input.now.getTime();
   const window = input.trends.filter(
     (t) => Date.parse(t.capturado_en) >= end - 30 * 60000 && Date.parse(t.capturado_en) <= end,
@@ -236,7 +333,10 @@ export function planificarAlertasTrends(input: {
   const fallback = window.length === 0;
   const readings = (
     fallback
-      ? input.trends.filter((t) => Date.parse(t.capturado_en) >= end - 2 * 3600000 && Date.parse(t.capturado_en) <= end)
+      ? input.trends.filter(
+          (t) =>
+            Date.parse(t.capturado_en) >= end - 2 * 3600000 && Date.parse(t.capturado_en) <= end,
+        )
       : window
   )
     .slice()
@@ -250,18 +350,21 @@ export function planificarAlertasTrends(input: {
     }
     if (!latest.has(t.termino)) latest.set(t.termino, t);
   }
-  const previous = new Set(
-    input.alertas
-      .filter((a) => Date.parse(a.creada_en) >= end - 24 * 3600000 && Date.parse(a.creada_en) <= end)
-      .map((a) => normalizarEntidad(a.entidad)),
-  );
-  const exclusions = input.exclusiones.map((e) => e.toLocaleLowerCase("es-ES")).filter((e) => e.trim());
+  // Alertas de las últimas 24 h: si una candidata habla de lo mismo, se combina con ella en vez de crear otra.
+  const recientes = input.alertas
+    .filter((a) => Date.parse(a.creada_en) >= end - 24 * 3600000 && Date.parse(a.creada_en) <= end)
+    .map((a) => a.entidad);
+  const exclusions = input.exclusiones
+    .map((e) => e.toLocaleLowerCase("es-ES"))
+    .filter((e) => e.trim());
   const p = madridParts(input.now);
   const hour = p["hour"] + p["minute"] / 60 + p["second"] / 3600;
   const { hora_inicio: start, hora_fin: finish, max_alertas_dia: max } = config.data;
   const inHours = start <= finish ? hour >= start && hour < finish : hour >= start || hour < finish;
   const disponibles = Math.max(0, max - input.totalHoy);
   const nuevas: NuevaAlertaTrends[] = [];
+  const fusiones: NuevaAlertaTrends[] = [];
+  const planeadas: string[] = [];
   type Candidato = {
     termino: string;
     trend: TendenciaAlerta | null;
@@ -280,7 +383,8 @@ export function planificarAlertasTrends(input: {
     ? xActuales(input.xTendencias, end)
     : new Map<string, { nombre: string; posicion: number; desde: string }>();
   const indice = new Map<string, Candidato>();
-  for (const c of candidatosBase) if (!indice.has(claveDe(c.termino))) indice.set(claveDe(c.termino), c);
+  for (const c of candidatosBase)
+    if (!indice.has(claveDe(c.termino))) indice.set(claveDe(c.termino), c);
   for (const [clave, xv] of actualesX) {
     const existente = indice.get(clave);
     if (existente) {
@@ -310,25 +414,22 @@ export function planificarAlertasTrends(input: {
       volumenNumerico(b.trend?.volumen ?? null) - volumenNumerico(a.trend?.volumen ?? null) ||
       a.termino.localeCompare(b.termino, "es"),
   );
+  const MAX_FUSIONES = 30;
   for (const { trend, x, termino, titular, clasificacion } of candidatos) {
-    const normalized = normalizarEntidad(termino);
     let motivo: MotivoDescarte | undefined;
-    if (exclusions.some((e) => termino.toLocaleLowerCase("es-ES").includes(e))) motivo = "exclusion";
+    if (exclusions.some((e) => termino.toLocaleLowerCase("es-ES").includes(e)))
+      motivo = "exclusion";
     else if (
       clasificacion &&
       (clasificacion.decision === "descartar" ||
         (clasificacion.decision === "sin_clasificar" && reglas?.modo === "estricto"))
     )
       motivo = "reglas";
-    else if (previous.has(normalized)) motivo = "ya_avisada";
-    else if (!inHours) motivo = "fuera_de_horario";
-    else if (nuevas.length >= disponibles) motivo = "tope_diario";
-    else if (nuevas.length >= 3) motivo = "limite_ejecucion";
     if (motivo) {
       descartadas.push({ termino, motivo });
       continue;
     }
-    nuevas.push({
+    const alerta: NuevaAlertaTrends = {
       entidad: "[SIN DISCOVER] " + termino,
       contexto: contextoAlerta(titular, trend !== null, x),
       prioridad: "media",
@@ -341,17 +442,38 @@ export function planificarAlertasTrends(input: {
       titulares_seo: [],
       angulo: "Pendiente: aún sin IA",
       seccion_sugerida: clasificacion?.seccion ?? "Sin sugerir",
-      motivo_afinidad: clasificacion ? clasificacion.motivo : "Sin filtro editorial todavía (solo Trends)",
+      motivo_afinidad: clasificacion
+        ? clasificacion.motivo
+        : "Sin filtro editorial todavía (solo Trends)",
       estado: "pendiente",
-    });
-    previous.add(normalized);
+    };
+    // ¿Habla de lo mismo que una alerta reciente o que otra candidata de esta ejecución? Se envía para combinarla:
+    // no crea alerta nueva, así que no cuenta para el horario, el tope diario ni el límite de la ejecución.
+    if (
+      recientes.some((r) => entidadesEquivalentes(r, termino)) ||
+      planeadas.some((r) => entidadesEquivalentes(r, termino))
+    ) {
+      if (fusiones.length < MAX_FUSIONES) fusiones.push(alerta);
+      continue;
+    }
+    if (!inHours) motivo = "fuera_de_horario";
+    else if (nuevas.length >= disponibles) motivo = "tope_diario";
+    else if (nuevas.length >= 3) motivo = "limite_ejecucion";
+    if (motivo) {
+      descartadas.push({ termino, motivo });
+      continue;
+    }
+    nuevas.push(alerta);
+    planeadas.push(termino);
   }
   return {
     nuevas,
+    fusiones,
     descartadas,
     ventana_minutos: fallback ? 120 : 30,
     tendencias_unicas: latest.size,
-    lecturas_repetidas: readings.length - latest.size - descartadas.filter((d) => d.motivo === "sin_termino").length,
+    lecturas_repetidas:
+      readings.length - latest.size - descartadas.filter((d) => d.motivo === "sin_termino").length,
     total_hoy_antes: input.totalHoy,
     max_alertas_dia: max,
     ...(input.xTendencias ? { candidatas_x: actualesX.size } : {}),

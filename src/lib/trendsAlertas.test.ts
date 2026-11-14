@@ -26,14 +26,18 @@ describe('Trends a alertas', () => {
   });
   it('evita duplicados durante 24 horas ignorando prefijo y mayúsculas', () => {
     const result = planificarAlertasTrends({ ...base, alertas: [{ entidad: '[PRUEBA] PRESUPUESTOS', creada_en: new Date(now.getTime() - 24 * 3600000).toISOString() }] });
+    // Ya no se descarta: se envía para combinarla con la alerta existente (la base de datos decide si aporta algo nuevo).
     expect(result.nuevas).toHaveLength(0);
-    expect(result.descartadas[0]?.motivo).toBe('ya_avisada');
-    expect(planificarAlertasTrends({ ...base, alertas: [{ entidad: 'PRESUPUESTOS', creada_en: new Date(now.getTime() - 24 * 3600000 - 1).toISOString() }] }).nuevas).toHaveLength(1);
+    expect(result.fusiones.map(a => a.entidad)).toEqual(['[SIN DISCOVER] Presupuestos']);
+    const antigua = planificarAlertasTrends({ ...base, alertas: [{ entidad: 'PRESUPUESTOS', creada_en: new Date(now.getTime() - 24 * 3600000 - 1).toISOString() }] });
+    expect(antigua.nuevas).toHaveLength(1);
+    expect(antigua.fusiones).toHaveLength(0);
   });
   it('ignora SIN DISCOVER al comprobar las entidades ya avisadas', () => {
     const result = planificarAlertasTrends({ ...base, alertas: [{ entidad: '[SIN DISCOVER] PRESUPUESTOS', creada_en: now.toISOString() }] });
     expect(result.nuevas).toHaveLength(0);
-    expect(result.descartadas).toEqual([{ termino: 'Presupuestos', motivo: 'ya_avisada' }]);
+    expect(result.fusiones).toHaveLength(1);
+    expect(result.descartadas).toEqual([]);
   });
   it('no crea fuera del horario de Madrid y respeta sus límites', () => {
     expect(planificarAlertasTrends({ ...base, now: new Date('2026-11-13T05:59:00Z'), trends: [trend('Debate', '500+', 760)] }).descartadas[0]?.motivo).toBe('fuera_de_horario');
@@ -72,7 +76,7 @@ describe('Trends a alertas', () => {
     const second = planificarAlertasTrends({ ...base, totalHoy: first.nuevas.length, alertas: first.nuevas.map(a => ({ entidad: a.entidad, creada_en: now.toISOString() })) });
     expect(first.nuevas).toHaveLength(1);
     expect(second.nuevas).toHaveLength(0);
-    expect(second.descartadas[0]?.motivo).toBe('ya_avisada');
+    expect(second.fusiones).toHaveLength(1);
   });
   it('falla sin crear alertas si falta la configuración', () => {
     expect(() => planificarAlertasTrends({ ...base, config: {} })).toThrow('Configuración');

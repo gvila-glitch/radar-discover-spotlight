@@ -23,7 +23,9 @@ describe("picos de Wikipedia", () => {
     const picos = ["A", "B", "C", "D", "E", "Fútbol club"].map((a, i) => ({ articulo: a, visitas: 9000, media_previa: 100, ratio: 90 - i }));
     const plan = planificarAlertasWikipedia({ picos, exclusiones: ["fútbol"], entidadesRecientes: ["[SIN DISCOVER] a"] });
     expect(plan.nuevas.map((n) => n.entidad)).toEqual(["[SIN DISCOVER] B", "[SIN DISCOVER] C", "[SIN DISCOVER] D"]);
-    expect(plan.descartadas.map((d) => d.motivo).sort()).toEqual(["exclusion", "limite_ejecucion", "ya_avisada"]);
+    // «A» ya tiene alerta: se envía para combinarla en vez de descartarla.
+    expect(plan.fusiones.map((n) => n.entidad)).toEqual(["[SIN DISCOVER] A"]);
+    expect(plan.descartadas.map((d) => d.motivo).sort()).toEqual(["exclusion", "limite_ejecucion"]);
   });
   it("lee el último día completo en UTC", () => {
     expect(diasUTC(new Date("2026-11-14T00:30:00Z"), 2)).toEqual(["2026-11-13", "2026-11-12"]);

@@ -77,9 +77,13 @@ const guardadoSchema = z
       descartadas: z.array(
         z.object({
           termino: z.string(),
-          motivo: z.enum(["ya_avisada", "tope_diario", "fuera_de_horario", "sin_termino"]),
+          motivo: z.enum(["ya_avisada", "tope_diario", "fuera_de_horario", "sin_termino", "limite_ejecucion"]),
         }),
       ),
+      // Alertas que ya existían y han recibido datos de otra fuente (X, Google Trends o Wikipedia).
+      combinadas: z
+        .array(z.object({ id: z.number(), entidad: z.string(), candidata: z.string(), fuentes: z.array(z.string()) }))
+        .default([]),
       total_hoy_antes: z.number().int(),
       total_hoy_despues: z.number().int(),
       max_alertas_dia: z.number().int(),
@@ -93,7 +97,7 @@ export async function guardarAlertasTrends(client: SupabaseClient<Database>, row
 
 // Shares the Trends transaction lock, daily cap and 24-hour deduplication.
 export async function guardarAlertasWikipedia(client: SupabaseClient<Database>, rows: NuevaAlertaWikipedia[]) {
-  if (rows.length === 0) return { creadas: [], descartadas: [], total_hoy_antes: 0, total_hoy_despues: 0, max_alertas_dia: 0 };
+  if (rows.length === 0) return { creadas: [], combinadas: [], descartadas: [], total_hoy_antes: 0, total_hoy_despues: 0, max_alertas_dia: 0 };
   const { data, error } = await client.rpc("guardar_alertas_wikipedia_atomicas", { candidatas: rows });
   if (error) throw new Error("No se pudieron guardar las alertas de Wikipedia.");
   return guardadoSchema.parse(data);

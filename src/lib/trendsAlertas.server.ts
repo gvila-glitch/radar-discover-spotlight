@@ -94,8 +94,9 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     reglas,
     xTendencias,
   });
-  const guardado = await guardarAlertasTrends(client, plan.nuevas);
-  const { nuevas: _nuevas, ...report } = plan;
+  // Primero las alertas nuevas y después las que se combinan: así una candidata puede unirse a otra recién creada.
+  const guardado = await guardarAlertasTrends(client, [...plan.nuevas, ...plan.fusiones]);
+  const { nuevas: _nuevas, fusiones: _fusiones, ...report } = plan;
   const descartadas = [...plan.descartadas, ...guardado.descartadas];
   return {
     ...report,

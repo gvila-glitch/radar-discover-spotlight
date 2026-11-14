@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { conBloqueoRadar } from "./jobLock.server";
 import { guardarAlertasWikipedia, leerAlertasParaTrends } from "./alertasRepo";
+import { leerReglas } from "./reglasRepo";
 import { calcularPicos, diasUTC, planificarAlertasWikipedia, topSchema, type Top } from "./wikipediaPicos";
 
 const API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/es.wikipedia/all-access/";
@@ -42,8 +43,10 @@ async function ejecutar(client: SupabaseClient<Database>, now: Date) {
   if (error) throw new Error("No se pudieron leer los picos de Wikipedia.");
   const { data: excl, error: exclError } = await client.from("exclusiones").select("valor").eq("tipo", "tema").eq("activo", true).limit(1000);
   if (exclError) throw new Error("No se pudieron leer las exclusiones.");
-  const recientes = await leerAlertasParaTrends(client, new Date(now.getTime() - 48 * 3600000), now);
-  const plan = planificarAlertasWikipedia({ picos: picos ?? [], exclusiones: (excl ?? []).map((e) => e.valor), entidadesRecientes: recientes.map((a) => a.entidad) });
-  const guardado = await guardarAlertasWikipedia(client, plan.nuevas);
+  const reglas = await leerReglas(client);
+  // 24 h: la misma ventana que usa la base de datos para combinar alertas sobre lo mismo.
+  const recientes = await leerAlertasParaTrends(client, new Date(now.getTime() - 24 * 3600000), now);
+  const plan = planificarAlertasWikipedia({ picos: picos ?? [], exclusiones: (excl ?? []).map((e) => e.valor), entidadesRecientes: recientes.map((a) => a.entidad), reglas });
+  const guardado = await guardarAlertasWikipedia(client, [...plan.nuevas, ...plan.fusiones]);
   return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length };
 }
