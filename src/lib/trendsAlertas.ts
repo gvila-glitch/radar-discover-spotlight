@@ -211,16 +211,23 @@ export function planificarAlertasTrends(input: {
   const inHours = start <= finish ? hour >= start && hour < finish : hour >= start || hour < finish;
   const disponibles = Math.max(0, max - input.totalHoy);
   const nuevas: NuevaAlertaTrends[] = [];
-  for (const t of [...latest.values()].sort(
-    (a, b) =>
-      volumenNumerico(b.volumen) - volumenNumerico(a.volumen) || (a.termino ?? "").localeCompare(b.termino ?? "", "es"),
-  )) {
+  const candidatos = [...latest.values()].map((t) => {
     const termino = t.termino?.trim() ?? "";
-    const normalized = normalizarEntidad(termino);
     const first = Array.isArray(t.noticias) ? (t.noticias[0] as unknown) : null;
     const news = z.object({ titular: z.string() }).safeParse(first);
     const titular = news.success && news.data.titular.trim() ? news.data.titular : null;
-    const clasificacion = reglas ? clasificarPorReglas(termino, titular, reglas) : null;
+    return { t, termino, titular, clasificacion: reglas ? clasificarPorReglas(termino, titular, reglas) : null };
+  });
+  // Con reglas, lo que encaja ocupa los huecos antes que lo que no se reconoce; después, mayor volumen primero.
+  const rango = (c: (typeof candidatos)[number]) => (c.clasificacion?.decision === "afin" ? 0 : 1);
+  candidatos.sort(
+    (a, b) =>
+      rango(a) - rango(b) ||
+      volumenNumerico(b.t.volumen) - volumenNumerico(a.t.volumen) ||
+      (a.t.termino ?? "").localeCompare(b.t.termino ?? "", "es"),
+  );
+  for (const { t, termino, titular, clasificacion } of candidatos) {
+    const normalized = normalizarEntidad(termino);
     let motivo: MotivoDescarte | undefined;
     if (exclusions.some((e) => termino.toLocaleLowerCase("es-ES").includes(e))) motivo = "exclusion";
     else if (
