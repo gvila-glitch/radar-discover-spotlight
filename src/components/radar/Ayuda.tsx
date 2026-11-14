@@ -68,7 +68,11 @@ const ENTRADAS: { t: string; d: string }[] = [
   },
   {
     t: "Llegada",
-    d: "Puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. Si todavía no hay datos de Discover, no se muestra.",
+    d: "Puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. Con 6 o más medios ya en Discover no se genera alerta. Si todavía no hay datos de Discover, no se muestra.",
+  },
+  {
+    t: "Titulares en Discover",
+    d: "Los titulares más recientes de los medios que ya han publicado sobre el tema (hasta tres, de medios distintos).",
   },
   {
     t: "Por qué es afín",

@@ -77,7 +77,7 @@ const guardadoSchema = z
       descartadas: z.array(
         z.object({
           termino: z.string(),
-          motivo: z.enum(["ya_avisada", "tope_diario", "fuera_de_horario", "sin_termino", "limite_ejecucion"]),
+          motivo: z.enum(["ya_avisada", "tope_diario", "fuera_de_horario", "sin_termino", "limite_ejecucion", "ya_en_discover"]),
         }),
       ),
       // Alertas que ya existían y han recibido datos de otra fuente (X, Google Trends o Wikipedia).

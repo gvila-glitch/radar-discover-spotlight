@@ -42,14 +42,14 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
         <p className="mt-1 tracking-tight text-lg leading-snug">{a.angulo}</p>
       </div>
 
-      <Seccion titulo="Lo que han sacado los medios de referencia SEO">
+      <Seccion titulo="Titulares en Discover">
         {a.titulares_seo.length ? (
           <ul className="divide-y border-y">
             {a.titulares_seo.map((t, i) => (
               <li key={i} className="flex gap-3 py-2 text-sm"><span className="w-20 shrink-0 text-muted-foreground">{t.medio}</span><span>{t.titular}</span></li>
             ))}
           </ul>
-        ) : <p className="text-sm text-muted-foreground">Ningún medio de referencia ha publicado todavía sobre esto.</p>}
+        ) : <p className="text-sm text-muted-foreground">Todavía no hay titulares en Discover sobre esto.</p>}
       </Seccion>
 
       <Seccion titulo="Por qué es afín"><p className="text-sm">{a.motivo_afinidad}</p></Seccion>
