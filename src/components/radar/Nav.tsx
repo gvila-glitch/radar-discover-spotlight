@@ -5,7 +5,6 @@ import { Bell, Settings, PanelLeftClose, PanelLeftOpen, ChevronDown } from "luci
 import { cn } from "@/lib/utils";
 import { esAdmin } from "@/lib/configRepo";
 import { APARTADOS } from "@/lib/configApartados";
-import { AdvisorInvitation } from '@/components/payments/AdvisorInvitation';
 
 export function Sidebar() {
   const { data: admin } = useQuery({ queryKey: ["es_admin"], queryFn: esAdmin });
@@ -23,7 +22,6 @@ export function Sidebar() {
         <Link to="/" className={item} activeProps={act} activeOptions={{ exact: true }} title="Alertas">
           <Bell className="size-4 shrink-0" />{abierta && "Alertas"}
         </Link>
-        <AdvisorInvitation collapsed={!abierta} sidebar />
         {admin && (
           <div>
             <div className="flex items-center">
