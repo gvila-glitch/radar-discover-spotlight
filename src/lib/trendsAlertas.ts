@@ -7,15 +7,16 @@ export type TendenciaAlerta = {
   capturado_en: string;
   noticias: unknown;
 };
+export type TendenciaX = { id: number; nombre: string; posicion: number; capturado_en: string };
 export type AlertaReciente = { entidad: string; creada_en: string };
 export type NuevaAlertaTrends = {
   entidad: string;
   contexto: string;
   prioridad: "media";
-  trends_activo: true;
+  trends_activo: boolean;
   trends_crecimiento: string | null;
-  x_posicion: null;
-  x_desde: null;
+  x_posicion: number | null;
+  x_desde: string | null;
   medios_discover: 0;
   medios_lista: string[];
   titulares_seo: [];
@@ -90,6 +91,54 @@ export function clasificarPorReglas(termino: string, titular: string | null, reg
   );
   if (si) return { decision: "afin", motivo: `Encaja por reglas: «${si.texto}»`, seccion: si.seccion };
   return { decision: "sin_clasificar", motivo: "Sin clasificar: no coincide con ninguna regla", seccion: null };
+}
+
+// ---- Tendencias de X como fuente de candidatas ----
+const claveDe = (valor: string) => normalizarTexto(valor) || valor.trim().toLowerCase();
+
+// De las capturas de X, devuelve lo que está en la última (si es reciente), con su puesto y desde cuándo
+// aparece de forma continua (la captura más antigua de la racha actual dentro de los datos recibidos).
+export function xActuales(
+  filas: TendenciaX[],
+  ahoraMs: number,
+  frescuraMs = 90 * 60000,
+): Map<string, { nombre: string; posicion: number; desde: string }> {
+  const porCaptura = new Map<string, Map<string, TendenciaX>>();
+  for (const fila of filas) {
+    const ms = Date.parse(fila.capturado_en);
+    const nombre = fila.nombre.trim();
+    if (!Number.isFinite(ms) || ms > ahoraMs || !nombre) continue;
+    const clave = claveDe(nombre);
+    let grupo = porCaptura.get(fila.capturado_en);
+    if (!grupo) {
+      grupo = new Map();
+      porCaptura.set(fila.capturado_en, grupo);
+    }
+    if (!grupo.has(clave)) grupo.set(clave, fila);
+  }
+  const capturas = [...porCaptura.keys()].sort((a, b) => Date.parse(b) - Date.parse(a));
+  const resultado = new Map<string, { nombre: string; posicion: number; desde: string }>();
+  const ultima = capturas[0];
+  if (!ultima || ahoraMs - Date.parse(ultima) > frescuraMs) return resultado;
+  const actual = porCaptura.get(ultima);
+  if (!actual) return resultado;
+  for (const [clave, fila] of actual) {
+    let desde = ultima;
+    for (const captura of capturas.slice(1)) {
+      if (!porCaptura.get(captura)?.has(clave)) break;
+      desde = captura;
+    }
+    resultado.set(clave, { nombre: fila.nombre.trim(), posicion: fila.posicion, desde: new Date(desde).toISOString() });
+  }
+  return resultado;
+}
+
+function contextoAlerta(titular: string | null, hayTrends: boolean, x: { posicion: number } | null): string {
+  if (hayTrends) {
+    const base = titular ?? "Tendencia en Google España";
+    return x ? `${base} · Fuentes: Google Trends y X (puesto ${x.posicion})` : `${base} · Fuente: Google Trends`;
+  }
+  return `En tendencia en X España (puesto ${x?.posicion ?? 0}) · Fuente: X`;
 }
 
 const configSchema = z.object({
@@ -172,6 +221,8 @@ export function planificarAlertasTrends(input: {
   config: Record<string, string | null>;
   // Opcional. Sin reglas (o con las dos listas vacías) el comportamiento es el de siempre.
   reglas?: Reglas | undefined;
+  // Opcional. Capturas recientes de x_tendencias (hasta 24 h). Sin ellas, solo hay candidatas de Trends.
+  xTendencias?: TendenciaX[] | undefined;
 }) {
   const config = configSchema.safeParse(input.config);
   if (!config.success || Object.values(input.config).some((value) => value === null || value?.trim() === "")) {
@@ -211,22 +262,55 @@ export function planificarAlertasTrends(input: {
   const inHours = start <= finish ? hour >= start && hour < finish : hour >= start || hour < finish;
   const disponibles = Math.max(0, max - input.totalHoy);
   const nuevas: NuevaAlertaTrends[] = [];
-  const candidatos = [...latest.values()].map((t) => {
+  type Candidato = {
+    termino: string;
+    trend: TendenciaAlerta | null;
+    x: { posicion: number; desde: string } | null;
+    titular: string | null;
+  };
+  const candidatosBase: Candidato[] = [...latest.values()].map((t) => {
     const termino = t.termino?.trim() ?? "";
     const first = Array.isArray(t.noticias) ? (t.noticias[0] as unknown) : null;
     const news = z.object({ titular: z.string() }).safeParse(first);
     const titular = news.success && news.data.titular.trim() ? news.data.titular : null;
-    return { t, termino, titular, clasificacion: reglas ? clasificarPorReglas(termino, titular, reglas) : null };
+    return { termino, trend: t, x: null, titular };
   });
-  // Con reglas, lo que encaja ocupa los huecos antes que lo que no se reconoce; después, mayor volumen primero.
+  // X se cruza con Trends por el nombre normalizado: si coinciden, es una sola candidata con las dos señales.
+  const actualesX = input.xTendencias
+    ? xActuales(input.xTendencias, end)
+    : new Map<string, { nombre: string; posicion: number; desde: string }>();
+  const indice = new Map<string, Candidato>();
+  for (const c of candidatosBase) if (!indice.has(claveDe(c.termino))) indice.set(claveDe(c.termino), c);
+  for (const [clave, xv] of actualesX) {
+    const existente = indice.get(clave);
+    if (existente) {
+      existente.x = { posicion: xv.posicion, desde: xv.desde };
+      existente.termino = xv.nombre;
+    } else
+      candidatosBase.push({
+        termino: xv.nombre,
+        trend: null,
+        x: { posicion: xv.posicion, desde: xv.desde },
+        titular: null,
+      });
+  }
+  const candidatos = candidatosBase.map((c) => ({
+    ...c,
+    clasificacion: reglas ? clasificarPorReglas(c.termino, c.titular, reglas) : null,
+  }));
+  // Con reglas, lo que encaja ocupa los huecos antes que lo que no se reconoce; después, las dos señales juntas,
+  // luego X solo (por puesto) y por último Trends solo (por volumen).
   const rango = (c: (typeof candidatos)[number]) => (c.clasificacion?.decision === "afin" ? 0 : 1);
+  const fuerza = (c: (typeof candidatos)[number]) => (c.trend && c.x ? 0 : c.x ? 1 : 2);
   candidatos.sort(
     (a, b) =>
       rango(a) - rango(b) ||
-      volumenNumerico(b.t.volumen) - volumenNumerico(a.t.volumen) ||
-      (a.t.termino ?? "").localeCompare(b.t.termino ?? "", "es"),
+      fuerza(a) - fuerza(b) ||
+      (a.x?.posicion ?? 999) - (b.x?.posicion ?? 999) ||
+      volumenNumerico(b.trend?.volumen ?? null) - volumenNumerico(a.trend?.volumen ?? null) ||
+      a.termino.localeCompare(b.termino, "es"),
   );
-  for (const { t, termino, titular, clasificacion } of candidatos) {
+  for (const { trend, x, termino, titular, clasificacion } of candidatos) {
     const normalized = normalizarEntidad(termino);
     let motivo: MotivoDescarte | undefined;
     if (exclusions.some((e) => termino.toLocaleLowerCase("es-ES").includes(e))) motivo = "exclusion";
@@ -246,12 +330,12 @@ export function planificarAlertasTrends(input: {
     }
     nuevas.push({
       entidad: "[SIN DISCOVER] " + termino,
-      contexto: (titular ?? "Tendencia en Google España") + " · Fuente: Google Trends",
+      contexto: contextoAlerta(titular, trend !== null, x),
       prioridad: "media",
-      trends_activo: true,
-      trends_crecimiento: t.volumen,
-      x_posicion: null,
-      x_desde: null,
+      trends_activo: trend !== null,
+      trends_crecimiento: trend?.volumen ?? null,
+      x_posicion: x?.posicion ?? null,
+      x_desde: x?.desde ?? null,
       medios_discover: 0,
       medios_lista: [],
       titulares_seo: [],
@@ -270,5 +354,6 @@ export function planificarAlertasTrends(input: {
     lecturas_repetidas: readings.length - latest.size - descartadas.filter((d) => d.motivo === "sin_termino").length,
     total_hoy_antes: input.totalHoy,
     max_alertas_dia: max,
+    ...(input.xTendencias ? { candidatas_x: actualesX.size } : {}),
   };
 }
