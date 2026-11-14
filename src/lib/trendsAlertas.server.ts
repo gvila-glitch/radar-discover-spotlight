@@ -1,11 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { guardarAlertasTrends, leerAlertasParaTrends } from "./alertasRepo";
-import { inicioDiaMadrid, planificarAlertasTrends, type TendenciaAlerta } from "./trendsAlertas";
-import { conBloqueoRadar } from './jobLock.server';
+import {
+  inicioDiaMadrid,
+  parsearModo,
+  parsearReglas,
+  planificarAlertasTrends,
+  type Reglas,
+  type TendenciaAlerta,
+} from "./trendsAlertas";
+import { conBloqueoRadar } from "./jobLock.server";
 
 export async function convertirTrendsEnAlertas(client: SupabaseClient<Database>, now = new Date()) {
-  return conBloqueoRadar(client, 'trends-a-alertas', () => ejecutarConversion(client, now));
+  return conBloqueoRadar(client, "trends-a-alertas", () => ejecutarConversion(client, now));
 }
 
 async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
@@ -43,6 +50,18 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     .select("clave,valor")
     .in("clave", ["max_alertas_dia", "hora_inicio", "hora_fin"]);
   if (error) throw new Error("No se pudo leer la configuración.");
+  // Las reglas del filtro se leen aparte: un valor vacío aquí no debe invalidar la configuración de horario.
+  const { data: reglasConfig, error: reglasError } = await client
+    .from("config")
+    .select("clave,valor")
+    .in("clave", ["reglas_si", "reglas_no", "reglas_modo"]);
+  if (reglasError) throw new Error("No se pudieron leer las reglas del filtro.");
+  const reglasMapa = Object.fromEntries((reglasConfig ?? []).map((c) => [c.clave, c.valor]));
+  const reglas: Reglas = {
+    si: parsearReglas(reglasMapa["reglas_si"]),
+    no: parsearReglas(reglasMapa["reglas_no"]),
+    modo: parsearModo(reglasMapa["reglas_modo"]),
+  };
   const today = inicioDiaMadrid(now);
   const since = new Date(Math.min(today.getTime(), now.getTime() - 24 * 3600000));
   const alertas = await leerAlertasParaTrends(client, since, now);
@@ -53,6 +72,7 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     alertas,
     totalHoy: alertas.filter((a) => Date.parse(a.creada_en) >= today.getTime()).length,
     config: Object.fromEntries((settings ?? []).map((c) => [c.clave, c.valor])),
+    reglas,
   });
   const guardado = await guardarAlertasTrends(client, plan.nuevas);
   const { nuevas: _nuevas, ...report } = plan;
