@@ -8,6 +8,7 @@ import {
   planificarAlertasTrends,
   type Reglas,
   type TendenciaAlerta,
+  type TendenciaX,
 } from "./trendsAlertas";
 import { conBloqueoRadar } from "./jobLock.server";
 
@@ -62,6 +63,24 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     no: parsearReglas(reglasMapa["reglas_no"]),
     modo: parsearModo(reglasMapa["reglas_modo"]),
   };
+  // Capturas de X de las últimas 24 h (unas 30 filas por hora): sirven para saber el puesto y desde cuándo está en tendencia.
+  const xTendencias: TendenciaX[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await client
+      .from("x_tendencias")
+      .select("id,nombre,posicion,capturado_en")
+      .gte("capturado_en", new Date(now.getTime() - 24 * 3600000).toISOString())
+      .lte("capturado_en", now.toISOString())
+      .order("id", { ascending: true })
+      .range(offset, offset + 999);
+    if (error) throw new Error("No se pudieron leer las tendencias de X.");
+    for (const row of data ?? []) {
+      if (row.capturado_en !== null && row.nombre !== null && row.posicion !== null) {
+        xTendencias.push({ id: row.id, nombre: row.nombre, posicion: row.posicion, capturado_en: row.capturado_en });
+      }
+    }
+    if (!data || data.length < 1000) break;
+  }
   const today = inicioDiaMadrid(now);
   const since = new Date(Math.min(today.getTime(), now.getTime() - 24 * 3600000));
   const alertas = await leerAlertasParaTrends(client, since, now);
@@ -73,6 +92,7 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     totalHoy: alertas.filter((a) => Date.parse(a.creada_en) >= today.getTime()).length,
     config: Object.fromEntries((settings ?? []).map((c) => [c.clave, c.valor])),
     reglas,
+    xTendencias,
   });
   const guardado = await guardarAlertasTrends(client, plan.nuevas);
   const { nuevas: _nuevas, ...report } = plan;
