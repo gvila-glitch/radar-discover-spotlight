@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { APARTADOS, apartadoValido, type Apartado } from "@/lib/configApartados";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { esAdmin, leerAjustes, guardarAjustes, listarMedios, anadirMedio, quitar
 
 export const Route = createFileRoute("/_authenticated/configuracion")({
   ssr: false,
+  validateSearch: (s: Record<string, unknown>): { apartado: Apartado } => ({ apartado: apartadoValido(s["apartado"]) }),
   head: () => ({
     meta: [
       { title: "Configuración · Radar Discover" },
@@ -43,26 +44,14 @@ function Configuracion() {
   );
 }
 
-const PESTANAS = [
-  { id: "perfil", label: "Perfil editorial" },
-  { id: "ambito", label: "Ámbito y excepciones" },
-  { id: "limites", label: "Límites y umbrales" },
-  { id: "medios", label: "Medios de referencia" },
-] as const;
-type Pestana = (typeof PESTANAS)[number]["id"];
+type Pestana = Apartado;
 
 function Paneles() {
-  const [tab, setTab] = useState<Pestana>("perfil");
+  const { apartado: tab } = Route.useSearch();
+  const titulo = APARTADOS.find((a) => a.id === tab)?.label;
   return (
-    <div className="mt-5 grid gap-6 md:grid-cols-[12rem_minmax(0,1fr)]">
-      <nav aria-label="Apartados de configuración" className="flex gap-1 overflow-x-auto border-b md:flex-col md:border-b-0 md:border-r md:pr-3">
-        {PESTANAS.map((p) => (
-          <button key={p.id} onClick={() => setTab(p.id)} aria-current={tab === p.id ? "page" : undefined}
-            className={cn("whitespace-nowrap rounded-md px-3 py-2 text-left text-sm", tab === p.id ? "bg-accent font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
-            {p.label}
-          </button>
-        ))}
-      </nav>
+    <div className="mt-5 space-y-6">
+      <p className="text-sm text-muted-foreground">{titulo}</p>
       <div className="min-w-0 space-y-6"><div hidden={tab === "medios"} className="space-y-6"><FormAjustes tab={tab === "medios" ? "perfil" : tab} /></div>{tab === "medios" && <Medios />}</div>
     </div>
   );
