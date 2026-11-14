@@ -7,12 +7,12 @@ describe.skipIf(!gateway)('Permisos reales del panel', () => {
     const result = JSON.parse(execFileSync('lovable', ['supabase', 'query', '--json', sql], { encoding: 'utf8' }));
     return result.rows as Record<string, unknown>[];
   }
-  it('las once tablas tienen RLS y anon no puede leerlas', async () => {
+  it('las trece tablas tienen RLS y anon no puede leerlas', async () => {
     const rows = await query(`select c.relname, c.relrowsecurity as rls,
       has_table_privilege('anon', c.oid, 'SELECT') as anon_read
       from pg_class c join pg_namespace n on n.oid=c.relnamespace
       where n.nspname='public' and c.relkind='r'`);
-    expect(rows).toHaveLength(11);
+    expect(rows).toHaveLength(13);
     for (const row of rows) { expect(row['rls']).toBe(true); expect(row['anon_read']).toBe(false); }
   });
   it('solo las cuatro columnas de valoración pueden actualizarse', async () => {
@@ -24,7 +24,8 @@ describe.skipIf(!gateway)('Permisos reales del panel', () => {
   });
   it('solo alertas, ajustes de config y medios tienen políticas', async () => {
     const rows = await query(`select tablename from pg_policies where schemaname='public' order by tablename`);
-    expect(rows.map(r => r['tablename'])).toEqual(['alertas', 'alertas', 'config', 'config', 'medios_referencia', 'medios_referencia', 'medios_referencia', 'medios_referencia']);
+    // subscriptions quedó retirada junto con Stripe; conserva su política de solo dueño mientras exista la tabla.
+    expect(rows.map(r => r['tablename'])).toEqual(['alertas', 'alertas', 'config', 'config', 'medios_referencia', 'medios_referencia', 'medios_referencia', 'medios_referencia', 'subscriptions']);
   });
   it('equipo se valida mediante el email del JWT, no metadatos editables', async () => {
     const rows = await query(`select prosrc, prosecdef from pg_proc where oid='public.es_equipo()'::regprocedure`);
