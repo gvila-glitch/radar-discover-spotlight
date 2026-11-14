@@ -1,4 +1,5 @@
 # Cloud connection
+- [ ] Add inactive IA Advisor and Premium invitation at 10 EUR monthly; test-only checkout, subscription tracking and cancellation; verify authenticated flow.
 - [x] Wikipedia spikes as a new alert source: real run created 3 alerts from 20 stored spikes; hourly schedule at :30; 5 tests passed; unauthenticated POST 401.
 - [x] Removed 13 PRUEBA alerts once; new conversion entities use SIN DISCOVER and both prefixes deduplicate; cleanup updated without rerunning on live data. 24 tests passed; three sequential conversions created 3+3+2, total 8 verified in database and signed-in panel; schedules and locks unchanged.
 - [x] Both execution locks expire after five minutes; applied function definitions verified, 34 tests passed including interrupted-run recovery and concurrent takeover using isolated PostgreSQL and mocked Apify; schedules unchanged.
