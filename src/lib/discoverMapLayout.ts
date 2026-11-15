@@ -131,9 +131,10 @@ const HUECO_BURBUJAS = 6;
 const MARGEN_GRUPO = 14;
 const HUECO_GRUPOS = 26;
 const ROTULO = 26; // espacio encima de cada grupo para su título
-const ANCHO_FILA = 760;
+/** Ancho de fila por defecto; la página pasa el ancho real disponible para que el texto salga a su tamaño. */
+export const ANCHO_FILA = 760;
 
-export function colocarBurbujas(grupos: GrupoMapa[]): MapaColocado {
+export function colocarBurbujas(grupos: GrupoMapa[], anchoFila = ANCHO_FILA): MapaColocado {
   if (!grupos.length) return { grupos: [], burbujas: [], caja: [0, 0, 1, 1] };
   // 1) Cada grupo por separado, centrado en su punto medio.
   const piezas = grupos.map((g, indice) => {
@@ -153,7 +154,7 @@ export function colocarBurbujas(grupos: GrupoMapa[]): MapaColocado {
   for (const p of orden) {
     const fila = filas.at(-1);
     const ancho = fila ? fila.reduce((t, q) => t + 2 * q.R + HUECO_GRUPOS, 0) + 2 * p.R : Infinity;
-    if (fila && ancho <= ANCHO_FILA) fila.push(p);
+    if (fila && ancho <= anchoFila) fila.push(p);
     else filas.push([p]);
   }
   const anchoDe = (f: typeof piezas) =>

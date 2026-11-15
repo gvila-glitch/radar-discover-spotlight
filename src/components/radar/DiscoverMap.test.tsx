@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { FichaTema, LeyendaMapa, MapaDiscover } from "./DiscoverMap";
+import { CajonFicha, FichaTema, LeyendaMapa, MapaDiscover } from "./DiscoverMap";
 import { filtrarGrupos, type GrupoMapa, type TemaMapa } from "@/lib/discoverMap";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -100,6 +100,43 @@ describe("MapaDiscover (burbujas)", () => {
     const sube = filtrarGrupos(GRUPOS, true);
     expect(sube.map((g) => g.temas.map((t) => t.nombre))).toEqual([["Abascal"], ["Pedro Sánchez"]]);
     expect(filtrarGrupos(GRUPOS, false)).toBe(GRUPOS);
+  });
+});
+
+describe("MapaDiscover: pulsar en vacío", () => {
+  it("avisa al pulsar fuera de las burbujas (para cerrar la ficha), pero no al pulsar una burbuja", () => {
+    const onFondo = vi.fn();
+    const onSeleccion = vi.fn();
+    render(
+      <MapaDiscover grupos={GRUPOS} seleccion="vox" onSeleccion={onSeleccion} onFondo={onFondo} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Abascal/ }));
+    expect(onFondo).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("group", { name: "Mapa de temas en Discover" }));
+    expect(onFondo).toHaveBeenCalledTimes(1);
+    expect(onSeleccion).toHaveBeenCalledWith("abascal");
+  });
+});
+
+describe("CajonFicha", () => {
+  it("se abre como capa con la ficha, pone el foco en cerrar y se cierra con la X o con Esc", () => {
+    const onCerrar = vi.fn();
+    render(
+      <CajonFicha
+        tema={tema("Pedro Sánchez", { medios: 10 })}
+        onCerrar={onCerrar}
+        onSeleccion={() => {}}
+      />,
+    );
+    const capa = screen.getByRole("dialog", { name: "Ficha de Pedro Sánchez" });
+    expect(capa).toHaveAttribute("aria-modal", "false");
+    expect(screen.getByRole("heading", { name: "Pedro Sánchez" })).toBeInTheDocument();
+    const cerrar = screen.getByRole("button", { name: "Cerrar ficha" });
+    expect(cerrar).toHaveFocus();
+    fireEvent.click(cerrar);
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(onCerrar).toHaveBeenCalledTimes(2);
   });
 });
 

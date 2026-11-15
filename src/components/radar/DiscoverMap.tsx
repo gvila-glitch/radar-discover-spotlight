@@ -1,9 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { Bell } from "lucide-react";
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Bell, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { horaOFecha } from "@/lib/fechas";
 import type { GrupoMapa, TemaMapa } from "@/lib/discoverMap";
-import { colocarBurbujas } from "@/lib/discoverMapLayout";
+import { ANCHO_FILA, colocarBurbujas } from "@/lib/discoverMapLayout";
 
 // Tinte de cada grupo. Se mezcla con el color de las tarjetas, así funciona igual en modo claro y oscuro.
 const TONOS = [250, 300, 150, 200, 70, 350];
@@ -21,16 +21,43 @@ const describir = (t: TemaMapa) =>
   (t.hayAlerta ? ", ya tiene alerta en el radar" : "");
 
 /** Mapa de burbujas: tamaño = medios que lo publican; los temas que salen juntos en titulares van en el mismo círculo. */
+/** Ancho real del contenedor (en saltos de 40 px para no recolocar el mapa por cada píxel). */
+function useAncho(inicial: number | null) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [ancho, setAncho] = useState<number | null>(inicial);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const obs = new ResizeObserver(([e]) => {
+      if (e) setAncho(Math.floor(e.contentRect.width / 40) * 40);
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return [ref, ancho] as const;
+}
+
 export function MapaDiscover({
   grupos,
   seleccion,
   onSeleccion,
+  onFondo,
+  anchoInicial = null,
 }: {
   grupos: GrupoMapa[];
   seleccion: string | undefined;
   onSeleccion: (id: string) => void;
+  /** Al pulsar en una zona vacía del mapa (sirve para cerrar la ficha). */
+  onFondo?: () => void;
+  /** Ancho a usar antes de poder medir (vistas previas y pruebas). */
+  anchoInicial?: number | null;
 }) {
-  const mapa = useMemo(() => colocarBurbujas(grupos), [grupos]);
+  const [contenedor, ancho] = useAncho(anchoInicial);
+  // Las filas se reparten con el ancho real disponible: así el texto sale a su tamaño en cualquier pantalla.
+  const mapa = useMemo(
+    () => colocarBurbujas(grupos, ancho ? Math.max(300, ancho - 20) : ANCHO_FILA),
+    [grupos, ancho],
+  );
   const [enfocada, setEnfocada] = useState<string | null>(null);
   const otrosDe = new Map(mapa.grupos.map((g) => [g.indice, g.otros]));
   const teclas = (e: KeyboardEvent, id: string) => {
@@ -40,163 +67,174 @@ export function MapaDiscover({
     }
   };
   return (
-    <svg
-      viewBox={mapa.caja.join(" ")}
-      className="block h-auto w-full"
-      role="group"
-      aria-label="Mapa de temas en Discover"
-    >
-      {mapa.grupos.map((g) => (
-        <g key={g.id}>
-          <circle
-            cx={g.x}
-            cy={g.y}
-            r={g.r}
-            strokeDasharray="4 4"
-            strokeWidth={1.2}
-            style={{ fill: tono(g.indice, g.otros, 6), stroke: tono(g.indice, g.otros, 45) }}
-          />
-          <text
-            x={g.x}
-            y={g.y - g.r - 8}
-            textAnchor="middle"
-            fontSize={13}
-            fontWeight={500}
-            style={SUAVE}
-          >
-            {g.otros ? "Otros temas" : g.nombre}
-          </text>
-        </g>
-      ))}
-      {mapa.burbujas.map(({ tema: t, grupo, x, y, r, etiqueta }) => {
-        const otros = otrosDe.get(grupo) ?? false;
-        const on = t.id === seleccion;
-        const foco = t.id === enfocada;
-        const n = etiqueta.lineas.length;
-        return (
-          <g
-            key={t.id}
-            role="button"
-            tabIndex={0}
-            aria-pressed={on}
-            aria-label={describir(t)}
-            data-tema={t.id}
-            className="cursor-pointer outline-none"
-            onClick={() => onSeleccion(t.id)}
-            onKeyDown={(e) => teclas(e, t.id)}
-            onFocus={() => setEnfocada(t.id)}
-            onBlur={() => setEnfocada((v) => (v === t.id ? null : v))}
-          >
-            <title>{describir(t)}</title>
-            {foco && (
+    <div ref={contenedor}>
+      <svg
+        viewBox={mapa.caja.join(" ")}
+        className="mx-auto block h-auto w-full"
+        style={{ maxWidth: mapa.caja[2] }}
+        role="group"
+        aria-label="Mapa de temas en Discover"
+        onClick={(e) => {
+          if (!(e.target as Element).closest("[data-tema]")) onFondo?.();
+        }}
+      >
+        {mapa.grupos.map((g) => (
+          <g key={g.id}>
+            <circle
+              cx={g.x}
+              cy={g.y}
+              r={g.r}
+              strokeDasharray="4 4"
+              strokeWidth={1.2}
+              style={{ fill: tono(g.indice, g.otros, 6), stroke: tono(g.indice, g.otros, 45) }}
+            />
+            <text
+              x={g.x}
+              y={g.y - g.r - 8}
+              textAnchor="middle"
+              fontSize={13}
+              fontWeight={500}
+              style={SUAVE}
+            >
+              {g.otros ? "Otros temas" : g.nombre}
+            </text>
+          </g>
+        ))}
+        {mapa.burbujas.map(({ tema: t, grupo, x, y, r, etiqueta }) => {
+          const otros = otrosDe.get(grupo) ?? false;
+          const on = t.id === seleccion;
+          const foco = t.id === enfocada;
+          const n = etiqueta.lineas.length;
+          return (
+            <g
+              key={t.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={on}
+              aria-label={describir(t)}
+              data-tema={t.id}
+              className="cursor-pointer outline-none"
+              onClick={() => onSeleccion(t.id)}
+              onKeyDown={(e) => teclas(e, t.id)}
+              onFocus={() => setEnfocada(t.id)}
+              onBlur={() => setEnfocada((v) => (v === t.id ? null : v))}
+            >
+              <title>{describir(t)}</title>
+              {foco && (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={r + 5}
+                  fill="none"
+                  strokeWidth={2}
+                  style={{ stroke: "var(--ring)" }}
+                />
+              )}
               <circle
                 cx={x}
                 cy={y}
-                r={r + 5}
-                fill="none"
-                strokeWidth={2}
-                style={{ stroke: "var(--ring)" }}
+                r={r}
+                strokeWidth={on ? 3.5 : 1.2}
+                style={{
+                  fill: tono(grupo, otros, 24),
+                  stroke: on ? "var(--primary)" : tono(grupo, otros, 60),
+                }}
               />
-            )}
-            <circle
-              cx={x}
-              cy={y}
-              r={r}
-              strokeWidth={on ? 3.5 : 1.2}
-              style={{
-                fill: tono(grupo, otros, 24),
-                stroke: on ? "var(--primary)" : tono(grupo, otros, 60),
-              }}
-            />
-            {etiqueta.dentro ? (
-              <>
-                {etiqueta.lineas.map((l, k) => (
+              {etiqueta.dentro ? (
+                <>
+                  {etiqueta.lineas.map((l, k) => (
+                    <text
+                      key={k}
+                      x={x}
+                      y={y + (k - (n - 1) / 2) * etiqueta.tamano * 1.1 - etiqueta.tamano * 0.25}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fontSize={etiqueta.tamano}
+                      fontWeight={t.medios >= 5 ? 600 : 500}
+                      style={TEXTO}
+                    >
+                      {l}
+                    </text>
+                  ))}
                   <text
-                    key={k}
                     x={x}
-                    y={y + (k - (n - 1) / 2) * etiqueta.tamano * 1.1 - etiqueta.tamano * 0.25}
+                    y={y + (n / 2) * etiqueta.tamano * 1.1 + 2}
                     textAnchor="middle"
                     dominantBaseline="middle"
+                    fontSize={Math.max(10, etiqueta.tamano * 0.7)}
+                    style={{ ...SUAVE, fontFamily: MONO }}
+                  >
+                    {t.medios}
+                  </text>
+                </>
+              ) : (
+                <>
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={11}
+                    style={{ ...SUAVE, fontFamily: MONO }}
+                  >
+                    {t.medios}
+                  </text>
+                  <text
+                    x={x}
+                    y={y + r + 15}
+                    textAnchor="middle"
                     fontSize={etiqueta.tamano}
-                    fontWeight={t.medios >= 5 ? 600 : 500}
+                    fontWeight={500}
                     style={TEXTO}
                   >
-                    {l}
+                    {t.nombre}
                   </text>
-                ))}
-                <text
-                  x={x}
-                  y={y + (n / 2) * etiqueta.tamano * 1.1 + 2}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={Math.max(10, etiqueta.tamano * 0.7)}
-                  style={{ ...SUAVE, fontFamily: MONO }}
-                >
-                  {t.medios}
-                </text>
-              </>
-            ) : (
-              <>
-                <text
-                  x={x}
-                  y={y}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={11}
-                  style={{ ...SUAVE, fontFamily: MONO }}
-                >
-                  {t.medios}
-                </text>
-                <text
-                  x={x}
-                  y={y + r + 15}
-                  textAnchor="middle"
-                  fontSize={etiqueta.tamano}
-                  fontWeight={500}
-                  style={TEXTO}
-                >
-                  {t.nombre}
-                </text>
-              </>
-            )}
-            {t.subiendo && (
-              <g aria-hidden>
-                <circle cx={x + r * 0.72} cy={y - r * 0.72} r={12} style={{ fill: "var(--bad)" }} />
-                <text
-                  x={x + r * 0.72}
-                  y={y - r * 0.72 + 0.5}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={10.5}
-                  fontWeight={700}
-                  style={{ fill: "var(--card)" }}
-                >
-                  +{t.mediosUltimaHora}
-                </text>
-              </g>
-            )}
-            {t.hayAlerta && (
-              <g aria-hidden data-alerta="">
-                <circle
-                  cx={x - r * 0.72}
-                  cy={y - r * 0.72}
-                  r={11}
-                  strokeWidth={1.2}
-                  style={{ fill: "var(--card)", stroke: "var(--primary)" }}
-                />
-                <Bell
-                  x={x - r * 0.72 - 7}
-                  y={y - r * 0.72 - 7}
-                  width={14}
-                  height={14}
-                  className="text-primary"
-                />
-              </g>
-            )}
-          </g>
-        );
-      })}
-    </svg>
+                </>
+              )}
+              {t.subiendo && (
+                <g aria-hidden>
+                  <circle
+                    cx={x + r * 0.72}
+                    cy={y - r * 0.72}
+                    r={12}
+                    style={{ fill: "var(--bad)" }}
+                  />
+                  <text
+                    x={x + r * 0.72}
+                    y={y - r * 0.72 + 0.5}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={10.5}
+                    fontWeight={700}
+                    style={{ fill: "var(--card)" }}
+                  >
+                    +{t.mediosUltimaHora}
+                  </text>
+                </g>
+              )}
+              {t.hayAlerta && (
+                <g aria-hidden data-alerta="">
+                  <circle
+                    cx={x - r * 0.72}
+                    cy={y - r * 0.72}
+                    r={11}
+                    strokeWidth={1.2}
+                    style={{ fill: "var(--card)", stroke: "var(--primary)" }}
+                  />
+                  <Bell
+                    x={x - r * 0.72 - 7}
+                    y={y - r * 0.72 - 7}
+                    width={14}
+                    height={14}
+                    className="text-primary"
+                  />
+                </g>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 
@@ -232,7 +270,7 @@ export function FichaTema({
 }) {
   const resto = t.listaMedios.length - MAX_MEDIOS_LISTA;
   return (
-    <aside aria-label={`Detalle de ${t.nombre}`} className="border bg-card p-5 lg:sticky lg:top-4">
+    <aside aria-label={`Detalle de ${t.nombre}`} className="p-5">
       <h3 className="tracking-tight text-2xl font-semibold leading-tight">{t.nombre}</h3>
       {t.alias.length > 0 && (
         <p className="mt-1 text-sm text-muted-foreground">Misma historia: {t.alias.join(" · ")}</p>
@@ -298,6 +336,56 @@ export function FichaTema({
         </Bloque>
       )}
     </aside>
+  );
+}
+
+/**
+ * Ficha como capa lateral: se abre por encima del mapa desde la derecha, sin empujarlo ni oscurecer el fondo.
+ * El mapa sigue activo (pulsar otra burbuja cambia la ficha). Se cierra con la X, con Esc o pulsando en vacío.
+ */
+export function CajonFicha({
+  tema,
+  onCerrar,
+  onSeleccion,
+}: {
+  tema: TemaMapa;
+  onCerrar: () => void;
+  onSeleccion: (id: string) => void;
+}) {
+  const cerrar = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    cerrar.current?.focus();
+  }, []);
+  useEffect(() => {
+    const tecla = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onCerrar();
+    };
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [onCerrar]);
+  return (
+    <div
+      role="dialog"
+      aria-modal="false"
+      aria-label={`Ficha de ${tema.nombre}`}
+      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l bg-card shadow-lg animate-in slide-in-from-right duration-300 sm:w-[28rem]"
+    >
+      <div className="flex items-center justify-between border-b py-3 pl-5 pr-4">
+        <span className="text-xs text-muted-foreground">Ficha del tema · Esc para cerrar</span>
+        <button
+          ref={cerrar}
+          type="button"
+          onClick={onCerrar}
+          aria-label="Cerrar ficha"
+          className="rounded-md border p-1.5 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <FichaTema tema={tema} onSeleccion={onSeleccion} />
+      </div>
+    </div>
   );
 }
 

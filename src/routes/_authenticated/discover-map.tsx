@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Selector } from "@/components/radar/ui";
 import {
-  FichaTema,
+  CajonFicha,
   LeyendaBurbujas,
   LeyendaMapa,
   MapaDiscover,
@@ -47,11 +47,21 @@ function DiscoverMapPagina() {
   });
   const grupos = filtrarGrupos(q.data?.grupos ?? [], soloSube);
   const temas = grupos.flatMap((g) => g.temas);
-  const actual = temas.find((t) => t.id === sel) ?? temas[0];
+  // La ficha solo se abre al pulsar una burbuja; si el tema deja de estar en el mapa, se cierra sola.
+  const actual = sel ? temas.find((t) => t.id === sel) : undefined;
   const seleccionar = (id: string) => {
     setSel(id);
     if (soloSube && !temas.some((t) => t.id === id)) setSoloSube(false);
   };
+  // Al cerrar, el foco vuelve a la burbuja que se había abierto (para quien usa el teclado).
+  const cerrar = useCallback(() => {
+    if (!sel) return;
+    const id = sel;
+    setSel(null);
+    requestAnimationFrame(() =>
+      document.querySelector<SVGGElement>(`[data-tema="${CSS.escape(id)}"]`)?.focus(),
+    );
+  }, [sel]);
 
   return (
     <div className="min-h-screen">
@@ -99,36 +109,40 @@ function DiscoverMapPagina() {
           </span>
         </div>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <div className="min-w-0">
-            {q.isError ? (
-              <p role="alert" className="border bg-card p-4 text-sm text-destructive">
-                No se pudo cargar el mapa. Inténtalo de nuevo.
+        <div className="mt-5">
+          {q.isError ? (
+            <p role="alert" className="border bg-card p-4 text-sm text-destructive">
+              No se pudo cargar el mapa. Inténtalo de nuevo.
+            </p>
+          ) : q.isLoading ? (
+            <p className="border bg-card p-4 text-sm text-muted-foreground">Cargando el mapa…</p>
+          ) : q.data && q.data.articulos === 0 ? (
+            <p className="border bg-card p-4 text-sm text-muted-foreground">
+              Snoop no ha enviado artículos en esta ventana. Prueba con una ventana más larga.
+            </p>
+          ) : grupos.length === 0 ? (
+            <p className="border bg-card p-4 text-sm text-muted-foreground">
+              {soloSube
+                ? "Ahora mismo no hay ningún tema subiendo."
+                : "Todavía no hay temas con varios medios en esta ventana."}
+            </p>
+          ) : (
+            <div className="border bg-card p-4">
+              <p className="mb-2 h-4 text-right text-xs text-muted-foreground">
+                {actual ? "" : "Pulsa una burbuja para ver su ficha"}
               </p>
-            ) : q.isLoading ? (
-              <p className="border bg-card p-4 text-sm text-muted-foreground">Cargando el mapa…</p>
-            ) : q.data && q.data.articulos === 0 ? (
-              <p className="border bg-card p-4 text-sm text-muted-foreground">
-                Snoop no ha enviado artículos en esta ventana. Prueba con una ventana más larga.
-              </p>
-            ) : grupos.length === 0 ? (
-              <p className="border bg-card p-4 text-sm text-muted-foreground">
-                {soloSube
-                  ? "Ahora mismo no hay ningún tema subiendo."
-                  : "Todavía no hay temas con varios medios en esta ventana."}
-              </p>
-            ) : (
-              <div className="border bg-card p-4">
-                <MapaDiscover grupos={grupos} seleccion={actual?.id} onSeleccion={seleccionar} />
-                <LeyendaBurbujas />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0">
-            {actual ? <FichaTema tema={actual} onSeleccion={seleccionar} /> : null}
-          </div>
+              <MapaDiscover
+                grupos={grupos}
+                seleccion={actual?.id}
+                onSeleccion={seleccionar}
+                onFondo={cerrar}
+              />
+              <LeyendaBurbujas />
+            </div>
+          )}
         </div>
       </main>
+      {actual && <CajonFicha tema={actual} onCerrar={cerrar} onSeleccion={seleccionar} />}
     </div>
   );
 }

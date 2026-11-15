@@ -84,6 +84,16 @@ describe("colocarBurbujas", () => {
   });
 });
 
+describe("ancho disponible", () => {
+  it("con más ancho caben más grupos por fila; con poco, uno debajo de otro", () => {
+    const filas = (anchoFila: number) =>
+      new Set(colocarBurbujas(GRUPOS, anchoFila).grupos.map((g) => Math.round(g.y))).size;
+    expect(filas(2000)).toBe(1);
+    expect(filas(760)).toBeGreaterThan(1);
+    expect(filas(300)).toBe(GRUPOS.length);
+  });
+});
+
 describe("etiquetas", () => {
   it("parte el nombre en líneas que caben, o lo saca fuera si no cabe", () => {
     expect(partirNombre("PSOE", 100, 14)).toEqual(["PSOE"]);
