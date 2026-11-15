@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authenticated/configuracion'
+import { Route as AuthenticatedDiscoverMapRouteImport } from './routes/_authenticated/discover-map'
 import { Route as ApiPublicSnoopReceptorRouteImport } from './routes/api/public/snoop-receptor'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
@@ -43,6 +44,12 @@ const AuthenticatedConfiguracionRoute =
   AuthenticatedConfiguracionRouteImport.update({
     id: '/configuracion',
     path: '/configuracion',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDiscoverMapRoute =
+  AuthenticatedDiscoverMapRouteImport.update({
+    id: '/discover-map',
+    path: '/discover-map',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const ApiPublicSnoopReceptorRoute = ApiPublicSnoopReceptorRouteImport.update({
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/discover-map': typeof AuthenticatedDiscoverMapRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
@@ -87,6 +95,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/discover-map': typeof AuthenticatedDiscoverMapRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
@@ -100,6 +109,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/configuracion': typeof AuthenticatedConfiguracionRoute
+  '/_authenticated/discover-map': typeof AuthenticatedDiscoverMapRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/configuracion'
+    | '/discover-map'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/configuracion'
+    | '/discover-map'
     | '/'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
@@ -136,6 +148,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/reset-password'
     | '/_authenticated/configuracion'
+    | '/_authenticated/discover-map'
     | '/_authenticated/'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracionRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/discover-map': {
+      id: '/_authenticated/discover-map'
+      path: '/discover-map'
+      fullPath: '/discover-map'
+      preLoaderRoute: typeof AuthenticatedDiscoverMapRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/snoop-receptor': {
       id: '/api/public/snoop-receptor'
       path: '/api/public/snoop-receptor'
@@ -232,11 +252,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracionRoute: typeof AuthenticatedConfiguracionRoute
+  AuthenticatedDiscoverMapRoute: typeof AuthenticatedDiscoverMapRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracionRoute: AuthenticatedConfiguracionRoute,
+  AuthenticatedDiscoverMapRoute: AuthenticatedDiscoverMapRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 

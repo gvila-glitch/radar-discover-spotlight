@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Bell, Settings, PanelLeftClose, PanelLeftOpen, ChevronDown } from "lucide-react";
+import { Bell, Settings, PanelLeftClose, PanelLeftOpen, ChevronDown, Map as MapaIcono } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { esAdmin } from "@/lib/configRepo";
 import { APARTADOS } from "@/lib/configApartados";
@@ -21,6 +21,9 @@ export function Sidebar() {
       <nav aria-label="Secciones" className="flex flex-col gap-1">
         <Link to="/" className={item} activeProps={act} activeOptions={{ exact: true }} title="Alertas">
           <Bell className="size-4 shrink-0" />{abierta && "Alertas"}
+        </Link>
+        <Link to="/discover-map" className={item} activeProps={act} title="Discover Map">
+          <MapaIcono className="size-4 shrink-0" />{abierta && "Discover Map"}
         </Link>
         {admin && (
           <div>
