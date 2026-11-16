@@ -116,7 +116,7 @@ describe("llamada a Gemini (simulada)", () => {
     const cuerpo = JSON.parse(op.body as string);
     expect(cuerpo.generationConfig.responseMimeType).toBe("application/json");
     expect(MODELO_POR_DEFECTO).toBe("gemini-3.8-flash");
-    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "minimal" });
+    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
     expect(cuerpo.systemInstruction.parts[0].text).toContain(
       "Política, derechos y dinero público.",
     );
@@ -125,7 +125,7 @@ describe("llamada a Gemini (simulada)", () => {
       ia_modelo: MODELO_POR_DEFECTO,
       ia_valoradas: 2,
     });
-    expect(informeIA(r).ia_intentos).toMatch(/^gemini-3\.8-flash \[minimal\] → ok \(\d+,\d s\)$/);
+    expect(informeIA(r).ia_intentos).toMatch(/^gemini-3\.8-flash \[low\] → ok \(\d+,\d s\)$/);
   });
   it("si un modelo ya no existe (404), prueba el siguiente; si ninguno existe, lo dice", async () => {
     const urls: string[] = [];
@@ -149,7 +149,7 @@ describe("llamada a Gemini (simulada)", () => {
     });
     expect(nada.estado).toBe("error");
     expect(nada.mensaje).toMatch(
-      /^Ningún modelo de Gemini disponible \(HTTP 404\): gemini-3\.8-flash, gemini-flash-latest/,
+      /^Ningún modelo de Gemini disponible \(HTTP 404\): gemini-3\.8-flash, gemini-flash-lite-latest, gemini-3\.5-flash-lite/,
     );
   });
   it("si el modelo no admite «pensar poco» (400), repite una vez sin esa opción", async () => {
@@ -167,25 +167,100 @@ describe("llamada a Gemini (simulada)", () => {
     });
     expect(r.estado).toBe("ok");
     expect(cuerpos.map((c) => c.generationConfig.thinkingConfig ?? null)).toEqual([
-      { thinkingLevel: "minimal" },
       { thinkingLevel: "low" },
       null,
     ]);
     expect(r.intentos.map((i) => i.replace(/ \(.*\)$/, ""))).toEqual([
-      "gemini-3.8-flash [minimal] → HTTP 400",
       "gemini-3.8-flash [low] → HTTP 400",
       "gemini-3.8-flash [normal] → ok",
     ]);
+    // Los Flash-Lite sí prueban primero «minimal».
+    cuerpos.length = 0;
+    await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "C",
+      modelo: "gemini-3.5-flash-lite",
+      pedir: pedir as never,
+    });
+    expect(cuerpos.map((c) => c.generationConfig.thinkingConfig ?? null)).toEqual([
+      { thinkingLevel: "minimal" },
+      { thinkingLevel: "low" },
+      null,
+    ]);
+  });
+  it("reparte los temas en grupos de 8 pedidos a la vez y junta las respuestas", async () => {
+    const pedir = vi.fn(async (_url: string, op: RequestInit) => {
+      const filas = JSON.parse(
+        JSON.parse(op.body as string).contents[0].parts[0].text.replace(/<\/?temas>/g, ""),
+      );
+      return respuestaGemini(
+        filas.map((f: { id: number }) => ({
+          id: f.id,
+          encaje: "bajo",
+          agencia: false,
+          seccion: "S",
+          motivo: "m",
+        })),
+      );
+    });
+    const candidatas = Array.from({ length: 25 }, (_, i) => ({
+      tema: `Tema ${i + 1}`,
+      fuentes: "X",
+    }));
+    const r = await clasificarConIA(candidatas, PERFIL, { clave: "C", pedir: pedir as never });
+    expect(pedir).toHaveBeenCalledTimes(4); // 25 temas en grupos de 8
+    expect(r.estado).toBe("ok");
+    expect(r.clasificaciones.size).toBe(25);
+    expect(r.clasificaciones.get("Tema 25")?.encaje).toBe("bajo");
+    expect(r.intentos[0]).toMatch(/^grupo \d: gemini-3\.8-flash \[low\] → ok/);
+  });
+  it("si un grupo falla, los demás cuentan; si el modelo se pasa del límite, prueba el siguiente", async () => {
+    let n = 0;
+    const parcial = await clasificarConIA(
+      Array.from({ length: 12 }, (_, i) => ({ tema: `T${i}`, fuentes: "X" })),
+      PERFIL,
+      {
+        clave: "C",
+        pedir: (async (_u: string, op: RequestInit) => {
+          n++;
+          if (n === 1) return new Response("", { status: 500 });
+          const filas = JSON.parse(
+            JSON.parse(op.body as string).contents[0].parts[0].text.replace(/<\/?temas>/g, ""),
+          );
+          return respuestaGemini(
+            filas.map((f: { id: number }) => ({
+              id: f.id,
+              encaje: "alto",
+              agencia: false,
+              seccion: "S",
+              motivo: "m",
+            })),
+          );
+        }) as never,
+      },
+    );
+    expect(parcial).toMatchObject({ estado: "ok", mensaje: "Gemini respondió a 1 de 2 grupos." });
+    const urls: string[] = [];
+    const siguiente = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "C",
+      pedir: (async (url: string) => {
+        urls.push(url);
+        return url.includes(MODELO_POR_DEFECTO)
+          ? new Response("", { status: 429 })
+          : respuestaGemini([{ id: 1, encaje: "alto", agencia: false, seccion: "S", motivo: "m" }]);
+      }) as never,
+    });
+    expect(siguiente).toMatchObject({ estado: "ok", modelo: MODELOS_RESPALDO[0] });
   });
   it("límite de uso, respuesta rara o tiempo agotado: error sin opinión y sin repetir la clave", async () => {
     const limite = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
       clave: "CLAVE",
       pedir: (async () => new Response("CLAVE quota exceeded", { status: 429 })) as never,
     });
-    expect(limite).toMatchObject({
-      estado: "error",
-      mensaje: "Gemini: límite de uso alcanzado (HTTP 429).",
-    });
+    expect(limite.estado).toBe("error");
+    expect(limite.mensaje).toMatch(
+      /^Gemini: límite de uso alcanzado en todos los modelos \(HTTP 429\)/,
+    );
+    expect(limite.intentos).toHaveLength(3); // probó los tres modelos
     expect(JSON.stringify(informeIA(limite))).not.toContain("CLAVE");
     const rara = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
       clave: "CLAVE",
