@@ -104,6 +104,96 @@ export type Database = {
         }
         Relationships: []
       }
+      descartes_ia: {
+        Row: {
+          actualizada_en: string
+          agencia: boolean
+          clave: string
+          contexto: string
+          creada_en: string
+          dia: string
+          excepcion: string | null
+          excepcion_en: string | null
+          excepcion_por: string | null
+          excepcion_tipo: string | null
+          fuente: string
+          fuerte: boolean
+          id: number
+          modelo: string
+          motivo_ia: string
+          nota: string | null
+          puntos: number
+          seccion_ia: string
+          tema: string
+          trends_crecimiento: string | null
+          veredicto: string | null
+          veredicto_en: string | null
+          veredicto_por: string | null
+          wikipedia_ratio: number | null
+          wikipedia_visitas: number | null
+          x_desde: string | null
+          x_posicion: number | null
+        }
+        Insert: {
+          actualizada_en?: string
+          agencia?: boolean
+          clave: string
+          contexto?: string
+          creada_en?: string
+          dia: string
+          excepcion?: string | null
+          excepcion_en?: string | null
+          excepcion_por?: string | null
+          excepcion_tipo?: string | null
+          fuente: string
+          fuerte?: boolean
+          id?: never
+          modelo?: string
+          motivo_ia?: string
+          nota?: string | null
+          puntos?: number
+          seccion_ia?: string
+          tema: string
+          trends_crecimiento?: string | null
+          veredicto?: string | null
+          veredicto_en?: string | null
+          veredicto_por?: string | null
+          wikipedia_ratio?: number | null
+          wikipedia_visitas?: number | null
+          x_desde?: string | null
+          x_posicion?: number | null
+        }
+        Update: {
+          actualizada_en?: string
+          agencia?: boolean
+          clave?: string
+          contexto?: string
+          creada_en?: string
+          dia?: string
+          excepcion?: string | null
+          excepcion_en?: string | null
+          excepcion_por?: string | null
+          excepcion_tipo?: string | null
+          fuente?: string
+          fuerte?: boolean
+          id?: never
+          modelo?: string
+          motivo_ia?: string
+          nota?: string | null
+          puntos?: number
+          seccion_ia?: string
+          tema?: string
+          trends_crecimiento?: string | null
+          veredicto?: string | null
+          veredicto_en?: string | null
+          veredicto_por?: string | null
+          wikipedia_ratio?: number | null
+          wikipedia_visitas?: number | null
+          x_desde?: string | null
+          x_posicion?: number | null
+        }
+        Relationships: []
+      }
       equipo: {
         Row: {
           email: string
@@ -404,6 +494,15 @@ export type Database = {
         Returns: boolean
       }
       clave_entidad: { Args: { texto: string }; Returns: string }
+      cruzar_snoop: { Args: { instante?: string }; Returns: Json }
+      datos_discover: {
+        Args: { instante: string; nombre: string }
+        Returns: Json
+      }
+      datos_discover_desde: {
+        Args: { desde: string; instante: string; nombre: string }
+        Returns: Json
+      }
       entidades_equivalentes: {
         Args: { a: string; b: string }
         Returns: boolean
@@ -430,6 +529,22 @@ export type Database = {
       limpiar_trends: { Args: never; Returns: undefined }
       limpiar_wikipedia_picos: { Args: never; Returns: undefined }
       limpiar_x_tendencias: { Args: never; Returns: undefined }
+      parentesis_entidad: { Args: { texto: string }; Returns: string }
+      puntuar_alerta: {
+        Args: {
+          creada_en: string
+          entidad: string
+          medios_discover: number
+          motivo_afinidad: string
+          trends_activo: boolean
+          trends_crecimiento: string
+          wikipedia_ratio: number
+          x_desde: string
+          x_posicion: number
+        }
+        Returns: Record<string, unknown>
+      }
+      volumen_numerico: { Args: { valor: string }; Returns: number }
     }
     Enums: {
       [_ in never]: never
