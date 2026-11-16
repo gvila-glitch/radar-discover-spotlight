@@ -113,6 +113,13 @@
       "when": 1794668808633,
       "tag": "0015_fusion_alertas_fuentes",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794828061673,
+      "tag": "0016_registrar_cambios_manuales",
+      "breakpoints": true
     }
   ]
 }
