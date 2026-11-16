@@ -58,46 +58,43 @@ export function SelectorVistas({
   );
 }
 
-/** Aviso que explica la vista de descartes, con el paso a «ver todos». */
-export function AvisoDescartes({
-  verTodos,
-  onVerTodos,
-  ocultos = 0,
-}: {
-  verTodos: boolean;
-  onVerTodos: (v: boolean) => void;
-  /** Descartes con poca señal que no se ven mientras se enseñan solo los fuertes. */
-  ocultos?: number;
-}) {
+/** «● Señal fuerte» (en color: conviene revisarlos primero) o «● Poca señal» (en gris). */
+export function SenalTag({ fuerte }: { fuerte: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 whitespace-nowrap text-xs",
+        fuerte ? "font-semibold text-warn" : "text-muted-foreground",
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "inline-block size-1.5 rounded-full",
+          fuerte ? "bg-warn" : "bg-muted-foreground/40",
+        )}
+      />
+      {fuerte ? "Señal fuerte" : "Poca señal"}
+    </span>
+  );
+}
+
+/** Aviso que explica la vista de descartes y qué significa cada color. */
+export function AvisoDescartes() {
   return (
     <div className="mt-4 border bg-card p-4 text-sm">
       <p>
         Temas que la IA dejó fuera por no encajar con la línea editorial o por ser noticia de
-        agencia.{" "}
-        {verTodos ? (
-          "Se ven todos"
-        ) : (
-          <>
-            Solo los <span className="font-medium">fuertes</span>: puesto alto en X, mucho volumen o
-            varias fuentes
-          </>
-        )}
-        , ordenados por puntos.
+        agencia, ordenados por día y por puntos.
+      </p>
+      <p className="mt-2 flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+        <SenalTag fuerte />
+        <span>(puesto alto en X, mucho volumen o varias fuentes): revísalos primero. ·</span>
+        <SenalTag fuerte={false} />
+        <span>: difícilmente habrían llegado a alerta.</span>
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
-        Revísalos y marca los que deberían haber pasado. No cuentan en los indicadores ni en el tope
-        diario. ·{" "}
-        <button
-          type="button"
-          onClick={() => onVerTodos(!verTodos)}
-          className="text-primary underline underline-offset-4"
-        >
-          {verTodos
-            ? "Ver solo los fuertes"
-            : ocultos > 0
-              ? `Ver todos los descartes (${ocultos} más con poca señal)`
-              : "Ver todos los descartes"}
-        </button>
+        Marca los que deberían haber pasado. No cuentan en los indicadores ni en el tope diario.
       </p>
     </div>
   );
@@ -118,7 +115,10 @@ function ContenidoDescarte({ d, gris = false }: { d: Descarte; gris?: boolean })
       </span>
       <div className="min-w-0 flex-1">
         <div
-          className={cn("truncate font-semibold tracking-tight", gris && "text-muted-foreground")}
+          className={cn(
+            "truncate font-semibold tracking-tight",
+            (gris || !d.fuerte) && "text-muted-foreground",
+          )}
         >
           {d.tema}
         </div>
@@ -128,6 +128,7 @@ function ContenidoDescarte({ d, gris = false }: { d: Descarte; gris?: boolean })
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
         {gris && <span className="font-medium text-bad">Descartada por la IA</span>}
+        <SenalTag fuerte={d.fuerte} />
         <span className="font-mono text-muted-foreground">
           {d.puntos} pts{senal ? ` · ${senal}` : ""}
         </span>
@@ -211,6 +212,7 @@ export function FichaDescarte({ d, esAdmin }: { d: Descarte; esAdmin: boolean })
     <article className="break-words border bg-card p-6" aria-label={`Descarte: ${d.tema}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="text-xs font-medium text-bad">● Descartada por la IA</span>
+        <SenalTag fuerte={d.fuerte} />
         <span className="font-mono">{fechaLarga(d.creada_en)}</span>
         <span>·</span>
         <span>{hace(d.creada_en)}</span>
@@ -432,46 +434,23 @@ export function VistaDescartes({
   cargando,
   error,
   esAdmin,
-  ocultos = 0,
-  onVerTodos,
 }: {
   descartes: Descarte[];
   cargando: boolean;
   error: boolean;
   esAdmin: boolean;
-  /** Descartes con poca señal ocultos (se enseñan solo los fuertes). */
-  ocultos?: number;
-  onVerTodos?: () => void;
 }) {
   const [sel, setSel] = useState<number | null>(null);
   const actual = descartes.find((d) => d.id === sel) ?? descartes[0];
-  // Sin fuertes pero con otros ocultos: se dice cuántos hay, para que «(0)» no parezca un fallo.
-  const soloOcultos = !cargando && !error && !descartes.length && ocultos > 0;
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div className="min-w-0 border bg-card">
-        {soloOcultos ? (
-          <p className="p-4 text-sm text-muted-foreground">
-            No hay descartes fuertes en este periodo. Hay {ocultos} con poca señal, que difícilmente
-            habrían llegado a alerta.{" "}
-            {onVerTodos && (
-              <button
-                type="button"
-                onClick={onVerTodos}
-                className="text-primary underline underline-offset-4"
-              >
-                Ver todos
-              </button>
-            )}
-          </p>
-        ) : (
-          <EstadoLista
-            cargando={cargando}
-            error={error}
-            vacio={!descartes.length}
-            texto="No hay descartes con estos filtros."
-          />
-        )}
+        <EstadoLista
+          cargando={cargando}
+          error={error}
+          vacio={!descartes.length}
+          texto="No hay descartes con estos filtros."
+        />
         {!cargando && !error && descartes.length > 0 && (
           <ul aria-label="Descartes" className="divide-y">
             {descartes.map((d) => (

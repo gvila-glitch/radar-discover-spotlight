@@ -14,10 +14,20 @@ import {
 export type Descarte = Database["public"]["Tables"]["descartes_ia"]["Row"];
 export type FilaDescarte = Database["public"]["Tables"]["descartes_ia"]["Insert"];
 
-/** Puntos de señal (sin línea editorial ni Discover) a partir de los que un descarte se enseña por defecto. */
+/** Puntos de señal (sin línea editorial ni Discover) a partir de los que un descarte es «Señal fuerte» (en color). */
 export const UMBRAL_FUERTE = 3;
 export const DIAS_CONSERVAR = 30;
 const MAX_TEXTO = 300;
+
+/** Filtro «Señal» del panel: se ven todos (fuertes y con poca señal, distinguidos por color) o solo unos. */
+export type FiltroSenal = "todas" | "fuertes" | "debiles";
+export const OPCIONES_SENAL: { value: FiltroSenal; label: string }[] = [
+  { value: "todas", label: "Todas" },
+  { value: "fuertes", label: "Fuerte" },
+  { value: "debiles", label: "Poca señal" },
+];
+export const pasaSenal = (d: { fuerte: boolean }, f: FiltroSenal) =>
+  f === "todas" || (f === "fuertes" ? d.fuerte : !d.fuerte);
 
 /** Día en Madrid como «AAAA-MM-DD». */
 export const diaMadrid = (d: Date) =>

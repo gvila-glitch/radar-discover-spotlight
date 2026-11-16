@@ -17,7 +17,7 @@ import { Leyenda, PrimerosPasos } from "@/components/radar/Ayuda";
 import { useServerFn } from "@tanstack/react-start";
 import { esAdmin as leerEsAdmin } from "@/lib/configRepo";
 import { listarDescartes } from "@/lib/descartes.functions";
-import { diaMadrid } from "@/lib/descartes";
+import { diaMadrid, OPCIONES_SENAL, pasaSenal, type FiltroSenal } from "@/lib/descartes";
 import { AvisoDescartes, SelectorVistas, VistaDescartes, VistaTodas, type Vista } from "@/components/radar/Descartes";
 import { ContenidoAlerta } from "@/components/radar/ItemAlerta";
 
@@ -46,7 +46,7 @@ export function Index() {
   const [sel, setSel] = useState<number | null>(null);
   // Vistas: «Alertas», «Descartadas por la IA» (lo que la IA dejó fuera, para revisarlo) y «Todas».
   const [vista, setVista] = useState<Vista>("alertas");
-  const [verTodos, setVerTodos] = useState(false);
+  const [senal, setSenal] = useState<FiltroSenal>("todas");
   const [revision, setRevision] = useState<"todos" | "marcados" | "sin_marcar">("todos");
   const leerDescartes = useServerFn(listarDescartes);
   const { data: admin = false } = useQuery({ queryKey: ["es_admin"], queryFn: leerEsAdmin });
@@ -56,21 +56,19 @@ export function Index() {
   const qc = useQueryClient();
   const key = ["alertas", periodo];
   const { data = [], isLoading, isError } = useQuery({ queryKey: key, queryFn: () => listAlertas(desdePeriodo(periodo)) });
-  // Se leen todos los descartes y aquí se separan los fuertes: así se puede decir cuántos quedan ocultos.
+  // Se ven todos los descartes, fuertes y con poca señal (se distinguen por color); el filtro «Señal» los separa.
   const qd = useQuery({
     queryKey: ["descartes", periodo],
     queryFn: () => { const d = desdePeriodo(periodo); return leerDescartes({ data: { desde: d ? diaMadrid(d) : undefined, todos: true } }); },
     staleTime: 60_000,
   });
-  const todosDescartes = (qd.data ?? []).filter((d) => revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto));
-  const descartes = verTodos ? todosDescartes : todosDescartes.filter((d) => d.fuerte);
-  const ocultos = todosDescartes.length - descartes.length;
+  const descartes = (qd.data ?? []).filter((d) => pasaSenal(d, senal) && (revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto)));
 
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
   const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && (estado === "todos" || a.estado === estado));
   const actual = visibles.find((a) => a.id === sel) ?? visibles[0];
-  const filtrosActivos = prio !== "todas" || estado !== "todos" || periodo !== "7d";
-  const restablecer = () => { setPrio("todas"); setEstado("todos"); setPeriodo("7d"); };
+  const filtrosActivos = prio !== "todas" || estado !== "todos" || periodo !== "7d" || senal !== "todas" || revision !== "todos";
+  const restablecer = () => { setPrio("todas"); setEstado("todos"); setPeriodo("7d"); setSenal("todas"); setRevision("todos"); };
 
   async function onValorar(a: Alerta, nuevo: Estado, pieza_url: string | null = null) {
     const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: email };
@@ -111,7 +109,7 @@ export function Index() {
         <Leyenda />
         <PrimerosPasos />
         <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />
-        {vista === "descartes" && <AvisoDescartes verTodos={verTodos} onVerTodos={setVerTodos} ocultos={ocultos} />}
+        {vista === "descartes" && <AvisoDescartes />}
 
         {vista !== "descartes" && <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
@@ -124,6 +122,7 @@ export function Index() {
           {vista !== "descartes" && <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />}
           {vista !== "descartes" && <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={[{ value: "todos", label: "Todos" }, { value: "pendiente", label: "Pendiente" }, { value: "util", label: "Útil" }, { value: "ruido", label: "Ruido" }, { value: "publicada", label: "Publicada" }]} />}
           <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={[{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }]} />
+          {vista === "descartes" && <Selector id="f-senal" label="Señal" value={senal} onChange={setSenal} options={OPCIONES_SENAL} />}
           {vista === "descartes" && <Selector id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />}
           <span className="ml-auto flex items-center gap-4">
             <span className="font-mono text-xs text-muted-foreground">{vista === "descartes" ? `${descartes.length} descartes` : `${visibles.length} de ${data.length}`}</span>
@@ -136,7 +135,7 @@ export function Index() {
         </div>
 
         {vista === "descartes" ? (
-          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} ocultos={ocultos} onVerTodos={() => setVerTodos(true)} />
+          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} />
         ) : vista === "todas" ? (
           <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} />
         ) : (

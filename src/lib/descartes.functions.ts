@@ -25,7 +25,7 @@ const id = (v: unknown) => {
   return n;
 };
 
-/** Descartes desde un día (por defecto, solo los fuertes), los de más puntos primero. */
+/** Descartes desde un día, los de más puntos primero. El panel pide todos (`todos: true`); sin eso, solo los fuertes. */
 export const listarDescartes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { desde?: unknown; todos?: unknown }) => ({

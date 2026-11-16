@@ -104,6 +104,29 @@ describe("SelectorVistas", () => {
 });
 
 describe("Descartes", () => {
+  it("enseña fuertes y con poca señal, cada uno con su etiqueta; el filtro «Señal» los separa", async () => {
+    const { pasaSenal } = await import("@/lib/descartes");
+    const fuerte = descarte();
+    const debil = descarte({ id: 2, tema: "flugzeug", puntos: 0, fuerte: false, x_posicion: null });
+    render(
+      conQuery(
+        <VistaDescartes
+          descartes={[fuerte, debil]}
+          cargando={false}
+          error={false}
+          esAdmin={false}
+        />,
+      ),
+    );
+    const lista = screen.getByRole("list", { name: "Descartes" });
+    expect(lista).toHaveTextContent("Pedri");
+    expect(lista).toHaveTextContent("flugzeug");
+    expect(screen.getAllByText("Señal fuerte").length).toBeGreaterThan(0);
+    expect(screen.getByText("Poca señal")).toBeInTheDocument();
+    expect([fuerte, debil].filter((d) => pasaSenal(d, "todas"))).toHaveLength(2);
+    expect([fuerte, debil].filter((d) => pasaSenal(d, "fuertes"))).toEqual([fuerte]);
+    expect([fuerte, debil].filter((d) => pasaSenal(d, "debiles"))).toEqual([debil]);
+  });
   it("lista con puntos y señal, y ficha con el motivo de la IA", () => {
     render(
       conQuery(
