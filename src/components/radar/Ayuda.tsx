@@ -60,7 +60,7 @@ export function PrimerosPasos() {
 const ENTRADAS: { t: string; d: string }[] = [
   {
     t: "Prioridad",
-    d: "Por puntos: suman el puesto en X (y haber entrado hace poco), el volumen en Google, el pico en Wikipedia, coincidir en varias fuentes, tener 0–2 medios en Discover y encajar con la línea editorial; restan un hashtag sin relación y tener ya 3 o más medios. Alta: 5 puntos o más, que encaje con la línea o venga de 2 fuentes o más, y que aún lleguemos a tiempo. Cada alerta enseña su desglose.",
+    d: "Por puntos: suman el puesto en X (y haber entrado hace poco), el volumen en Google, el pico en Wikipedia, coincidir en varias fuentes, tener 0–2 medios en Discover y encajar con la línea editorial; restan un hashtag sin relación y tener ya 3 o más medios. Alta: 5 puntos o más, que encaje con la línea o venga de 2 fuentes o más, y que aún lleguemos a tiempo. En la ficha de cada alerta, pasa el ratón por encima de «N puntos» (o púlsalo) para ver el desglose.",
   },
   {
     t: "Señal",

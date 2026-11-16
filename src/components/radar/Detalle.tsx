@@ -4,7 +4,8 @@ import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
 import { nombreVisible, sinDatosDiscover } from "@/lib/metricas";
 import { LlegadaTag, PrioridadTag } from "./ui";
-import { describirPuntos, puntuarAlerta } from "@/lib/prioridad";
+import { puntuarAlerta, UMBRAL_ALTA } from "@/lib/prioridad";
+import { DesglosePuntos } from "./Puntos";
 import { enlaceX } from "@/lib/contexto";
 
 export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void }) {
@@ -24,10 +25,13 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
   return (
     <article className="break-words border bg-card p-6" aria-label={`Detalle: ${a.entidad}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <PrioridadTag p={a.prioridad} /> <LlegadaTag a={a} />
+        <span className="inline-flex items-center gap-1">
+          <PrioridadTag p={a.prioridad} />
+          <DesglosePuntos p={puntuarAlerta(a)} titulo="Prioridad por puntos" nota={`Alta: ${UMBRAL_ALTA} puntos o más, que encaje con la línea o venga de 2 fuentes, y como mucho 2 medios en Discover.`} />
+        </span>
+        <LlegadaTag a={a} />
         <span className="font-mono">{fechaLarga(a.creada_en)}</span><span>·</span><span>{hace(a.creada_en)}</span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">Prioridad por puntos · {describirPuntos(puntuarAlerta(a))}</p>
       <h2 className="mt-3 tracking-tight text-3xl font-semibold leading-tight">{nombreVisible(a.entidad)}</h2>
       <p className="mt-1 text-muted-foreground">{a.contexto}</p>
 

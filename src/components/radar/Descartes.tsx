@@ -6,13 +6,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { fechaLarga, hace, horaOFecha } from "@/lib/fechas";
-import { describirPuntos } from "@/lib/prioridad";
 import { enlaceX } from "@/lib/contexto";
-import { fuerzaSenal, sugerenciaExcepcion, type Descarte } from "@/lib/descartes";
+import { fuerzaSenal, sugerenciaExcepcion, UMBRAL_FUERTE, type Descarte } from "@/lib/descartes";
 import { anadirExcepcion, marcarDescarte } from "@/lib/descartes.functions";
 import type { Alerta, Estado } from "@/lib/types";
 import { Detalle } from "./Detalle";
 import { ContenidoAlerta } from "./ItemAlerta";
+import { DesglosePuntos } from "./Puntos";
 
 export type Vista = "alertas" | "descartes" | "todas";
 
@@ -212,14 +212,18 @@ export function FichaDescarte({ d, esAdmin }: { d: Descarte; esAdmin: boolean })
     <article className="break-words border bg-card p-6" aria-label={`Descarte: ${d.tema}`}>
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="text-xs font-medium text-bad">● Descartada por la IA</span>
-        <SenalTag fuerte={d.fuerte} />
+        <span className="inline-flex items-center gap-1">
+          <SenalTag fuerte={d.fuerte} />
+          <DesglosePuntos
+            p={fuerza}
+            titulo="Fuerza de la señal"
+            nota={`Sin contar la línea editorial ni Discover. Señal fuerte: ${UMBRAL_FUERTE} puntos o más.`}
+          />
+        </span>
         <span className="font-mono">{fechaLarga(d.creada_en)}</span>
         <span>·</span>
         <span>{hace(d.creada_en)}</span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Sin contar la línea editorial · {describirPuntos(fuerza)}
-      </p>
       <h2 className="mt-3 tracking-tight text-3xl font-semibold leading-tight">{d.tema}</h2>
       {d.contexto && <p className="mt-1 text-muted-foreground">{d.contexto}</p>}
 
