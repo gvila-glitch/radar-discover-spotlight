@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ComoLeer } from "./ui";
 
 // Ayuda del panel: un aviso de primeros pasos que se puede cerrar y una leyenda desplegable.
 const CLAVE = "radar_primeros_pasos_v1";
@@ -90,10 +91,7 @@ const ENTRADAS: { t: string; d: string }[] = [
 
 export function Leyenda() {
   return (
-    <details className="mt-2 text-sm">
-      <summary className="inline-block cursor-pointer text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring">
-        Cómo leer este panel
-      </summary>
+    <ComoLeer titulo="Cómo leer este panel">
       <dl className="mt-3 grid gap-x-6 gap-y-3 border bg-card p-4 sm:grid-cols-2">
         {ENTRADAS.map((e) => (
           <div key={e.t}>
@@ -102,6 +100,6 @@ export function Leyenda() {
           </div>
         ))}
       </dl>
-    </details>
+    </ComoLeer>
   );
 }

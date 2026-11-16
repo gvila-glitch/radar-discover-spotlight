@@ -1,4 +1,5 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Info } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { llegada, sinDatosDiscover } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
@@ -48,5 +49,19 @@ export function Selector<T extends string>({ label, value, options, onChange, id
         <ChevronDown aria-hidden className="pointer-events-none absolute right-0 size-3 text-muted-foreground" />
       </span>
     </div>
+  );
+}
+
+/** «ⓘ Cómo leer… ⌄»: desplegable de ayuda. La ⓘ dice que hay una explicación y la flecha, que se despliega (gira al abrirlo). */
+export function ComoLeer({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <details className="group mt-2 text-sm">
+      <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+        <Info aria-hidden className="size-4 shrink-0" />
+        <span>{titulo}</span>
+        <ChevronDown aria-hidden className="size-4 shrink-0 transition-transform group-open:rotate-180" />
+      </summary>
+      {children}
+    </details>
   );
 }

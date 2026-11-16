@@ -52,6 +52,8 @@ describe("Leyenda", () => {
     expect(detalles).not.toBeNull();
     expect(detalles?.open).toBe(false);
     expect(screen.getByText("Cómo leer este panel")).toBeInTheDocument();
+    // ⓘ delante y flecha detrás: se ve que se puede pulsar y que se despliega.
+    expect(container.querySelectorAll("summary svg")).toHaveLength(2);
     for (const t of [
       "Prioridad",
       "Señal",

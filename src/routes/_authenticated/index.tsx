@@ -106,6 +106,7 @@ export function Index() {
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Qué empieza a subir antes de llegar a Discover · España · X, Google Trends y Wikipedia</p>
         <Leyenda />
         <PrimerosPasos />
         <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />

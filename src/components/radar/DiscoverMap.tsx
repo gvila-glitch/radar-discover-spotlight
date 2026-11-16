@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import { horaOFecha } from "@/lib/fechas";
 import type { GrupoMapa, TemaMapa } from "@/lib/discoverMap";
 import { ANCHO_FILA, colocarBurbujas } from "@/lib/discoverMapLayout";
+import { ComoLeer } from "./ui";
 
 // Tinte de cada grupo. Se mezcla con el color de las tarjetas, así funciona igual en modo claro y oscuro.
 const TONOS = [250, 300, 150, 200, 70, 350];
@@ -415,10 +416,7 @@ const LEYENDA: { t: string; d: string }[] = [
 
 export function LeyendaMapa() {
   return (
-    <details className="mt-2 text-sm">
-      <summary className="inline-block cursor-pointer text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring">
-        Cómo leer el mapa
-      </summary>
+    <ComoLeer titulo="Cómo leer el mapa">
       <dl className="mt-3 grid gap-x-6 gap-y-3 border bg-card p-4 sm:grid-cols-2">
         {LEYENDA.map((e) => (
           <div key={e.t}>
@@ -427,6 +425,6 @@ export function LeyendaMapa() {
           </div>
         ))}
       </dl>
-    </details>
+    </ComoLeer>
   );
 }
