@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { instrucciones, leerRespuestaIA, listaParaIA, MAX_CANDIDATAS_IA } from "./ia";
-import { clasificarConIA, informeIA, MODELO_POR_DEFECTO, MODELOS_RESPALDO } from "./ia.server";
+import {
+  clasificarConIA,
+  informeIA,
+  MODELO_POR_DEFECTO,
+  MODELOS_RESPALDO,
+  olvidarModelos,
+  ordenarModelos,
+} from "./ia.server";
 import { candidatasTrends, combinarClasificacion, planificarAlertasTrends } from "./trendsAlertas";
 import { planificarAlertasWikipedia } from "./wikipediaPicos";
 import { puntuarAlerta } from "./prioridad";
@@ -71,6 +78,7 @@ describe("llamada a Gemini (simulada)", () => {
   it("sin clave no llama y deja decidir a las reglas", async () => {
     const pedir = vi.fn();
     const r = await clasificarConIA([{ tema: "Pedri", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "",
       pedir: pedir as never,
     });
@@ -102,7 +110,7 @@ describe("llamada a Gemini (simulada)", () => {
         { tema: "Pedri", fuentes: "X" },
       ],
       PERFIL,
-      { clave: "CLAVE-SECRETA", pedir: pedir as never },
+      { descubrir: false, clave: "CLAVE-SECRETA", pedir: pedir as never },
     );
     expect(r.estado).toBe("ok");
     expect(r.modelo).toBe(MODELO_POR_DEFECTO);
@@ -138,12 +146,14 @@ describe("llamada a Gemini (simulada)", () => {
           ]);
     });
     const r = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "C",
       pedir: pedir as never,
     });
     expect(r).toMatchObject({ estado: "ok", modelo: MODELOS_RESPALDO[0] });
     expect(urls).toHaveLength(2);
     const nada = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "C",
       pedir: (async () => new Response("", { status: 404 })) as never,
     });
@@ -162,6 +172,7 @@ describe("llamada a Gemini (simulada)", () => {
         : respuestaGemini([{ id: 1, encaje: "alto", agencia: false, seccion: "P", motivo: "m" }]);
     });
     const r = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "C",
       pedir: pedir as never,
     });
@@ -177,6 +188,7 @@ describe("llamada a Gemini (simulada)", () => {
     // Los Flash-Lite sí prueban primero «minimal».
     cuerpos.length = 0;
     await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "C",
       modelo: "gemini-3.5-flash-lite",
       pedir: pedir as never,
@@ -206,7 +218,11 @@ describe("llamada a Gemini (simulada)", () => {
       tema: `Tema ${i + 1}`,
       fuentes: "X",
     }));
-    const r = await clasificarConIA(candidatas, PERFIL, { clave: "C", pedir: pedir as never });
+    const r = await clasificarConIA(candidatas, PERFIL, {
+      descubrir: false,
+      clave: "C",
+      pedir: pedir as never,
+    });
     expect(pedir).toHaveBeenCalledTimes(4); // 25 temas en grupos de 8
     expect(r.estado).toBe("ok");
     expect(r.clasificaciones.size).toBe(25);
@@ -219,6 +235,7 @@ describe("llamada a Gemini (simulada)", () => {
       Array.from({ length: 12 }, (_, i) => ({ tema: `T${i}`, fuentes: "X" })),
       PERFIL,
       {
+        descubrir: false,
         clave: "C",
         pedir: (async (_u: string, op: RequestInit) => {
           n++;
@@ -241,6 +258,7 @@ describe("llamada a Gemini (simulada)", () => {
     expect(parcial).toMatchObject({ estado: "ok", mensaje: "Gemini respondió a 1 de 2 grupos." });
     const urls: string[] = [];
     const siguiente = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "C",
       pedir: (async (url: string) => {
         urls.push(url);
@@ -251,8 +269,91 @@ describe("llamada a Gemini (simulada)", () => {
     });
     expect(siguiente).toMatchObject({ estado: "ok", modelo: MODELOS_RESPALDO[0] });
   });
+  it("ordena los modelos Flash: primero los Flash-Lite y los más nuevos; fuera imagen, voz y similares", () => {
+    expect(
+      ordenarModelos([
+        "models/gemini-3.8-flash",
+        "models/gemini-3.5-flash-lite",
+        "models/gemini-flash-lite-latest",
+        "models/gemini-3.8-flash-image",
+        "models/gemini-3.1-pro",
+        "models/gemini-3.6-flash",
+        "models/gemini-2.5-flash-lite",
+        "models/gemini-3.8-flash-tts",
+        "models/text-embedding-004",
+      ]),
+    ).toEqual([
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-flash-lite",
+      "gemini-flash-lite-latest",
+      "gemini-3.8-flash",
+    ]);
+  });
+  it("pregunta a Google qué modelos hay y salta al siguiente si uno se pasa del límite o está saturado", async () => {
+    olvidarModelos();
+    const llamadas: string[] = [];
+    const pedir = vi.fn(async (url: string) => {
+      llamadas.push(url.replace("https://generativelanguage.googleapis.com/v1beta/models", ""));
+      if (url.endsWith("/models?pageSize=200"))
+        return Response.json({
+          models: [
+            { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
+            {
+              name: "models/gemini-3.5-flash-lite",
+              supportedGenerationMethods: ["generateContent"],
+            },
+            { name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] },
+            {
+              name: "models/gemini-3.8-flash-image",
+              supportedGenerationMethods: ["generateContent"],
+            },
+          ],
+        });
+      if (url.includes("3.5-flash-lite")) return new Response("", { status: 429 });
+      if (url.includes("3.8-flash")) return new Response("", { status: 503 });
+      return respuestaGemini([
+        { id: 1, encaje: "alto", agencia: false, seccion: "S", motivo: "m" },
+      ]);
+    });
+    const r = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "OTRA",
+      pedir: pedir as never,
+    });
+    expect(r).toMatchObject({ estado: "ok", modelo: "gemini-3.6-flash" });
+    expect(r.disponibles).toEqual([
+      "gemini-3.5-flash-lite",
+      "gemini-3.8-flash",
+      "gemini-3.6-flash",
+    ]);
+    expect(informeIA(r).ia_disponibles).toBe(
+      "gemini-3.5-flash-lite, gemini-3.8-flash, gemini-3.6-flash",
+    );
+    expect(llamadas[0]).toBe("?pageSize=200");
+    // La segunda vez no vuelve a preguntar (se guarda una hora).
+    await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "OTRA",
+      pedir: pedir as never,
+    });
+    expect(llamadas.filter((u) => u === "?pageSize=200")).toHaveLength(1);
+  });
+  it("si todos los modelos están saturados, lo dice; si Google no da la lista, usa la de siempre", async () => {
+    olvidarModelos();
+    const r = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "SAT",
+      pedir: (async (url: string) =>
+        url.endsWith("pageSize=200")
+          ? new Response("", { status: 500 })
+          : new Response("", { status: 503 })) as never,
+    });
+    expect(r.estado).toBe("error");
+    expect(r.mensaje).toMatch(
+      /^Gemini saturado \(HTTP 503\) en los modelos probados: gemini-3\.8-flash, gemini-flash-lite-latest, gemini-3\.5-flash-lite/,
+    );
+    expect(r.disponibles).toBeUndefined();
+  });
   it("límite de uso, respuesta rara o tiempo agotado: error sin opinión y sin repetir la clave", async () => {
     const limite = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "CLAVE",
       pedir: (async () => new Response("CLAVE quota exceeded", { status: 429 })) as never,
     });
@@ -263,6 +364,7 @@ describe("llamada a Gemini (simulada)", () => {
     expect(limite.intentos).toHaveLength(3); // probó los tres modelos
     expect(JSON.stringify(informeIA(limite))).not.toContain("CLAVE");
     const rara = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "CLAVE",
       pedir: (async () =>
         Response.json({
@@ -271,6 +373,7 @@ describe("llamada a Gemini (simulada)", () => {
     });
     expect(rara.estado).toBe("error");
     const lenta = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      descubrir: false,
       clave: "CLAVE",
       pedir: (async () => {
         throw Object.assign(new Error("t"), { name: "TimeoutError" });

@@ -20,7 +20,7 @@ export const MODELO_POR_DEFECTO = "gemini-3.8-flash";
 export const MODELOS_RESPALDO = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite"];
 /** Temas por petición: se piden varios grupos a la vez, que tardan menos que uno grande. */
 export const TEMAS_POR_GRUPO = 8;
-const ESPERA_MS = 45_000; // por petición
+const ESPERA_MS = 25_000; // por petición: si un modelo tarda, queda tiempo para probar otro
 const PRESUPUESTO_MS = 55_000; // en total, contando reintentos (la tarea de X/Trends espera hasta 120 s)
 
 export type ResultadoIA = {
@@ -30,6 +30,8 @@ export type ResultadoIA = {
   clasificaciones: Map<string, ClasificacionIA>;
   /** Qué se intentó, con su resultado y lo que tardó (para diagnosticar; sin datos de la petición). */
   intentos: string[];
+  /** Modelos que Google dice que puede usar la clave (si se pudo preguntar). */
+  disponibles?: string[];
 };
 
 /** Perfil, ámbito y excepciones de Configuración (lo que se edita en el panel). */
@@ -65,6 +67,64 @@ const etiqueta = (p: Record<string, unknown> | null) =>
 const esTiempo = (e: unknown) =>
   e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
 
+// ---- Qué modelos puede usar la clave: se pregunta a Google (lista de modelos) y se guarda una hora ----
+const cacheModelos = new Map<string, { lista: string[]; en: number }>();
+const EXCLUIR = /(image|tts|audio|live|embedding|exp|vision|robotics|computer)/;
+const version = (m: string) => Number(/^gemini-(\d+(?:\.\d+)?)/.exec(m)?.[1] ?? 0);
+
+/** Ordena los modelos Flash: primero los Flash-Lite (más rápidos y menos saturados), de más nuevo a más viejo. */
+export function ordenarModelos(nombres: string[]): string[] {
+  const flash = [...new Set(nombres.map((n) => n.replace(/^models\//, "")))].filter(
+    (n) => n.startsWith("gemini-") && n.includes("flash") && !EXCLUIR.test(n),
+  );
+  const clave = (n: string) =>
+    [n.includes("flash-lite") ? 0 : 1, n.endsWith("-latest") ? 1 : 0, -version(n)] as const;
+  return flash
+    .sort((a, b) => {
+      const x = clave(a);
+      const y = clave(b);
+      return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || (a < b ? -1 : 1);
+    })
+    .slice(0, 4);
+}
+
+export async function descubrirModelos(
+  pedir: typeof fetch,
+  clave: string,
+): Promise<string[] | null> {
+  const guardado = cacheModelos.get(clave);
+  if (guardado && Date.now() - guardado.en < 3_600_000) return guardado.lista;
+  try {
+    const res = await pedir(
+      "https://generativelanguage.googleapis.com/v1beta/models?pageSize=200",
+      {
+        headers: { "x-goog-api-key": clave },
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!res.ok) return null;
+    const cuerpo = (await res.json()) as {
+      models?: { name?: string; supportedGenerationMethods?: string[] }[];
+    };
+    const nombres = (cuerpo.models ?? [])
+      .filter(
+        (m) =>
+          typeof m.name === "string" &&
+          (m.supportedGenerationMethods ?? []).includes("generateContent"),
+      )
+      .map((m) => m.name!);
+    const lista = ordenarModelos(nombres);
+    if (!lista.length) return null;
+    cacheModelos.set(clave, { lista, en: Date.now() });
+    return lista;
+  } catch {
+    return null;
+  }
+}
+
+/** Solo para pruebas: olvida la lista guardada. */
+export const olvidarModelos = () => cacheModelos.clear();
+
 type Grupo = { texto: string; temas: string[] };
 type RespuestaGrupo = {
   estado: "ok" | "no_disponible" | "tiempo" | "error";
@@ -75,11 +135,17 @@ type RespuestaGrupo = {
 export async function clasificarConIA(
   candidatas: CandidataIA[],
   perfil: PerfilIA,
-  opciones: { clave?: string | undefined; modelo?: string | undefined; pedir?: typeof fetch } = {},
+  opciones: {
+    clave?: string | undefined;
+    modelo?: string | undefined;
+    pedir?: typeof fetch;
+    /** Preguntar a Google qué modelos hay (por defecto, sí, salvo que se haya fijado uno). */
+    descubrir?: boolean;
+  } = {},
 ): Promise<ResultadoIA> {
-  const elegido =
-    (opciones.modelo ?? process.env["GEMINI_MODEL"] ?? "").trim() || MODELO_POR_DEFECTO;
-  const modelos = [elegido, ...MODELOS_RESPALDO.filter((m) => m !== elegido)];
+  const fijado = (opciones.modelo ?? process.env["GEMINI_MODEL"] ?? "").trim();
+  const elegido = fijado || MODELO_POR_DEFECTO;
+  let modelos = [elegido, ...MODELOS_RESPALDO.filter((m) => m !== elegido)];
   const clave = (opciones.clave ?? process.env["GEMINI_API_KEY"] ?? "").trim();
   const intentos: string[] = [];
   const vacio = new Map<string, ClasificacionIA>();
@@ -92,6 +158,15 @@ export async function clasificarConIA(
   for (let i = 0; i < todos.length; i += TEMAS_POR_GRUPO)
     grupos.push(listaParaIA(todos.slice(i, i + TEMAS_POR_GRUPO).map((t) => porTema.get(t)!)));
   const pedir = opciones.pedir ?? fetch;
+  // Sin modelo fijado, se pregunta a Google cuáles hay y se prueban en orden (Flash-Lite primero).
+  let disponibles: string[] | undefined;
+  if (!fijado && opciones.descubrir !== false) {
+    const lista = await descubrirModelos(pedir, clave);
+    if (lista) {
+      disponibles = lista;
+      modelos = lista;
+    }
+  }
   const finEn = Date.now() + PRESUPUESTO_MS;
   const segundos = (desde: number) =>
     `${((Date.now() - desde) / 1000).toFixed(1).replace(".", ",")} s`;
@@ -137,7 +212,8 @@ export async function clasificarConIA(
     }
     if (!res) return { estado: "tiempo" };
     // Nunca se devuelve ni se registra el cuerpo de un error: podría repetir datos de la petición.
-    if ([403, 404, 429].includes(res.status))
+    // 403 no permitido, 404 no existe, 429 límite, 503 saturado: se probará otro modelo.
+    if ([403, 404, 429, 503].includes(res.status))
       return { estado: "no_disponible", status: res.status };
     if (!res.ok) return { estado: "error", status: res.status };
     try {
@@ -157,7 +233,7 @@ export async function clasificarConIA(
   let ultimo = elegido;
   let ultimaFalta: RespuestaGrupo | null = null;
   for (const modelo of modelos) {
-    if (finEn - Date.now() < 3000) break;
+    if (finEn - Date.now() < 5000) break;
     ultimo = modelo;
     const respuestas = await Promise.all(grupos.map((g, i) => pedirGrupo(modelo, g, i + 1)));
     const buenas = respuestas.filter((r) => r.estado === "ok");
@@ -169,27 +245,42 @@ export async function clasificarConIA(
         modelo,
         clasificaciones,
         intentos,
+        ...(disponibles ? { disponibles } : {}),
         ...(buenas.length < grupos.length
           ? { mensaje: `Gemini respondió a ${buenas.length} de ${grupos.length} grupos.` }
           : {}),
       };
     }
-    ultimaFalta = respuestas.find((r) => r.estado !== "no_disponible") ?? respuestas[0] ?? null;
-    // Solo se prueba otro modelo si este no existe, no está permitido o se pasó del límite.
-    if (!respuestas.every((r) => r.estado === "no_disponible")) break;
+    ultimaFalta =
+      respuestas.find((r) => r.estado === "error") ??
+      respuestas.find((r) => r.estado === "tiempo") ??
+      respuestas[0] ??
+      null;
+    // Se prueba otro modelo si este no existe, no está permitido, se pasó del límite, está saturado o tarda;
+    // no si responde con otro error (eso no lo arregla cambiar de modelo).
+    if (!respuestas.every((r) => r.estado === "no_disponible" || r.estado === "tiempo")) break;
   }
   const mensaje = !ultimaFalta
     ? "Gemini tardó demasiado en responder."
     : ultimaFalta.estado === "no_disponible"
       ? ultimaFalta.status === 429
         ? `Gemini: límite de uso alcanzado en todos los modelos (HTTP 429): ${modelos.join(", ")}.`
-        : `Ningún modelo de Gemini disponible (HTTP ${ultimaFalta.status}): ${modelos.join(", ")}.`
+        : ultimaFalta.status === 503
+          ? `Gemini saturado (HTTP 503) en los modelos probados: ${modelos.join(", ")}.`
+          : `Ningún modelo de Gemini disponible (HTTP ${ultimaFalta.status}): ${modelos.join(", ")}.`
       : ultimaFalta.estado === "tiempo"
         ? "Gemini tardó demasiado en responder."
         : ultimaFalta.status
           ? `Gemini respondió con HTTP ${ultimaFalta.status}.`
           : "Gemini devolvió una respuesta vacía o que no se entiende.";
-  return { estado: "error", modelo: ultimo, mensaje, clasificaciones: vacio, intentos };
+  return {
+    estado: "error",
+    modelo: ultimo,
+    mensaje,
+    clasificaciones: vacio,
+    intentos,
+    ...(disponibles ? { disponibles } : {}),
+  };
 }
 
 /** Resumen para la respuesta de las tareas (se ve en net._http_response). */
@@ -199,4 +290,5 @@ export const informeIA = (r: ResultadoIA) => ({
   ia_valoradas: r.clasificaciones.size,
   ...(r.mensaje ? { ia_mensaje: r.mensaje } : {}),
   ...(r.intentos.length ? { ia_intentos: r.intentos.join(" | ") } : {}),
+  ...(r.disponibles?.length ? { ia_disponibles: r.disponibles.join(", ") } : {}),
 });
