@@ -11,6 +11,8 @@ import {
   type TendenciaX,
 } from "./trendsAlertas";
 import { conBloqueoRadar } from "./jobLock.server";
+import { conNoticia, sinPrefijo } from "./contexto";
+import { buscarNoticiaGoogle } from "./contexto.server";
 
 export async function convertirTrendsEnAlertas(client: SupabaseClient<Database>, now = new Date()) {
   return conBloqueoRadar(client, "trends-a-alertas", () => ejecutarConversion(client, now));
@@ -68,7 +70,7 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await client
       .from("x_tendencias")
-      .select("id,nombre,posicion,capturado_en")
+      .select("id,nombre,posicion,capturado_en,categoria,publicaciones")
       .gte("capturado_en", new Date(now.getTime() - 24 * 3600000).toISOString())
       .lte("capturado_en", now.toISOString())
       .order("id", { ascending: true })
@@ -76,7 +78,14 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     if (error) throw new Error("No se pudieron leer las tendencias de X.");
     for (const row of data ?? []) {
       if (row.capturado_en !== null && row.nombre !== null && row.posicion !== null) {
-        xTendencias.push({ id: row.id, nombre: row.nombre, posicion: row.posicion, capturado_en: row.capturado_en });
+        xTendencias.push({
+          id: row.id,
+          nombre: row.nombre,
+          posicion: row.posicion,
+          capturado_en: row.capturado_en,
+          categoria: row.categoria,
+          publicaciones: row.publicaciones,
+        });
       }
     }
     if (!data || data.length < 1000) break;
@@ -94,8 +103,18 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     reglas,
     xTendencias,
   });
+  // Las que vienen solo de X no traen titular: se busca el último en Google Noticias para saber de qué se habla
+  // (como mucho 3 búsquedas a la vez y 3 s; si falla, la alerta se guarda con el contexto de siempre).
+  const nuevas = await Promise.all(
+    plan.nuevas.map(async (a) => {
+      if (a.trends_activo || a.x_posicion == null) return a;
+      const noticia = await buscarNoticiaGoogle(sinPrefijo(a.entidad));
+      return noticia ? { ...a, contexto: conNoticia(a.contexto, noticia) } : a;
+    }),
+  );
+  const contextoNoticias = nuevas.filter((a, i) => a !== plan.nuevas[i]).length;
   // Primero las alertas nuevas y después las que se combinan: así una candidata puede unirse a otra recién creada.
-  const guardado = await guardarAlertasTrends(client, [...plan.nuevas, ...plan.fusiones]);
+  const guardado = await guardarAlertasTrends(client, [...nuevas, ...plan.fusiones]);
   const { nuevas: _nuevas, fusiones: _fusiones, ...report } = plan;
   const descartadas = [...plan.descartadas, ...guardado.descartadas];
   return {
@@ -103,6 +122,7 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     ...guardado,
     descartadas,
     alertas_creadas: guardado.creadas.length,
+    contexto_noticias: contextoNoticias,
     tendencias_descartadas: descartadas.length,
   };
 }

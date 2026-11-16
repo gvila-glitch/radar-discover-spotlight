@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { detalleX, type DatosX } from "./contexto";
 import { puntuarAlerta } from "./prioridad";
 import { volumenNumerico } from "./volumen";
 
@@ -11,7 +12,21 @@ export type TendenciaAlerta = {
   capturado_en: string;
   noticias: unknown;
 };
-export type TendenciaX = { id: number; nombre: string; posicion: number; capturado_en: string };
+export type TendenciaX = {
+  id: number;
+  nombre: string;
+  posicion: number;
+  capturado_en: string;
+  categoria?: string | null;
+  publicaciones?: number | null;
+};
+type XActual = {
+  nombre: string;
+  posicion: number;
+  desde: string;
+  categoria: string | null;
+  publicaciones: number | null;
+};
 export type AlertaReciente = { entidad: string; creada_en: string };
 export type NuevaAlertaTrends = {
   entidad: string;
@@ -124,7 +139,7 @@ export function xActuales(
   filas: TendenciaX[],
   ahoraMs: number,
   frescuraMs = 90 * 60000,
-): Map<string, { nombre: string; posicion: number; desde: string }> {
+): Map<string, XActual> {
   const porCaptura = new Map<string, Map<string, TendenciaX>>();
   for (const fila of filas) {
     const ms = Date.parse(fila.capturado_en);
@@ -139,7 +154,7 @@ export function xActuales(
     if (!grupo.has(clave)) grupo.set(clave, fila);
   }
   const capturas = [...porCaptura.keys()].sort((a, b) => Date.parse(b) - Date.parse(a));
-  const resultado = new Map<string, { nombre: string; posicion: number; desde: string }>();
+  const resultado = new Map<string, XActual>();
   const ultima = capturas[0];
   if (!ultima || ahoraMs - Date.parse(ultima) > frescuraMs) return resultado;
   const actual = porCaptura.get(ultima);
@@ -153,24 +168,22 @@ export function xActuales(
     resultado.set(clave, {
       nombre: fila.nombre.trim(),
       posicion: fila.posicion,
+      categoria: fila.categoria?.trim() || null,
+      publicaciones: fila.publicaciones ?? null,
       desde: new Date(desde).toISOString(),
     });
   }
   return resultado;
 }
 
-function contextoAlerta(
-  titular: string | null,
-  hayTrends: boolean,
-  x: { posicion: number } | null,
-): string {
+function contextoAlerta(titular: string | null, hayTrends: boolean, x: DatosX | null): string {
   if (hayTrends) {
     const base = titular ?? "Tendencia en Google España";
     return x
-      ? `${base} · Fuentes: Google Trends y X (puesto ${x.posicion})`
+      ? `${base} · Fuentes: Google Trends y X (${detalleX(x)})`
       : `${base} · Fuente: Google Trends`;
   }
-  return `En tendencia en X España (puesto ${x?.posicion ?? 0}) · Fuente: X`;
+  return `En tendencia en X España (${detalleX(x ?? { posicion: 0 })}) · Fuente: X`;
 }
 
 const configSchema = z.object({
@@ -374,7 +387,7 @@ export function planificarAlertasTrends(input: {
   type Candidato = {
     termino: string;
     trend: TendenciaAlerta | null;
-    x: { posicion: number; desde: string } | null;
+    x: XActual | null;
     titular: string | null;
   };
   const candidatosBase: Candidato[] = [...latest.values()].map((t) => {
@@ -387,20 +400,20 @@ export function planificarAlertasTrends(input: {
   // X se cruza con Trends por el nombre normalizado: si coinciden, es una sola candidata con las dos señales.
   const actualesX = input.xTendencias
     ? xActuales(input.xTendencias, end)
-    : new Map<string, { nombre: string; posicion: number; desde: string }>();
+    : new Map<string, XActual>();
   const indice = new Map<string, Candidato>();
   for (const c of candidatosBase)
     if (!indice.has(claveDe(c.termino))) indice.set(claveDe(c.termino), c);
   for (const [clave, xv] of actualesX) {
     const existente = indice.get(clave);
     if (existente) {
-      existente.x = { posicion: xv.posicion, desde: xv.desde };
+      existente.x = xv;
       existente.termino = xv.nombre;
     } else
       candidatosBase.push({
         termino: xv.nombre,
         trend: null,
-        x: { posicion: xv.posicion, desde: xv.desde },
+        x: xv,
         titular: null,
       });
   }

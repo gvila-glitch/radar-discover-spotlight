@@ -4,12 +4,14 @@ import { conBloqueoRadar } from "./jobLock.server";
 import { guardarAlertasWikipedia, leerAlertasParaTrends } from "./alertasRepo";
 import { leerReglas } from "./reglasRepo";
 import { calcularPicos, diasUTC, planificarAlertasWikipedia, topSchema, type Top } from "./wikipediaPicos";
+import { conResumen, sinPrefijo } from "./contexto";
+import { AGENTE, buscarResumenWikipedia } from "./contexto.server";
 
 const API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/es.wikipedia/all-access/";
 
 async function leerTop(dia: string): Promise<Top | null> {
   const res = await fetch(API + dia.replace(/-/g, "/"), {
-    headers: { "User-Agent": "RadarDiscover/1.0 (panel editorial interno)", Accept: "application/json" },
+    headers: { "User-Agent": AGENTE, Accept: "application/json" },
     signal: AbortSignal.timeout(20000),
   });
   if (res.status === 404) return null;
@@ -47,6 +49,12 @@ async function ejecutar(client: SupabaseClient<Database>, now: Date) {
   // 24 h: la misma ventana que usa la base de datos para combinar alertas sobre lo mismo.
   const recientes = await leerAlertasParaTrends(client, new Date(now.getTime() - 24 * 3600000), now);
   const plan = planificarAlertasWikipedia({ picos: picos ?? [], exclusiones: (excl ?? []).map((e) => e.valor), entidadesRecientes: recientes.map((a) => a.entidad), reglas });
-  const guardado = await guardarAlertasWikipedia(client, [...plan.nuevas, ...plan.fusiones]);
-  return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length };
+  // Contexto: descripción corta y primera frase del artículo (como mucho 3 consultas a la vez y 3 s cada una).
+  const nuevas = await Promise.all(plan.nuevas.map(async (a) => {
+    const resumen = await buscarResumenWikipedia(sinPrefijo(a.entidad));
+    return resumen ? { ...a, contexto: conResumen(a.contexto, resumen) } : a;
+  }));
+  const contextoResumenes = nuevas.filter((a, i) => a !== plan.nuevas[i]).length;
+  const guardado = await guardarAlertasWikipedia(client, [...nuevas, ...plan.fusiones]);
+  return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length, contexto_resumenes: contextoResumenes };
 }

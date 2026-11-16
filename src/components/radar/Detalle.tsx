@@ -5,6 +5,7 @@ import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
 import { nombreVisible, sinDatosDiscover } from "@/lib/metricas";
 import { LlegadaTag, PrioridadTag } from "./ui";
 import { describirPuntos, puntuarAlerta } from "@/lib/prioridad";
+import { enlaceX } from "@/lib/contexto";
 
 export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void }) {
   const [editUrl, setEditUrl] = useState(false);
@@ -32,7 +33,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
 
       <Seccion titulo="Señal">
         <div className="grid divide-y border sm:grid-cols-2 lg:grid-cols-4 sm:divide-x sm:divide-y-0">
-          <Bloque t="X (España)">{a.x_posicion ? <><span className="font-mono">#{a.x_posicion}</span> desde las <span className="font-mono">{a.x_desde && (esHoy(a.x_desde) ? hora24(a.x_desde) : fechaLarga(a.x_desde))}</span></> : "No"}</Bloque>
+          <Bloque t="X (España)">{a.x_posicion ? <><span className="font-mono">#{a.x_posicion}</span> desde las <span className="font-mono">{a.x_desde && (esHoy(a.x_desde) ? hora24(a.x_desde) : fechaLarga(a.x_desde))}</span><div className="mt-1 text-xs"><a href={enlaceX(nombreVisible(a.entidad))} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">Ver en X</a></div></> : "No"}</Bloque>
           <Bloque t="Volumen en Google">{a.trends_activo && a.trends_crecimiento ? <span className="font-mono">{a.trends_crecimiento}</span> : "Todavía no"}</Bloque>
           <Bloque t="Wikipedia">{a.wikipedia_ratio ? <><span className="font-mono">×{Number(a.wikipedia_ratio).toLocaleString("es-ES")}</span> sobre su media<div className="mt-1 text-xs text-muted-foreground">{(a.wikipedia_visitas ?? 0).toLocaleString("es-ES")} visitas en un día</div></> : "Sin pico"}</Bloque>
           <Bloque t="Discover">{a.medios_discover > 0 ? <><span className="font-mono">{a.medios_discover}</span> {a.medios_discover === 1 ? "medio" : "medios"}<div className="mt-1 text-xs text-muted-foreground">{a.medios_lista.join(", ")}</div></> : sinDatosDiscover(a) ? "Sin datos de Discover todavía" : "Nadie ha llegado aún"}</Bloque>
