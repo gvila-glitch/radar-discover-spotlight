@@ -1,3 +1,4 @@
+-- REGISTRADO como migración en drizzle/migrations/0016_registrar_cambios_manuales.sql (16 nov 2026). Este archivo queda como referencia.
 -- ESTADO: PENDIENTE de aplicar a mano en el editor de SQL (después de supabase/cruce-snoop-v3.sql) y de registrar como migración.
 -- Idempotente (create or replace).
 

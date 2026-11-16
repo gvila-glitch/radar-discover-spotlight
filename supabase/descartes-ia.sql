@@ -1,3 +1,4 @@
+-- REGISTRADO como migración en drizzle/migrations/0016_registrar_cambios_manuales.sql (16 nov 2026). Este archivo queda como referencia.
 -- ESTADO: APLICADO a mano en el editor de SQL (16 nov 2026); PENDIENTE de registrar como migración. Se puede ejecutar más de una vez.
 --
 -- DESCARTES DE LA IA: temas que la IA dejó fuera (fuera de línea o noticia de agencia), para revisarlos en el panel

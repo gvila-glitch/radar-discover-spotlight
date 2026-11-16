@@ -1,5 +1,3 @@
-import { Radar } from "lucide-react";
-import { nombreVisible } from "@/lib/metricas";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState, useEffect } from "react";
@@ -7,15 +5,21 @@ import { Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { listAlertas, valorar } from "@/lib/alertasRepo";
-import { desdePeriodo, claveDia, horaOFecha } from "@/lib/fechas";
+import { desdePeriodo, claveDia } from "@/lib/fechas";
 import { kpis } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
-import { EstadoTag, LlegadaTag, PrioridadTag, Selector } from "@/components/radar/ui";
+import { Selector } from "@/components/radar/ui";
 import { usePanelEmail } from '@/lib/panelAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Detalle } from "@/components/radar/Detalle";
 import { Leyenda, PrimerosPasos } from "@/components/radar/Ayuda";
+import { useServerFn } from "@tanstack/react-start";
+import { esAdmin as leerEsAdmin } from "@/lib/configRepo";
+import { listarDescartes } from "@/lib/descartes.functions";
+import { diaMadrid } from "@/lib/descartes";
+import { AvisoDescartes, SelectorVistas, VistaDescartes, VistaTodas, type Vista } from "@/components/radar/Descartes";
+import { ContenidoAlerta } from "@/components/radar/ItemAlerta";
 
 export const Route = createFileRoute("/_authenticated/")({
   ssr: false,
@@ -40,12 +44,24 @@ export function Index() {
   const [prio, setPrio] = useState<"todas" | Prioridad>("todas");
   const [estado, setEstado] = useState<"todos" | Estado>("todos");
   const [sel, setSel] = useState<number | null>(null);
+  // Vistas: «Alertas», «Descartadas por la IA» (lo que la IA dejó fuera, para revisarlo) y «Todas».
+  const [vista, setVista] = useState<Vista>("alertas");
+  const [verTodos, setVerTodos] = useState(false);
+  const [revision, setRevision] = useState<"todos" | "marcados" | "sin_marcar">("todos");
+  const leerDescartes = useServerFn(listarDescartes);
+  const { data: admin = false } = useQuery({ queryKey: ["es_admin"], queryFn: leerEsAdmin });
   const [dark, setDark] = useState(false);
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
   const qc = useQueryClient();
   const key = ["alertas", periodo];
   const { data = [], isLoading, isError } = useQuery({ queryKey: key, queryFn: () => listAlertas(desdePeriodo(periodo)) });
+  const qd = useQuery({
+    queryKey: ["descartes", periodo, verTodos],
+    queryFn: () => { const d = desdePeriodo(periodo); return leerDescartes({ data: { desde: d ? diaMadrid(d) : undefined, todos: verTodos } }); },
+    staleTime: 60_000,
+  });
+  const descartes = (qd.data ?? []).filter((d) => revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto));
 
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
   const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && (estado === "todos" || a.estado === estado));
@@ -91,20 +107,23 @@ export function Index() {
         <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
         <Leyenda />
         <PrimerosPasos />
+        <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />
+        {vista === "descartes" && <AvisoDescartes verTodos={verTodos} onVerTodos={setVerTodos} />}
 
-        <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
+        {vista !== "descartes" && <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
           <Kpi titulo="Útiles" valor={pct(k.pctUtiles)} ok={k.pctUtiles == null ? null : k.pctUtiles >= 50} sub="sobre valoradas · objetivo ≥ 50 %" />
           <Kpi titulo="Acabaron en pieza" valor={pct(k.pctPublicadas)} ok={k.pctPublicadas == null ? null : k.pctPublicadas >= 20} sub="sobre el total · objetivo ≥ 20 %" />
           <Kpi titulo="Llegada" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={k.medianaLlegada == null ? null : k.medianaLlegada <= 2} sub={k.medianaLlegada == null ? "sin datos de Discover todavía · objetivo ≤ 2" : "mediana de medios ya en Discover · objetivo ≤ 2"} />
-        </section>
+        </section>}
 
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
-          <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />
-          <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={[{ value: "todos", label: "Todos" }, { value: "pendiente", label: "Pendiente" }, { value: "util", label: "Útil" }, { value: "ruido", label: "Ruido" }, { value: "publicada", label: "Publicada" }]} />
+          {vista !== "descartes" && <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />}
+          {vista !== "descartes" && <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={[{ value: "todos", label: "Todos" }, { value: "pendiente", label: "Pendiente" }, { value: "util", label: "Útil" }, { value: "ruido", label: "Ruido" }, { value: "publicada", label: "Publicada" }]} />}
           <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={[{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }]} />
+          {vista === "descartes" && <Selector id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />}
           <span className="ml-auto flex items-center gap-4">
-            <span className="font-mono text-xs text-muted-foreground">{visibles.length} de {data.length}</span>
+            <span className="font-mono text-xs text-muted-foreground">{vista === "descartes" ? `${descartes.length} descartes` : `${visibles.length} de ${data.length}`}</span>
             {filtrosActivos && (
               <button onClick={restablecer} className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
                 Restablecer filtros
@@ -113,6 +132,11 @@ export function Index() {
           </span>
         </div>
 
+        {vista === "descartes" ? (
+          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} />
+        ) : vista === "todas" ? (
+          <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} />
+        ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div className="min-w-0 border bg-card">
             {isError ? <p role="alert" className="p-4 text-sm text-destructive">No se pudieron cargar las alertas. Inténtalo de nuevo.</p>
@@ -127,12 +151,7 @@ export function Index() {
                         onClick={() => setSel(a.id)}
                         className={cn("flex cursor-pointer gap-3 px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                           on ? "bg-accent shadow-[inset_3px_0_0_var(--primary)]" : "hover:bg-muted")}>
-                        <span className="w-12 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">{horaOFecha(a.creada_en)}</span>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 font-semibold tracking-tight"><span className="truncate">{nombreVisible(a.entidad)}</span>{a.medios_discover > 0 && <Radar aria-label={`En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`} className="size-3.5 shrink-0 text-primary"><title>{`En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`}</title></Radar>}</div>
-                          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.contexto}</p>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1"><PrioridadTag p={a.prioridad} /><LlegadaTag a={a} /><EstadoTag e={a.estado} /></div>
+                        <ContenidoAlerta a={a} />
                       </li>
                     );
                   })}
@@ -141,6 +160,7 @@ export function Index() {
           </div>
           <div className="min-w-0">{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} /> : null}</div>
         </div>
+        )}
       </main>
     </div>
   );

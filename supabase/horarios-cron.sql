@@ -1,3 +1,4 @@
+-- NO va en las migraciones (el sistema de migraciones de Lovable no gestiona tareas programadas): queda aplicado en la base de datos y documentado aquí.
 -- Horarios de las tareas programadas (pg_cron, en hora UTC), tal como quedaron el 15 nov 2026.
 -- Aplicados a mano en el editor de SQL de Lovable; pendientes de registrar como migración.
 -- Ninguna línea contiene claves: la tarea nueva copia la autorización de la de Trends dentro de la base de datos.

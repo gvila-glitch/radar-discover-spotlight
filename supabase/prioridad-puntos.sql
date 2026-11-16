@@ -1,3 +1,4 @@
+-- REGISTRADO como migración en drizzle/migrations/0016_registrar_cambios_manuales.sql (16 nov 2026). Este archivo queda como referencia.
 -- ESTADO: APLICADO a mano en el editor de SQL (v1 y v2, 16 nov 2026); PENDIENTE de registrar como migración. Idempotente.
 --
 -- PRIORIDAD POR PUNTOS. Sustituye la regla anterior («alta solo si X y 0–2 medios en Discover») por una puntuación.

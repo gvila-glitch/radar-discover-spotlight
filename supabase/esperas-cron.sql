@@ -1,3 +1,4 @@
+-- NO va en las migraciones (el sistema de migraciones de Lovable no gestiona tareas programadas): queda aplicado en la base de datos y documentado aquí.
 -- Tiempo de espera de las tareas programadas que llaman a la web (pg_net). Por defecto pg_net deja de esperar a los
 -- 5 segundos; si la tarea tarda más, la respuesta se pierde y, a veces, el trabajo se corta a medias.
 -- Solo añade «timeout_milliseconds» a la llamada; no toca la dirección, la autorización ni el horario.

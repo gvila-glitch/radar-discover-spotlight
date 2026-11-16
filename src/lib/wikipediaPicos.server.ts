@@ -7,6 +7,8 @@ import { calcularPicos, diasUTC, planificarAlertasWikipedia, topSchema, type Top
 import { conResumen, sinPrefijo } from "./contexto";
 import { AGENTE, buscarResumenWikipedia } from "./contexto.server";
 import { clasificarConIA, informeIA, leerPerfilIA } from "./ia.server";
+import { filasDescartesWikipedia } from "./descartes";
+import { guardarDescartes } from "./descartes.server";
 
 const API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/es.wikipedia/all-access/";
 
@@ -62,5 +64,7 @@ async function ejecutar(client: SupabaseClient<Database>, now: Date) {
   }));
   const contextoResumenes = nuevas.filter((a, i) => a !== plan.nuevas[i]).length;
   const guardado = await guardarAlertasWikipedia(client, [...nuevas, ...plan.fusiones]);
-  return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length, ...informeIA(ia), contexto_resumenes: contextoResumenes };
+  // Lo que la IA dejó fuera se guarda para revisarlo en el panel.
+  const revision = await guardarDescartes(client, filasDescartesWikipedia({ ahora: now, picos: (picos ?? []).map((p) => ({ articulo: p.articulo, visitas: Number(p.visitas), ratio: Number(p.ratio) })), ia: ia.clasificaciones, descartadas: plan.descartadas, modelo: ia.modelo }), now);
+  return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length, ...informeIA(ia), ...revision, contexto_resumenes: contextoResumenes };
 }

@@ -1,3 +1,4 @@
+-- NO va en las migraciones (el sistema de migraciones de Lovable no gestiona tareas programadas): queda aplicado en la base de datos y documentado aquí.
 -- ESTADO: aplicado el 15 nov con '*/15 * * * *'; se cambia a 4 veces al día con cron.alter_job (ver abajo). Al registrar como
 -- migración, usar este horario.
 

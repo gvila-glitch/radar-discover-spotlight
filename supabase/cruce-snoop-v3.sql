@@ -1,3 +1,4 @@
+-- REGISTRADO como migración en drizzle/migrations/0016_registrar_cambios_manuales.sql (16 nov 2026). Este archivo queda como referencia.
 -- ESTADO: PENDIENTE de aplicar a mano en el editor de SQL de Lovable (después de subir el código que acepta el motivo 'ya_en_discover').
 -- Después, registrarlo como migración en el próximo mensaje de base de datos a Lovable. Es idempotente (create or replace).
 -- Orden de aplicación: migración 0015 → supabase/fusion-reglas-v2.sql → este archivo → supabase/cruce-snoop-cron.sql (una sola vez).

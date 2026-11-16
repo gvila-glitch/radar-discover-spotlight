@@ -1,3 +1,4 @@
+-- REGISTRADO como migración en drizzle/migrations/0016_registrar_cambios_manuales.sql (16 nov 2026). Este archivo queda como referencia.
 -- ESTADO: aplicado A MANO en el editor de SQL de Lovable el 15 nov 2026 (comprobado: clave 'marina valverde', UTF8).
 -- PENDIENTE: registrarlo como migración (pedírselo a Lovable en el próximo cambio de base de datos). Es idempotente
 -- (create or replace), así que volver a aplicarlo no cambia nada.

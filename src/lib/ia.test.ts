@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { instrucciones, leerRespuestaIA, listaParaIA, MAX_CANDIDATAS_IA } from "./ia";
-import { clasificarConIA, informeIA, MODELO_POR_DEFECTO } from "./ia.server";
+import { clasificarConIA, informeIA, MODELO_POR_DEFECTO, MODELOS_RESPALDO } from "./ia.server";
 import { candidatasTrends, combinarClasificacion, planificarAlertasTrends } from "./trendsAlertas";
 import { planificarAlertasWikipedia } from "./wikipediaPicos";
 import { puntuarAlerta } from "./prioridad";
@@ -115,11 +115,56 @@ describe("llamada a Gemini (simulada)", () => {
     expect((op.headers as Record<string, string>)["x-goog-api-key"]).toBe("CLAVE-SECRETA");
     const cuerpo = JSON.parse(op.body as string);
     expect(cuerpo.generationConfig.responseMimeType).toBe("application/json");
-    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 0 });
+    expect(MODELO_POR_DEFECTO).toBe("gemini-3.8-flash");
+    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
     expect(cuerpo.systemInstruction.parts[0].text).toContain(
       "Política, derechos y dinero público.",
     );
     expect(informeIA(r)).toEqual({ ia: "ok", ia_modelo: MODELO_POR_DEFECTO, ia_valoradas: 2 });
+  });
+  it("si un modelo ya no existe (404), prueba el siguiente; si ninguno existe, lo dice", async () => {
+    const urls: string[] = [];
+    const pedir = vi.fn(async (url: string) => {
+      urls.push(url);
+      return url.includes(MODELO_POR_DEFECTO)
+        ? new Response("", { status: 404 })
+        : respuestaGemini([
+            { id: 1, encaje: "medio", agencia: false, seccion: "Política", motivo: "m" },
+          ]);
+    });
+    const r = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "C",
+      pedir: pedir as never,
+    });
+    expect(r).toMatchObject({ estado: "ok", modelo: MODELOS_RESPALDO[0] });
+    expect(urls).toHaveLength(2);
+    const nada = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "C",
+      pedir: (async () => new Response("", { status: 404 })) as never,
+    });
+    expect(nada.estado).toBe("error");
+    expect(nada.mensaje).toMatch(
+      /^Ningún modelo de Gemini disponible \(HTTP 404\): gemini-3\.8-flash, gemini-flash-latest/,
+    );
+  });
+  it("si el modelo no admite «pensar poco» (400), repite una vez sin esa opción", async () => {
+    const cuerpos: { generationConfig: { thinkingConfig?: unknown } }[] = [];
+    const pedir = vi.fn(async (_url: string, op: RequestInit) => {
+      const c = JSON.parse(op.body as string);
+      cuerpos.push(c);
+      return c.generationConfig.thinkingConfig
+        ? new Response("", { status: 400 })
+        : respuestaGemini([{ id: 1, encaje: "alto", agencia: false, seccion: "P", motivo: "m" }]);
+    });
+    const r = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {
+      clave: "C",
+      pedir: pedir as never,
+    });
+    expect(r.estado).toBe("ok");
+    expect(cuerpos.map((c) => c.generationConfig.thinkingConfig ?? null)).toEqual([
+      { thinkingLevel: "low" },
+      null,
+    ]);
   });
   it("límite de uso, respuesta rara o tiempo agotado: error sin opinión y sin repetir la clave", async () => {
     const limite = await clasificarConIA([{ tema: "x", fuentes: "x" }], PERFIL, {

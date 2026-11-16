@@ -15,6 +15,8 @@ import { conBloqueoRadar } from "./jobLock.server";
 import { conNoticia, sinPrefijo } from "./contexto";
 import { buscarNoticiaGoogle } from "./contexto.server";
 import { clasificarConIA, informeIA, leerPerfilIA } from "./ia.server";
+import { filasDescartesTrends } from "./descartes";
+import { guardarDescartes } from "./descartes.server";
 
 export async function convertirTrendsEnAlertas(client: SupabaseClient<Database>, now = new Date()) {
   return conBloqueoRadar(client, "trends-a-alertas", () => ejecutarConversion(client, now));
@@ -139,12 +141,25 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
   const guardado = await guardarAlertasTrends(client, [...nuevas, ...plan.fusiones]);
   const { nuevas: _nuevas, fusiones: _fusiones, ...report } = plan;
   const descartadas = [...plan.descartadas, ...guardado.descartadas];
+  // Lo que la IA dejó fuera se guarda para revisarlo en el panel (Alertas → «Descartadas por la IA»).
+  const revision = await guardarDescartes(
+    client,
+    filasDescartesTrends({
+      ahora: now,
+      candidatas,
+      ia: ia.clasificaciones,
+      descartadas: plan.descartadas,
+      modelo: ia.modelo,
+    }),
+    now,
+  );
   return {
     ...report,
     ...guardado,
     descartadas,
     alertas_creadas: guardado.creadas.length,
     ...informeIA(ia),
+    ...revision,
     contexto_noticias: contextoNoticias,
     tendencias_descartadas: descartadas.length,
   };
