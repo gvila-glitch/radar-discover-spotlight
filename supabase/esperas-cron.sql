@@ -25,6 +25,13 @@ from cron.job
 where jobname = 'radar-trends-a-alertas'
   and command not like '%timeout_milliseconds%';
 
+-- 3) APLICADO el 16 nov 2026 (13:45): la creación de alertas de X y Trends ahora también consulta a la IA (Gemini), que
+--    puede tardar hasta 55 s: su espera pasa de 60 s a 120 s.
+select jobname,
+       cron.alter_job(jobid, command := regexp_replace(command, 'timeout_milliseconds := [0-9]+', 'timeout_milliseconds := 120000'))
+from cron.job
+where jobname = 'radar-trends-a-alertas';
+
 -- Comprobación: las tres deben salir con true.
 -- select jobname, command like '%timeout_milliseconds%' as espera_ampliada from cron.job
 -- where jobname in ('radar-x-ingesta', 'wikipedia-a-alertas', 'radar-trends-a-alertas');

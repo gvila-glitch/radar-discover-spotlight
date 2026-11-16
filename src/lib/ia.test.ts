@@ -116,11 +116,16 @@ describe("llamada a Gemini (simulada)", () => {
     const cuerpo = JSON.parse(op.body as string);
     expect(cuerpo.generationConfig.responseMimeType).toBe("application/json");
     expect(MODELO_POR_DEFECTO).toBe("gemini-3.8-flash");
-    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "low" });
+    expect(cuerpo.generationConfig.thinkingConfig).toEqual({ thinkingLevel: "minimal" });
     expect(cuerpo.systemInstruction.parts[0].text).toContain(
       "Política, derechos y dinero público.",
     );
-    expect(informeIA(r)).toEqual({ ia: "ok", ia_modelo: MODELO_POR_DEFECTO, ia_valoradas: 2 });
+    expect(informeIA(r)).toMatchObject({
+      ia: "ok",
+      ia_modelo: MODELO_POR_DEFECTO,
+      ia_valoradas: 2,
+    });
+    expect(informeIA(r).ia_intentos).toMatch(/^gemini-3\.8-flash \[minimal\] → ok \(\d+,\d s\)$/);
   });
   it("si un modelo ya no existe (404), prueba el siguiente; si ninguno existe, lo dice", async () => {
     const urls: string[] = [];
@@ -162,8 +167,14 @@ describe("llamada a Gemini (simulada)", () => {
     });
     expect(r.estado).toBe("ok");
     expect(cuerpos.map((c) => c.generationConfig.thinkingConfig ?? null)).toEqual([
+      { thinkingLevel: "minimal" },
       { thinkingLevel: "low" },
       null,
+    ]);
+    expect(r.intentos.map((i) => i.replace(/ \(.*\)$/, ""))).toEqual([
+      "gemini-3.8-flash [minimal] → HTTP 400",
+      "gemini-3.8-flash [low] → HTTP 400",
+      "gemini-3.8-flash [normal] → ok",
     ]);
   });
   it("límite de uso, respuesta rara o tiempo agotado: error sin opinión y sin repetir la clave", async () => {
