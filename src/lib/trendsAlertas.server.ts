@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { guardarAlertasTrends, leerAlertasParaTrends } from "./alertasRepo";
 import {
+  candidatasTrends,
   inicioDiaMadrid,
   parsearModo,
   parsearReglas,
@@ -13,6 +14,7 @@ import {
 import { conBloqueoRadar } from "./jobLock.server";
 import { conNoticia, sinPrefijo } from "./contexto";
 import { buscarNoticiaGoogle } from "./contexto.server";
+import { clasificarConIA, informeIA, leerPerfilIA } from "./ia.server";
 
 export async function convertirTrendsEnAlertas(client: SupabaseClient<Database>, now = new Date()) {
   return conBloqueoRadar(client, "trends-a-alertas", () => ejecutarConversion(client, now));
@@ -93,6 +95,25 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
   const today = inicioDiaMadrid(now);
   const since = new Date(Math.min(today.getTime(), now.getTime() - 24 * 3600000));
   const alertas = await leerAlertasParaTrends(client, since, now);
+  // Criterio editorial con IA: una sola llamada con todas las candidatas. Si falla, deciden las reglas.
+  const candidatas = candidatasTrends({ now, trends, xTendencias });
+  const ia = await clasificarConIA(
+    candidatas.map((c) => ({
+      tema: c.termino,
+      fuentes: [
+        c.x
+          ? `X España, puesto ${c.x.posicion}${c.x.categoria ? ` (${c.x.categoria})` : ""}`
+          : null,
+        c.trend
+          ? `Google Trends España, ${c.trend.volumen ?? "volumen desconocido"} búsquedas`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      titular: c.titular,
+    })),
+    await leerPerfilIA(client),
+  );
   const plan = planificarAlertasTrends({
     now,
     trends,
@@ -102,6 +123,7 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     config: Object.fromEntries((settings ?? []).map((c) => [c.clave, c.valor])),
     reglas,
     xTendencias,
+    ia: ia.clasificaciones,
   });
   // Las que vienen solo de X no traen titular: se busca el último en Google Noticias para saber de qué se habla
   // (como mucho 3 búsquedas a la vez y 3 s; si falla, la alerta se guarda con el contexto de siempre).
@@ -122,6 +144,7 @@ async function ejecutarConversion(client: SupabaseClient<Database>, now: Date) {
     ...guardado,
     descartadas,
     alertas_creadas: guardado.creadas.length,
+    ...informeIA(ia),
     contexto_noticias: contextoNoticias,
     tendencias_descartadas: descartadas.length,
   };

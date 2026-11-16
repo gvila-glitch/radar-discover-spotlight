@@ -2,8 +2,10 @@
 import { z } from "zod";
 import {
   clasificarPorReglas,
+  combinarClasificacion,
   entidadesEquivalentes,
   normalizarEntidad,
+  type ClasificacionIA,
   type Reglas,
 } from "./trendsAlertas";
 
@@ -99,6 +101,8 @@ export function planificarAlertasWikipedia(input: {
   entidadesRecientes: string[];
   // Opcional. Sin reglas (o con las dos listas vacías) no se filtra por línea editorial.
   reglas?: Reglas | undefined;
+  // Opcional. Lo que dijo la IA de cada artículo. Sin ello, deciden las reglas.
+  ia?: Map<string, ClasificacionIA> | undefined;
 }) {
   const excl = input.exclusiones.map((e) => e.trim().toLocaleLowerCase("es-ES")).filter(Boolean);
   const reglas =
@@ -109,11 +113,16 @@ export function planificarAlertasWikipedia(input: {
   // Hablan de lo mismo que una alerta reciente (o que otra candidata de esta ejecución): se envían para combinarlas.
   const fusiones: NuevaAlertaWikipedia[] = [];
   const planeadas: string[] = [];
-  const descartadas: { termino: string; motivo: "exclusion" | "reglas" | "limite_ejecucion" }[] =
-    [];
+  const descartadas: {
+    termino: string;
+    motivo: "exclusion" | "reglas" | "fuera_de_linea" | "limite_ejecucion";
+  }[] = [];
   const candidatos = input.picos.map((p) => ({
     p,
-    clasificacion: reglas ? clasificarPorReglas(p.articulo, null, reglas) : null,
+    clasificacion: combinarClasificacion(
+      reglas ? clasificarPorReglas(p.articulo, null, reglas) : null,
+      input.ia?.get(p.articulo),
+    ),
   }));
   // Con reglas, lo que encaja va primero; después, el mayor salto de visitas.
   const rango = (c: (typeof candidatos)[number]) => (c.clasificacion?.decision === "afin" ? 0 : 1);
@@ -129,7 +138,13 @@ export function planificarAlertasWikipedia(input: {
       (clasificacion.decision === "descartar" ||
         (clasificacion.decision === "sin_clasificar" && reglas?.modo === "estricto"))
     ) {
-      descartadas.push({ termino: p.articulo, motivo: "reglas" });
+      descartadas.push({
+        termino: p.articulo,
+        motivo:
+          clasificacion.decision === "descartar" && clasificacion.origen === "ia"
+            ? "fuera_de_linea"
+            : "reglas",
+      });
       continue;
     }
     const alerta: NuevaAlertaWikipedia = {

@@ -6,6 +6,7 @@ import { leerReglas } from "./reglasRepo";
 import { calcularPicos, diasUTC, planificarAlertasWikipedia, topSchema, type Top } from "./wikipediaPicos";
 import { conResumen, sinPrefijo } from "./contexto";
 import { AGENTE, buscarResumenWikipedia } from "./contexto.server";
+import { clasificarConIA, informeIA, leerPerfilIA } from "./ia.server";
 
 const API = "https://wikimedia.org/api/rest_v1/metrics/pageviews/top/es.wikipedia/all-access/";
 
@@ -48,7 +49,12 @@ async function ejecutar(client: SupabaseClient<Database>, now: Date) {
   const reglas = await leerReglas(client);
   // 24 h: la misma ventana que usa la base de datos para combinar alertas sobre lo mismo.
   const recientes = await leerAlertasParaTrends(client, new Date(now.getTime() - 24 * 3600000), now);
-  const plan = planificarAlertasWikipedia({ picos: picos ?? [], exclusiones: (excl ?? []).map((e) => e.valor), entidadesRecientes: recientes.map((a) => a.entidad), reglas });
+  // Criterio editorial con IA (una llamada con todos los picos del día). Si falla, deciden las reglas.
+  const ia = await clasificarConIA(
+    (picos ?? []).map((p) => ({ tema: p.articulo, fuentes: `Wikipedia en español: ${Number(p.visitas).toLocaleString("es-ES")} visitas en un día, ×${Number(p.ratio).toLocaleString("es-ES")} sobre su media` })),
+    await leerPerfilIA(client),
+  );
+  const plan = planificarAlertasWikipedia({ picos: picos ?? [], exclusiones: (excl ?? []).map((e) => e.valor), entidadesRecientes: recientes.map((a) => a.entidad), reglas, ia: ia.clasificaciones });
   // Contexto: descripción corta y primera frase del artículo (como mucho 3 consultas a la vez y 3 s cada una).
   const nuevas = await Promise.all(plan.nuevas.map(async (a) => {
     const resumen = await buscarResumenWikipedia(sinPrefijo(a.entidad));
@@ -56,5 +62,5 @@ async function ejecutar(client: SupabaseClient<Database>, now: Date) {
   }));
   const contextoResumenes = nuevas.filter((a, i) => a !== plan.nuevas[i]).length;
   const guardado = await guardarAlertasWikipedia(client, [...nuevas, ...plan.fusiones]);
-  return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length, contexto_resumenes: contextoResumenes };
+  return { dia, picos_guardados: picosGuardados, picos_del_dia: picos?.length ?? 0, ...guardado, descartadas: [...plan.descartadas, ...guardado.descartadas], alertas_creadas: guardado.creadas.length, ...informeIA(ia), contexto_resumenes: contextoResumenes };
 }

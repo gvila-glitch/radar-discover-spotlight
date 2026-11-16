@@ -22,7 +22,9 @@ export type Puntuacion = { puntos: number; partes: Parte[]; prioridad: Prioridad
 
 const SIN_DISCOVER = /^\[SIN DISCOVER\]/i;
 const PREFIJO = /^\[(?:PRUEBA|SIN DISCOVER)\]\s*/i;
-const AFIN = "Encaja por reglas";
+// Lo que deja el filtro en motivo_afinidad: reglas de «sí» o la IA con encaje alto suman +3; la IA con encaje medio, +1.
+const AFIN = ["Encaja por reglas", "Encaja (IA, alto)"];
+const MEDIO = "Encaja (IA, medio)";
 
 /**
  * Puntos de una alerta:
@@ -31,8 +33,8 @@ const AFIN = "Encaja por reglas";
  * - Wikipedia: ×10 sobre su media +3, ×5 +2, ×3 +1.
  * - Varias fuentes a la vez: dos +1, tres +2.
  * - Discover (si hay datos): 0–2 medios +1; 3 o más −2 (ya llegamos tarde).
- * - Encaja con una regla editorial de «sí» +3; un hashtag que no encaja −1.
- * Alta: 5 puntos o más Y (encaja con la línea editorial O viene de 2 fuentes o más) Y no hay ya 3 o más medios
+ * - Encaja con la línea editorial (regla de «sí» o IA «alto») +3; IA «medio» +1; un hashtag que no encaja −1.
+ * Alta: 5 puntos o más Y (encaja con la línea editorial —no vale «medio»— O viene de 2 fuentes o más) Y no hay ya 3 o más medios
  * en Discover (alta significa «aún llegamos a tiempo»).
  */
 export function puntuarAlerta(a: DatosPuntuacion): Puntuacion {
@@ -72,8 +74,10 @@ export function puntuarAlerta(a: DatosPuntuacion): Puntuacion {
         : { texto: `ya ${n} medios en Discover`, puntos: -2 },
     );
   }
-  const afin = a.motivo_afinidad.startsWith(AFIN);
+  const afin = AFIN.some((prefijo) => a.motivo_afinidad.startsWith(prefijo));
+  const medio = !afin && a.motivo_afinidad.startsWith(MEDIO);
   if (afin) partes.push({ texto: "encaja con la línea editorial", puntos: 3 });
+  else if (medio) partes.push({ texto: "encaja a medias con la línea", puntos: 1 });
   else if (a.entidad.replace(PREFIJO, "").trim().startsWith("#"))
     partes.push({ texto: "hashtag sin relación con la línea", puntos: -1 });
   const puntos = partes.reduce((s, p) => s + p.puntos, 0);

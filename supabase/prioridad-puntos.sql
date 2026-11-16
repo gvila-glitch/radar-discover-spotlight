@@ -1,12 +1,13 @@
--- ESTADO: PENDIENTE de aplicar a mano en el editor de SQL y de registrar como migración. Idempotente.
+-- ESTADO: APLICADO a mano en el editor de SQL (v1 y v2, 16 nov 2026); PENDIENTE de registrar como migración. Idempotente.
 --
 -- PRIORIDAD POR PUNTOS. Sustituye la regla anterior («alta solo si X y 0–2 medios en Discover») por una puntuación.
+-- v2 (16 nov 2026): entiende la opinión de la IA (Encaja (IA, alto) +3; Encaja (IA, medio) +1). Se aplica entero otra vez.
 -- La misma fórmula está en src/lib/prioridad.ts (para enseñar el desglose en el panel); si se cambia, en los dos.
 --   X: puesto 1–5 +3, 6–15 +2, 16 o más +1; +1 si entró en X como mucho 90 min antes de crearse la alerta.
 --   Google Trends: 20.000+ +3, 5.000+ +2, 1.000+ +1.        Wikipedia: ×10 +3, ×5 +2, ×3 +1.
 --   Varias fuentes a la vez: dos +1, tres +2.
 --   Discover (si hay datos): 0–2 medios +1; 3 o más −2.
---   Encaja con una regla editorial de «sí» +3; hashtag que no encaja −1.
+--   Encaja con la línea editorial (regla de «sí» o IA «alto») +3; IA «medio» +1; hashtag que no encaja −1.
 --   ALTA: 5 puntos o más Y (encaja con la línea editorial O viene de 2 fuentes o más) Y no hay ya 3 o más medios en
 --   Discover (alta = «aún llegamos a tiempo»). Si no, media.
 -- Un disparador la recalcula al crear la alerta y cada vez que cambian sus datos (al combinar fuentes, en el cruce
@@ -34,6 +35,7 @@ declare
   volumen numeric;
   fuentes integer;
   afin boolean;
+  medio boolean;
 begin
   puntos := 0;
   if x_posicion is not null then
@@ -52,9 +54,12 @@ begin
   if coalesce(entidad, '') !~* '^\[SIN DISCOVER\]' then
     puntos := puntos + case when coalesce(medios_discover, 0) <= 2 then 1 else -2 end;
   end if;
-  afin := coalesce(motivo_afinidad, '') like 'Encaja por reglas%';
+  afin := coalesce(motivo_afinidad, '') like 'Encaja por reglas%' or coalesce(motivo_afinidad, '') like 'Encaja (IA, alto)%';
+  medio := not afin and coalesce(motivo_afinidad, '') like 'Encaja (IA, medio)%';
   if afin then
     puntos := puntos + 3;
+  elsif medio then
+    puntos := puntos + 1;
   elsif btrim(regexp_replace(coalesce(entidad, ''), '^\[(PRUEBA|SIN DISCOVER)\]\s*', '', 'i')) like '#%' then
     puntos := puntos - 1;
   end if;

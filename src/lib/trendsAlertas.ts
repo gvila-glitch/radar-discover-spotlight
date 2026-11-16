@@ -51,7 +51,8 @@ export type MotivoDescarte =
   | "fuera_de_horario"
   | "tope_diario"
   | "limite_ejecucion"
-  | "sin_termino";
+  | "sin_termino"
+  | "fuera_de_linea";
 export type Descarte = { termino: string; motivo: MotivoDescarte };
 // ---- Filtro por reglas (sin IA): las listas viven en la tabla config (reglas_si, reglas_no y reglas_modo) ----
 export type Regla = { texto: string; prefijo: boolean; seccion: string | null };
@@ -60,7 +61,43 @@ export type ResultadoReglas = {
   decision: "descartar" | "afin" | "sin_clasificar";
   motivo: string;
   seccion: string | null;
+  /** «ia» si la decisión la tomó la IA (si no, las reglas). */
+  origen?: "ia";
 };
+
+/** Lo que dice la IA de un tema (ver ia.ts). */
+export type ClasificacionIA = {
+  encaje: "alto" | "medio" | "bajo" | "fuera";
+  agencia: boolean;
+  seccion: string;
+  motivo: string;
+};
+
+/**
+ * Junta reglas e IA. Una regla de «no» manda siempre (es una exclusión editorial). Si no, decide la IA cuando ha
+ * respondido: alto y medio encajan, bajo queda sin clasificar, y fuera de línea o noticia de agencia se descarta.
+ * Sin respuesta de la IA, se queda lo que digan las reglas.
+ */
+export function combinarClasificacion(
+  reglas: ResultadoReglas | null,
+  ia: ClasificacionIA | null | undefined,
+): ResultadoReglas | null {
+  if (reglas?.decision === "descartar" || !ia) return reglas;
+  const seccion = ia.seccion.trim() || reglas?.seccion || null;
+  const motivo = ia.motivo.trim() || "sin motivo";
+  if (ia.agencia || ia.encaje === "fuera")
+    return {
+      decision: "descartar",
+      motivo: `Fuera de línea (IA): ${motivo}`,
+      seccion,
+      origen: "ia",
+    };
+  if (ia.encaje === "alto")
+    return { decision: "afin", motivo: `Encaja (IA, alto): ${motivo}`, seccion, origen: "ia" };
+  if (ia.encaje === "medio")
+    return { decision: "afin", motivo: `Encaja (IA, medio): ${motivo}`, seccion, origen: "ia" };
+  return { decision: "sin_clasificar", motivo: `Poco afín (IA): ${motivo}`, seccion, origen: "ia" };
+}
 
 export const MAX_REGLAS = 500;
 export const MAX_LARGO_REGLA = 80;
@@ -322,37 +359,27 @@ export function entidadesEquivalentes(a: string, b: string): boolean {
   return false;
 }
 
-export function planificarAlertasTrends(input: {
-  now: Date;
-  trends: TendenciaAlerta[];
-  exclusiones: string[];
-  alertas: AlertaReciente[];
-  totalHoy: number;
-  config: Record<string, string | null>;
-  // Opcional. Sin reglas (o con las dos listas vacías) el comportamiento es el de siempre.
-  reglas?: Reglas | undefined;
-  // Opcional. Capturas recientes de x_tendencias (hasta 24 h). Sin ellas, solo hay candidatas de Trends.
-  xTendencias?: TendenciaX[] | undefined;
-}) {
-  const config = configSchema.safeParse(input.config);
-  if (
-    !config.success ||
-    Object.values(input.config).some((value) => value === null || value?.trim() === "")
-  ) {
-    throw new Error("Configuración de horario o máximo diario no válida.");
-  }
-  const reglas =
-    input.reglas && (input.reglas.si.length > 0 || input.reglas.no.length > 0)
-      ? input.reglas
-      : undefined;
-  const end = input.now.getTime();
-  const window = input.trends.filter(
+export type CandidataTrends = {
+  termino: string;
+  trend: TendenciaAlerta | null;
+  x: XActual | null;
+  titular: string | null;
+};
+
+// Candidatas de una ejecución: las tendencias de Google de la última media hora (o de las últimas 2 h si no hay) y lo
+// que está ahora en X; si coinciden por nombre, son una sola candidata con las dos señales.
+function reunirCandidatas(
+  trends: TendenciaAlerta[],
+  xTendencias: TendenciaX[] | undefined,
+  end: number,
+) {
+  const window = trends.filter(
     (t) => Date.parse(t.capturado_en) >= end - 30 * 60000 && Date.parse(t.capturado_en) <= end,
   );
   const fallback = window.length === 0;
   const readings = (
     fallback
-      ? input.trends.filter(
+      ? trends.filter(
           (t) =>
             Date.parse(t.capturado_en) >= end - 2 * 3600000 && Date.parse(t.capturado_en) <= end,
         )
@@ -369,28 +396,7 @@ export function planificarAlertasTrends(input: {
     }
     if (!latest.has(t.termino)) latest.set(t.termino, t);
   }
-  // Alertas de las últimas 24 h: si una candidata habla de lo mismo, se combina con ella en vez de crear otra.
-  const recientes = input.alertas
-    .filter((a) => Date.parse(a.creada_en) >= end - 24 * 3600000 && Date.parse(a.creada_en) <= end)
-    .map((a) => a.entidad);
-  const exclusions = input.exclusiones
-    .map((e) => e.toLocaleLowerCase("es-ES"))
-    .filter((e) => e.trim());
-  const p = madridParts(input.now);
-  const hour = p["hour"] + p["minute"] / 60 + p["second"] / 3600;
-  const { hora_inicio: start, hora_fin: finish, max_alertas_dia: max } = config.data;
-  const inHours = start <= finish ? hour >= start && hour < finish : hour >= start || hour < finish;
-  const disponibles = Math.max(0, max - input.totalHoy);
-  const nuevas: NuevaAlertaTrends[] = [];
-  const fusiones: NuevaAlertaTrends[] = [];
-  const planeadas: string[] = [];
-  type Candidato = {
-    termino: string;
-    trend: TendenciaAlerta | null;
-    x: XActual | null;
-    titular: string | null;
-  };
-  const candidatosBase: Candidato[] = [...latest.values()].map((t) => {
+  const candidatosBase: CandidataTrends[] = [...latest.values()].map((t) => {
     const termino = t.termino?.trim() ?? "";
     const first = Array.isArray(t.noticias) ? (t.noticias[0] as unknown) : null;
     const news = z.object({ titular: z.string() }).safeParse(first);
@@ -398,10 +404,8 @@ export function planificarAlertasTrends(input: {
     return { termino, trend: t, x: null, titular };
   });
   // X se cruza con Trends por el nombre normalizado: si coinciden, es una sola candidata con las dos señales.
-  const actualesX = input.xTendencias
-    ? xActuales(input.xTendencias, end)
-    : new Map<string, XActual>();
-  const indice = new Map<string, Candidato>();
+  const actualesX = xTendencias ? xActuales(xTendencias, end) : new Map<string, XActual>();
+  const indice = new Map<string, CandidataTrends>();
   for (const c of candidatosBase)
     if (!indice.has(claveDe(c.termino))) indice.set(claveDe(c.termino), c);
   for (const [clave, xv] of actualesX) {
@@ -417,9 +421,73 @@ export function planificarAlertasTrends(input: {
         titular: null,
       });
   }
+  return { candidatas: candidatosBase, descartadas, latest, readings, fallback, actualesX };
+}
+
+/** Las candidatas que se valorarían ahora (para pedir a la IA su opinión antes de planificar). */
+export function candidatasTrends(input: {
+  now: Date;
+  trends: TendenciaAlerta[];
+  xTendencias?: TendenciaX[] | undefined;
+}): CandidataTrends[] {
+  return reunirCandidatas(input.trends, input.xTendencias, input.now.getTime()).candidatas;
+}
+
+export function planificarAlertasTrends(input: {
+  now: Date;
+  trends: TendenciaAlerta[];
+  exclusiones: string[];
+  alertas: AlertaReciente[];
+  totalHoy: number;
+  config: Record<string, string | null>;
+  // Opcional. Sin reglas (o con las dos listas vacías) el comportamiento es el de siempre.
+  reglas?: Reglas | undefined;
+  // Opcional. Capturas recientes de x_tendencias (hasta 24 h). Sin ellas, solo hay candidatas de Trends.
+  xTendencias?: TendenciaX[] | undefined;
+  // Opcional. Lo que dijo la IA de cada candidata, por su término. Sin ello, deciden las reglas.
+  ia?: Map<string, ClasificacionIA> | undefined;
+}) {
+  const config = configSchema.safeParse(input.config);
+  if (
+    !config.success ||
+    Object.values(input.config).some((value) => value === null || value?.trim() === "")
+  ) {
+    throw new Error("Configuración de horario o máximo diario no válida.");
+  }
+  const reglas =
+    input.reglas && (input.reglas.si.length > 0 || input.reglas.no.length > 0)
+      ? input.reglas
+      : undefined;
+  const end = input.now.getTime();
+  const {
+    candidatas: candidatosBase,
+    descartadas,
+    latest,
+    readings,
+    fallback,
+    actualesX,
+  } = reunirCandidatas(input.trends, input.xTendencias, end);
+  // Alertas de las últimas 24 h: si una candidata habla de lo mismo, se combina con ella en vez de crear otra.
+  const recientes = input.alertas
+    .filter((a) => Date.parse(a.creada_en) >= end - 24 * 3600000 && Date.parse(a.creada_en) <= end)
+    .map((a) => a.entidad);
+  const exclusions = input.exclusiones
+    .map((e) => e.toLocaleLowerCase("es-ES"))
+    .filter((e) => e.trim());
+  const p = madridParts(input.now);
+  const hour = p["hour"] + p["minute"] / 60 + p["second"] / 3600;
+  const { hora_inicio: start, hora_fin: finish, max_alertas_dia: max } = config.data;
+  const inHours = start <= finish ? hour >= start && hour < finish : hour >= start || hour < finish;
+  const disponibles = Math.max(0, max - input.totalHoy);
+  const nuevas: NuevaAlertaTrends[] = [];
+  const fusiones: NuevaAlertaTrends[] = [];
+  const planeadas: string[] = [];
   const candidatos = candidatosBase.map((c) => ({
     ...c,
-    clasificacion: reglas ? clasificarPorReglas(c.termino, c.titular, reglas) : null,
+    clasificacion: combinarClasificacion(
+      reglas ? clasificarPorReglas(c.termino, c.titular, reglas) : null,
+      input.ia?.get(c.termino),
+    ),
   }));
   // Los huecos se llenan por puntos (la misma fórmula que decide la prioridad; aquí sin la parte de Discover, que
   // se conoce al guardar). A igualdad: lo que encaja, las dos señales juntas, X por puesto y Trends por volumen.
@@ -455,7 +523,10 @@ export function planificarAlertasTrends(input: {
       (clasificacion.decision === "descartar" ||
         (clasificacion.decision === "sin_clasificar" && reglas?.modo === "estricto"))
     )
-      motivo = "reglas";
+      motivo =
+        clasificacion.decision === "descartar" && clasificacion.origen === "ia"
+          ? "fuera_de_linea"
+          : "reglas";
     if (motivo) {
       descartadas.push({ termino, motivo });
       continue;

@@ -76,7 +76,7 @@ const ENTRADAS: { t: string; d: string }[] = [
   },
   {
     t: "Por qué es afín",
-    d: "La regla por la que el filtro dejó pasar el tema. Por ahora el filtro es por reglas, sin IA, y el ángulo sugerido está pendiente.",
+    d: "Por qué el filtro dejó pasar el tema. Lo decide una IA (Gemini) con el perfil editorial de Configuración: «Encaja (IA, alto)» o «medio»; lo que ve fuera de línea no llega a ser alerta. Si la IA no responde, decide el filtro por reglas. El ángulo sugerido sigue pendiente.",
   },
   {
     t: "Valoración",
