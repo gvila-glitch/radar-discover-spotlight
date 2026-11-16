@@ -13,9 +13,10 @@ import {
   type PerfilIA,
 } from "./ia";
 
-// Gemini 3.8 Flash es el modelo disponible en el nivel gratuito de nuestra clave. Con 30 temas en una sola petición
-// tardaba más de 45 s: por eso los temas van en grupos pequeños pedidos a la vez. Si el modelo no existe (404), no está
-// permitido (403) o se pasa del límite (429), se prueban los Flash-Lite, más rápidos («-latest» = el más reciente).
+// Normalmente se pregunta a Google qué modelos tiene la clave y se usan primero los Flash-Lite (los más rápidos; el
+// 16 nov, gemini-3.5-flash-lite, unos 2 s por grupo). Esta lista fija solo se usa si Google no da la suya. Los temas van
+// en grupos pequeños pedidos a la vez; un grupo que recibe «no existe» (404), «no permitido» (403), «límite» (429),
+// «saturado» (503) o tarda demasiado se repite con el siguiente modelo («-latest» = el más reciente).
 export const MODELO_POR_DEFECTO = "gemini-3.8-flash";
 export const MODELOS_RESPALDO = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite"];
 /** Temas por petición: se piden varios grupos a la vez, que tardan menos que uno grande. */
@@ -230,36 +231,45 @@ export async function clasificarConIA(
     }
   }
 
+  // Cada modelo recibe solo los grupos que siguen sin respuesta: si un grupo falla porque el modelo no existe, no está
+  // permitido, se pasó del límite, está saturado o tarda, se repite con el siguiente modelo de la lista. Un error de
+  // otro tipo no lo arregla cambiar de modelo: ese grupo se queda sin opinión y lo deciden las reglas.
+  const clasificaciones = new Map<string, ClasificacionIA>();
+  const usados: string[] = [];
+  let respondidos = 0;
+  let pendientes = grupos.map((g, i) => ({ g, n: i + 1 }));
   let ultimo = elegido;
   let ultimaFalta: RespuestaGrupo | null = null;
   for (const modelo of modelos) {
-    if (finEn - Date.now() < 5000) break;
+    if (!pendientes.length || finEn - Date.now() < 5000) break;
     ultimo = modelo;
-    const respuestas = await Promise.all(grupos.map((g, i) => pedirGrupo(modelo, g, i + 1)));
+    const respuestas = await Promise.all(pendientes.map((p) => pedirGrupo(modelo, p.g, p.n)));
     const buenas = respuestas.filter((r) => r.estado === "ok");
-    if (buenas.length) {
-      const clasificaciones = new Map<string, ClasificacionIA>();
-      for (const r of buenas) for (const [k, v] of r.clasificaciones!) clasificaciones.set(k, v);
-      return {
-        estado: "ok",
-        modelo,
-        clasificaciones,
-        intentos,
-        ...(disponibles ? { disponibles } : {}),
-        ...(buenas.length < grupos.length
-          ? { mensaje: `Gemini respondió a ${buenas.length} de ${grupos.length} grupos.` }
-          : {}),
-      };
-    }
+    if (buenas.length) usados.push(modelo);
+    respondidos += buenas.length;
+    for (const r of buenas) for (const [k, v] of r.clasificaciones!) clasificaciones.set(k, v);
+    const fallos = respuestas.filter((r) => r.estado !== "ok");
     ultimaFalta =
-      respuestas.find((r) => r.estado === "error") ??
-      respuestas.find((r) => r.estado === "tiempo") ??
-      respuestas[0] ??
-      null;
-    // Se prueba otro modelo si este no existe, no está permitido, se pasó del límite, está saturado o tarda;
-    // no si responde con otro error (eso no lo arregla cambiar de modelo).
-    if (!respuestas.every((r) => r.estado === "no_disponible" || r.estado === "tiempo")) break;
+      fallos.find((r) => r.estado === "error") ??
+      fallos.find((r) => r.estado === "tiempo") ??
+      fallos[0] ??
+      ultimaFalta;
+    pendientes = pendientes.filter(
+      (_, i) => respuestas[i]!.estado === "no_disponible" || respuestas[i]!.estado === "tiempo",
+    );
   }
+  if (respondidos)
+    return {
+      estado: "ok",
+      // Si respondieron varios modelos (porque se repitieron grupos), se anotan todos, en el orden en que se usaron.
+      modelo: usados.join(" + "),
+      clasificaciones,
+      intentos,
+      ...(disponibles ? { disponibles } : {}),
+      ...(respondidos < grupos.length
+        ? { mensaje: `Gemini respondió a ${respondidos} de ${grupos.length} grupos.` }
+        : {}),
+    };
   const mensaje = !ultimaFalta
     ? "Gemini tardó demasiado en responder."
     : ultimaFalta.estado === "no_disponible"

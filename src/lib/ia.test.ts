@@ -269,6 +269,44 @@ describe("llamada a Gemini (simulada)", () => {
     });
     expect(siguiente).toMatchObject({ estado: "ok", modelo: MODELOS_RESPALDO[0] });
   });
+  it("si un grupo recibe «saturado» (503), repite solo ese grupo con el siguiente modelo", async () => {
+    const llamadas: string[] = [];
+    const r = await clasificarConIA(
+      Array.from({ length: 12 }, (_, i) => ({ tema: `T${i}`, fuentes: "X" })),
+      PERFIL,
+      {
+        descubrir: false,
+        clave: "C",
+        pedir: (async (url: string, op: RequestInit) => {
+          const filas: { id: number; tema: string }[] = JSON.parse(
+            JSON.parse(op.body as string).contents[0].parts[0].text.replace(/<\/?temas>/g, ""),
+          );
+          const grupo = filas.some((f) => f.tema === "T8") ? 2 : 1;
+          llamadas.push(`${url.includes(MODELO_POR_DEFECTO) ? "A" : "B"}${grupo}`);
+          if (grupo === 2 && url.includes(MODELO_POR_DEFECTO))
+            return new Response("", { status: 503 });
+          return respuestaGemini(
+            filas.map((f) => ({
+              id: f.id,
+              encaje: "medio",
+              agencia: false,
+              seccion: "S",
+              motivo: "m",
+            })),
+          );
+        }) as never,
+      },
+    );
+    expect(llamadas.sort()).toEqual(["A1", "A2", "B2"]); // el grupo 1 no se repite
+    expect(r.estado).toBe("ok");
+    expect(r.clasificaciones.size).toBe(12);
+    expect(r.mensaje).toBeUndefined();
+    expect(r.modelo).toBe(`${MODELO_POR_DEFECTO} + ${MODELOS_RESPALDO[0]}`);
+    expect(r.intentos.join(" | ")).toMatch(/grupo 2: gemini-3\.8-flash \[low\] → HTTP 503/);
+    expect(r.intentos.join(" | ")).toMatch(
+      new RegExp(`grupo 2: ${MODELOS_RESPALDO[0]} \\[minimal\\] → ok`),
+    );
+  });
   it("ordena los modelos Flash: primero los Flash-Lite y los más nuevos; fuera imagen, voz y similares", () => {
     expect(
       ordenarModelos([

@@ -56,12 +56,15 @@ export function Index() {
   const qc = useQueryClient();
   const key = ["alertas", periodo];
   const { data = [], isLoading, isError } = useQuery({ queryKey: key, queryFn: () => listAlertas(desdePeriodo(periodo)) });
+  // Se leen todos los descartes y aquí se separan los fuertes: así se puede decir cuántos quedan ocultos.
   const qd = useQuery({
-    queryKey: ["descartes", periodo, verTodos],
-    queryFn: () => { const d = desdePeriodo(periodo); return leerDescartes({ data: { desde: d ? diaMadrid(d) : undefined, todos: verTodos } }); },
+    queryKey: ["descartes", periodo],
+    queryFn: () => { const d = desdePeriodo(periodo); return leerDescartes({ data: { desde: d ? diaMadrid(d) : undefined, todos: true } }); },
     staleTime: 60_000,
   });
-  const descartes = (qd.data ?? []).filter((d) => revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto));
+  const todosDescartes = (qd.data ?? []).filter((d) => revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto));
+  const descartes = verTodos ? todosDescartes : todosDescartes.filter((d) => d.fuerte);
+  const ocultos = todosDescartes.length - descartes.length;
 
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
   const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && (estado === "todos" || a.estado === estado));
@@ -108,7 +111,7 @@ export function Index() {
         <Leyenda />
         <PrimerosPasos />
         <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />
-        {vista === "descartes" && <AvisoDescartes verTodos={verTodos} onVerTodos={setVerTodos} />}
+        {vista === "descartes" && <AvisoDescartes verTodos={verTodos} onVerTodos={setVerTodos} ocultos={ocultos} />}
 
         {vista !== "descartes" && <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
@@ -133,7 +136,7 @@ export function Index() {
         </div>
 
         {vista === "descartes" ? (
-          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} />
+          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} ocultos={ocultos} onVerTodos={() => setVerTodos(true)} />
         ) : vista === "todas" ? (
           <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} />
         ) : (

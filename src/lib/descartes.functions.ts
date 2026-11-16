@@ -41,7 +41,7 @@ export const listarDescartes = createServerFn({ method: "POST" })
       .order("dia", { ascending: false })
       .order("puntos", { ascending: false })
       .order("creada_en", { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (error) throw new Error("No se pudieron leer los descartes.");
     return filas ?? [];
   });

@@ -62,9 +62,12 @@ export function SelectorVistas({
 export function AvisoDescartes({
   verTodos,
   onVerTodos,
+  ocultos = 0,
 }: {
   verTodos: boolean;
   onVerTodos: (v: boolean) => void;
+  /** Descartes con poca señal que no se ven mientras se enseñan solo los fuertes. */
+  ocultos?: number;
 }) {
   return (
     <div className="mt-4 border bg-card p-4 text-sm">
@@ -89,7 +92,11 @@ export function AvisoDescartes({
           onClick={() => onVerTodos(!verTodos)}
           className="text-primary underline underline-offset-4"
         >
-          {verTodos ? "Ver solo los fuertes" : "Ver todos los descartes"}
+          {verTodos
+            ? "Ver solo los fuertes"
+            : ocultos > 0
+              ? `Ver todos los descartes (${ocultos} más con poca señal)`
+              : "Ver todos los descartes"}
         </button>
       </p>
     </div>
@@ -425,23 +432,46 @@ export function VistaDescartes({
   cargando,
   error,
   esAdmin,
+  ocultos = 0,
+  onVerTodos,
 }: {
   descartes: Descarte[];
   cargando: boolean;
   error: boolean;
   esAdmin: boolean;
+  /** Descartes con poca señal ocultos (se enseñan solo los fuertes). */
+  ocultos?: number;
+  onVerTodos?: () => void;
 }) {
   const [sel, setSel] = useState<number | null>(null);
   const actual = descartes.find((d) => d.id === sel) ?? descartes[0];
+  // Sin fuertes pero con otros ocultos: se dice cuántos hay, para que «(0)» no parezca un fallo.
+  const soloOcultos = !cargando && !error && !descartes.length && ocultos > 0;
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div className="min-w-0 border bg-card">
-        <EstadoLista
-          cargando={cargando}
-          error={error}
-          vacio={!descartes.length}
-          texto="No hay descartes con estos filtros."
-        />
+        {soloOcultos ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            No hay descartes fuertes en este periodo. Hay {ocultos} con poca señal, que difícilmente
+            habrían llegado a alerta.{" "}
+            {onVerTodos && (
+              <button
+                type="button"
+                onClick={onVerTodos}
+                className="text-primary underline underline-offset-4"
+              >
+                Ver todos
+              </button>
+            )}
+          </p>
+        ) : (
+          <EstadoLista
+            cargando={cargando}
+            error={error}
+            vacio={!descartes.length}
+            texto="No hay descartes con estos filtros."
+          />
+        )}
         {!cargando && !error && descartes.length > 0 && (
           <ul aria-label="Descartes" className="divide-y">
             {descartes.map((d) => (
