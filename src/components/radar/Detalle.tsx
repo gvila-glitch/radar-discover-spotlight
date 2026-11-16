@@ -4,6 +4,7 @@ import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
 import { nombreVisible, sinDatosDiscover } from "@/lib/metricas";
 import { LlegadaTag, PrioridadTag } from "./ui";
+import { describirPuntos, puntuarAlerta } from "@/lib/prioridad";
 
 export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void }) {
   const [editUrl, setEditUrl] = useState(false);
@@ -25,6 +26,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
         <PrioridadTag p={a.prioridad} /> <LlegadaTag a={a} />
         <span className="font-mono">{fechaLarga(a.creada_en)}</span><span>·</span><span>{hace(a.creada_en)}</span>
       </div>
+      <p className="mt-1 text-xs text-muted-foreground">Prioridad por puntos · {describirPuntos(puntuarAlerta(a))}</p>
       <h2 className="mt-3 tracking-tight text-3xl font-semibold leading-tight">{nombreVisible(a.entidad)}</h2>
       <p className="mt-1 text-muted-foreground">{a.contexto}</p>
 

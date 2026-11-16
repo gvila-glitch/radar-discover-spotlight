@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { puntuarAlerta } from "./prioridad";
+import { volumenNumerico } from "./volumen";
+
+export { volumenNumerico };
 
 export type TendenciaAlerta = {
   id: number;
@@ -305,18 +309,6 @@ export function entidadesEquivalentes(a: string, b: string): boolean {
   return false;
 }
 
-export function volumenNumerico(value: string | null): number {
-  const match = /^\s*([\d.,]+)\s*([KMB]?)\s*\+?\s*$/i.exec(value ?? "");
-  if (!match?.[1]) return 0;
-  const suffix = match[2]?.toUpperCase();
-  const number = suffix
-    ? Number(match[1].replace(",", "."))
-    : Number(match[1].replace(/[.,]/g, ""));
-  return Number.isFinite(number)
-    ? number * (suffix === "K" ? 1000 : suffix === "M" ? 1000000 : suffix === "B" ? 1000000000 : 1)
-    : 0;
-}
-
 export function planificarAlertasTrends(input: {
   now: Date;
   trends: TendenciaAlerta[];
@@ -416,12 +408,24 @@ export function planificarAlertasTrends(input: {
     ...c,
     clasificacion: reglas ? clasificarPorReglas(c.termino, c.titular, reglas) : null,
   }));
-  // Con reglas, lo que encaja ocupa los huecos antes que lo que no se reconoce; después, las dos señales juntas,
-  // luego X solo (por puesto) y por último Trends solo (por volumen).
+  // Los huecos se llenan por puntos (la misma fórmula que decide la prioridad; aquí sin la parte de Discover, que
+  // se conoce al guardar). A igualdad: lo que encaja, las dos señales juntas, X por puesto y Trends por volumen.
+  const puntos = (c: (typeof candidatos)[number]) =>
+    puntuarAlerta({
+      entidad: "[SIN DISCOVER] " + c.termino,
+      creada_en: input.now.toISOString(),
+      x_posicion: c.x?.posicion ?? null,
+      x_desde: c.x?.desde ?? null,
+      trends_activo: c.trend !== null,
+      trends_crecimiento: c.trend?.volumen ?? null,
+      medios_discover: 0,
+      motivo_afinidad: c.clasificacion?.motivo ?? "",
+    }).puntos;
   const rango = (c: (typeof candidatos)[number]) => (c.clasificacion?.decision === "afin" ? 0 : 1);
   const fuerza = (c: (typeof candidatos)[number]) => (c.trend && c.x ? 0 : c.x ? 1 : 2);
   candidatos.sort(
     (a, b) =>
+      puntos(b) - puntos(a) ||
       rango(a) - rango(b) ||
       fuerza(a) - fuerza(b) ||
       (a.x?.posicion ?? 999) - (b.x?.posicion ?? 999) ||
