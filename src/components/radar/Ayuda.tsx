@@ -35,9 +35,9 @@ export function PrimerosPasos() {
           y en <span className="text-foreground">«Por qué ahora»</span> dónde se mueve el tema.
         </li>
         <li>
-          Valórala con <span className="text-foreground">Útil</span>,{" "}
-          <span className="text-foreground">Ruido</span> o{" "}
-          <span className="text-foreground">Publicamos</span>: así sabemos si el radar acierta.
+          Contesta «¿Te sirve esta alerta?» con <span className="text-foreground">Sí, útil</span>,{" "}
+          <span className="text-foreground">No, es ruido</span> o{" "}
+          <span className="text-foreground">La publicamos</span>: así sabemos si el radar acierta.
         </li>
       </ol>
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -85,7 +85,7 @@ const ENTRADAS: { t: string; d: string }[] = [
   },
   {
     t: "Valoración",
-    d: "Útil: merecía el aviso. Ruido: no aportaba nada. Publicamos: acabamos haciendo una pieza (puedes añadir el enlace).",
+    d: "«Sí, útil»: merecía el aviso. «No, es ruido»: no aportaba nada; la alerta no se borra, sigue en la lista y cuenta para medir el radar (para no verlas, Estado «Todos menos ruido»). «La publicamos»: acabamos haciendo una pieza (puedes añadir el enlace). Se puede cambiar cuando quieras.",
   },
   {
     t: "Indicadores",

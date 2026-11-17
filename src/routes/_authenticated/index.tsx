@@ -18,6 +18,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { esAdmin as leerEsAdmin } from "@/lib/configRepo";
 import { listarDescartes } from "@/lib/descartes.functions";
 import { diaMadrid, OPCIONES_SENAL, pasaSenal, type FiltroSenal } from "@/lib/descartes";
+import { OPCIONES_AUTORIDAD, OPCIONES_ESTADO, OPCIONES_FUENTE, pasaAutoridad, pasaEstado, pasaFuente, type FiltroAutoridad, type FiltroEstado, type FiltroFuente } from "@/lib/filtrosAlertas";
 import { AvisoDescartes, SelectorVistas, VistaDescartes, VistaTodas, type Vista } from "@/components/radar/Descartes";
 import { ContenidoAlerta } from "@/components/radar/ItemAlerta";
 import { leerAutoridad } from "@/lib/autoridad.functions";
@@ -49,7 +50,9 @@ export function Index() {
   const email = usePanelEmail();
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [prio, setPrio] = useState<"todas" | Prioridad>("todas");
-  const [estado, setEstado] = useState<"todos" | Estado>("todos");
+  const [estado, setEstado] = useState<FiltroEstado>("todos");
+  const [fuente, setFuente] = useState<FiltroFuente>("todas");
+  const [autoridad, setAutoridad] = useState<FiltroAutoridad>("todas");
   // «?alerta=123» (desde Discover ahora): se lee de la dirección para no depender del enrutador.
   const [sel, setSel] = useState<number | null>(() => {
     const n = typeof window === "undefined" ? NaN : Number(new URLSearchParams(window.location.search).get("alerta"));
@@ -80,16 +83,20 @@ export function Index() {
   const descartes = (qd.data ?? []).filter((d) => pasaSenal(d, senal) && (revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto)));
 
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
-  const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && (estado === "todos" || a.estado === estado));
+  const visibles = data.filter((a) => (prio === "todas" || a.prioridad === prio) && pasaEstado(a.estado, estado) && pasaFuente(a, fuente) && pasaAutoridad(qa.data?.temas[a.entidad]?.nivel, autoridad));
   const actual = visibles.find((a) => a.id === sel) ?? visibles[0];
-  const filtrosActivos = prio !== "todas" || estado !== "todos" || periodo !== "7d" || senal !== "todas" || revision !== "todos";
-  const restablecer = () => { setPrio("todas"); setEstado("todos"); setPeriodo("7d"); setSenal("todas"); setRevision("todos"); };
+  const filtrosActivos = prio !== "todas" || estado !== "todos" || fuente !== "todas" || autoridad !== "todas" || periodo !== "7d" || senal !== "todas" || revision !== "todos";
+  const restablecer = () => { setPrio("todas"); setEstado("todos"); setFuente("todas"); setAutoridad("todas"); setPeriodo("7d"); setSenal("todas"); setRevision("todos"); };
 
   async function onValorar(a: Alerta, nuevo: Estado, pieza_url: string | null = null) {
     const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: email };
     const prev = qc.getQueryData<Alerta[]>(key);
     qc.setQueryData<Alerta[]>(key, (l) => l?.map((x) => (x.id === a.id ? { ...x, ...cambios } : x)));
-    try { const saved = await valorar(a.id, cambios); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? saved : x)); }
+    try {
+      const saved = await valorar(a.id, cambios); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? saved : x));
+      // «Ruido» no borra la alerta: se dice para que nadie espere que desaparezca (salvo con el filtro que las oculta).
+      if (nuevo === "ruido") toast(estado === "sin_ruido" ? "Marcada como ruido. Con el filtro «Todos menos ruido» deja de verse; cámbialo en Estado si la necesitas." : "Marcada como ruido. Sigue en la lista y sirve para medir si el radar acierta; puedes cambiarlo cuando quieras.");
+    }
     catch { qc.setQueryData(key, prev); toast.error("No se pudo guardar la valoración. Inténtalo de nuevo."); }
     finally { qc.invalidateQueries({ queryKey: ["alertas"], refetchType: "none" }); }
   }
@@ -137,7 +144,9 @@ export function Index() {
 
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
           {vista !== "descartes" && <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />}
-          {vista !== "descartes" && <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={[{ value: "todos", label: "Todos" }, { value: "pendiente", label: "Pendiente" }, { value: "util", label: "Útil" }, { value: "ruido", label: "Ruido" }, { value: "publicada", label: "Publicada" }]} />}
+          {vista !== "descartes" && <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={OPCIONES_ESTADO} />}
+          {vista !== "descartes" && <Selector id="f-fuente" label="Fuente" value={fuente} onChange={setFuente} options={OPCIONES_FUENTE} />}
+          {vista !== "descartes" && qa.data?.periodo && <Selector id="f-autoridad" label="Autoridad" value={autoridad} onChange={setAutoridad} options={OPCIONES_AUTORIDAD} />}
           <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={[{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }]} />
           {vista === "descartes" && <Selector id="f-senal" label="Señal" value={senal} onChange={setSenal} options={OPCIONES_SENAL} />}
           {vista === "descartes" && <Selector id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />}

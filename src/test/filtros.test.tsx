@@ -3,9 +3,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 
 import { Index } from "@/routes/_authenticated/index";
+import { valorar } from "@/lib/alertasRepo";
+import { toast } from "sonner";
 
 import { crearDemoAlertas } from '@/data/demoAlertas';
 vi.mock('@/lib/alertasRepo', () => ({ listAlertas: vi.fn(async () => crearDemoAlertas()), valorar: vi.fn() }));
+// El aviso al marcar «ruido» se comprueba sin pintarlo.
+vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
 // Datos de ejemplo: 8 alertas en los últimos 7 días (la más antigua, hace 65 h).
 // estado "ruido" -> 1 (Comparecencia en el Congreso); prioridad "alta" -> 4.
 function renderPanel() {
@@ -66,5 +70,54 @@ describe("selectores de filtros", () => {
     expect(selector("Prioridad").value).toBe("todas");
     expect(selector("Periodo").value).toBe("7d");
     expect(screen.queryByText("Restablecer filtros")).not.toBeInTheDocument();
+  });
+
+  it("«Todos menos ruido» deja fuera solo la alerta de ruido", async () => {
+    renderPanel();
+    await alertasVisibles();
+    fireEvent.change(selector("Estado"), { target: { value: "sin_ruido" } });
+    await waitFor(() => expect(screen.getByText("7 de 8")).toBeInTheDocument());
+    const textos = (await alertasVisibles()).map((o) => o.textContent ?? "");
+    expect(textos.some((t) => t.includes("Comparecencia en el Congreso"))).toBe(false);
+  });
+
+  it("Fuente: «X» es tener señal en X; «Varias fuentes», dos o más", async () => {
+    renderPanel();
+    await alertasVisibles();
+    expect(selector("Fuente").value).toBe("todas");
+    fireEvent.change(selector("Fuente"), { target: { value: "varias" } });
+    await waitFor(() => expect(screen.getByText("4 de 8")).toBeInTheDocument());
+    fireEvent.change(selector("Fuente"), { target: { value: "google" } });
+    await waitFor(() => expect(screen.getByText("5 de 8")).toBeInTheDocument());
+    fireEvent.change(selector("Fuente"), { target: { value: "wikipedia" } });
+    await waitFor(() => expect(screen.getByText("No hay alertas con estos filtros.")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Restablecer filtros"));
+    await waitFor(() => expect(screen.getByText("8 de 8")).toBeInTheDocument());
+    expect(selector("Fuente").value).toBe("todas");
+  });
+
+  it("sin datos de Search Console no sale el filtro de Autoridad", async () => {
+    renderPanel();
+    await alertasVisibles();
+    expect(screen.queryByLabelText("Autoridad")).not.toBeInTheDocument();
+  });
+
+  it("al marcar «No, es ruido» avisa de que la alerta sigue en la lista (o de que el filtro la oculta)", async () => {
+    vi.mocked(valorar).mockImplementation(async (id, cambios) => ({
+      ...crearDemoAlertas().find((a) => a.id === id)!,
+      ...cambios,
+    }));
+    renderPanel();
+    await alertasVisibles();
+    fireEvent.click(screen.getByRole("button", { name: "No, es ruido" }));
+    await waitFor(() =>
+      expect(vi.mocked(toast)).toHaveBeenLastCalledWith(expect.stringContaining("Sigue en la lista")),
+    );
+    fireEvent.change(selector("Estado"), { target: { value: "sin_ruido" } });
+    await waitFor(() => expect(screen.getByText(/de 8/)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "No, es ruido" }));
+    await waitFor(() =>
+      expect(vi.mocked(toast)).toHaveBeenLastCalledWith(expect.stringContaining("deja de verse")),
+    );
   });
 });

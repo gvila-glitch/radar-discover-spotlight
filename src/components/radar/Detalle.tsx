@@ -114,9 +114,9 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
       <div className="sticky bottom-0 z-10 border-t bg-card px-6 py-3 shadow-[0_-6px_12px_-10px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-auto text-[15px] font-semibold">¿Te sirve esta alerta?</span>
-          {btn("util", "Útil")}
-          {btn("ruido", "Ruido")}
-          {btn("publicada", "Publicamos", () => { onValorar("publicada", a.estado === "publicada" ? a.pieza_url : null); setEditUrl(true); })}
+          {btn("util", "Sí, útil")}
+          {btn("ruido", "No, es ruido")}
+          {btn("publicada", "La publicamos", () => { onValorar("publicada", a.estado === "publicada" ? a.pieza_url : null); setEditUrl(true); })}
         </div>
         {a.estado === "publicada" && editUrl && (
           <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (!urlValida) return; onValorar("publicada", url || null); setEditUrl(false); }}>

@@ -169,15 +169,15 @@ describe("Detalle (ficha de la alerta)", () => {
     expect(screen.getByText(/Medido en las 24 horas siguientes a la alerta/)).toBeInTheDocument();
   });
 
-  it("los botones valoran y «Publicamos» abre el hueco para el enlace solo al pulsarlo", () => {
+  it("los botones valoran y «La publicamos» abre el hueco para el enlace solo al pulsarlo", () => {
     const onValorar = vi.fn();
     const { rerender } = render(<Detalle a={YOLANDA} onValorar={onValorar} />);
     expect(screen.getByText("¿Te sirve esta alerta?")).toBeInTheDocument();
     expect(screen.queryByLabelText(/Enlace a nuestra pieza/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Marcar como pendiente" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Útil" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, útil" }));
     expect(onValorar).toHaveBeenLastCalledWith("util");
-    fireEvent.click(screen.getByRole("button", { name: "Publicamos" }));
+    fireEvent.click(screen.getByRole("button", { name: "La publicamos" }));
     expect(onValorar).toHaveBeenLastCalledWith("publicada", null);
     rerender(
       <Detalle
