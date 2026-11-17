@@ -85,7 +85,7 @@ const ENTRADAS: { t: string; d: string }[] = [
   },
   {
     t: "Valoración",
-    d: "«Sí, útil»: merecía el aviso. «No, es ruido»: no aportaba nada; la alerta no se borra, sigue en la lista y cuenta para medir el radar (para no verlas, Estado «Todos menos ruido»). «La publicamos»: acabamos haciendo una pieza (puedes añadir el enlace). Se puede cambiar cuando quieras.",
+    d: "«Sí, útil»: merecía el aviso. «No, es ruido»: no aportaba nada; la alerta no se borra, sigue en la lista y cuenta para medir el radar (para no verlas, Estado «Todos menos ruido»). «La publicamos»: acabamos haciendo una pieza (puedes añadir el enlace). Se puede cambiar cuando quieras. Tras «No, es ruido» puedes decir por qué (no es nuestro tema, llegamos tarde, ya lo teníamos o nombre confundido); si no es nuestro tema, un administrador puede añadirlo a lo que no cubrimos para que la IA lo tenga en cuenta desde la próxima tanda.",
   },
   {
     t: "Indicadores",

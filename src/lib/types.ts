@@ -1,3 +1,4 @@
+import type { MotivoRuido } from "./ruido";
 export type Prioridad = "alta" | "media";
 export type Estado = "pendiente" | "util" | "ruido" | "publicada";
 export interface Alerta {
@@ -22,5 +23,11 @@ export interface Alerta {
   pieza_url: string | null;
   estado_actualizado_en: string | null;
   estado_por: string | null;
+  /** Por qué es ruido (opcional; supabase/motivo-ruido.sql). Sin la columna aplicada, no llega. */
+  motivo_ruido?: MotivoRuido | null;
+  /** Línea añadida a «lo que no cubrimos» desde esta alerta, quién y cuándo. */
+  no_cubrimos?: string | null;
+  no_cubrimos_por?: string | null;
+  no_cubrimos_en?: string | null;
 }
 export type CambiosValoracion = Pick<Alerta, "estado" | "pieza_url" | "estado_actualizado_en" | "estado_por">;

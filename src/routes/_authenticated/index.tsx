@@ -4,7 +4,9 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { listAlertas, valorar } from "@/lib/alertasRepo";
+import { guardarMotivoRuido, listAlertas, valorar } from "@/lib/alertasRepo";
+import { anadirNoCubrimos } from "@/lib/ruido.functions";
+import type { MotivoRuido } from "@/lib/ruido";
 import { desdePeriodo, claveDia } from "@/lib/fechas";
 import { kpis } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
@@ -95,10 +97,32 @@ export function Index() {
     try {
       const saved = await valorar(a.id, cambios); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? saved : x));
       // «Ruido» no borra la alerta: se dice para que nadie espere que desaparezca (salvo con el filtro que las oculta).
+      // Si deja de ser ruido, su motivo ya no vale.
+      if (nuevo !== "ruido" && a.motivo_ruido) { try { const sinMotivo = await guardarMotivoRuido(a.id, null); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? sinMotivo : x)); } catch { /* se queda; no afecta a la valoración */ } }
       if (nuevo === "ruido") toast(estado === "sin_ruido" ? "Marcada como ruido. Con el filtro «Todos menos ruido» deja de verse; cámbialo en Estado si la necesitas." : "Marcada como ruido. Sigue en la lista y sirve para medir si el radar acierta; puedes cambiarlo cuando quieras.");
     }
     catch { qc.setQueryData(key, prev); toast.error("No se pudo guardar la valoración. Inténtalo de nuevo."); }
     finally { qc.invalidateQueries({ queryKey: ["alertas"], refetchType: "none" }); }
+  }
+
+  async function onMotivo(a: Alerta, motivo: MotivoRuido | null) {
+    const prev = qc.getQueryData<Alerta[]>(key);
+    qc.setQueryData<Alerta[]>(key, (l) => l?.map((x) => (x.id === a.id ? { ...x, motivo_ruido: motivo } : x)));
+    try { const saved = await guardarMotivoRuido(a.id, motivo); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? saved : x)); }
+    catch { qc.setQueryData(key, prev); toast.error("No se pudo guardar el motivo. Inténtalo de nuevo."); }
+  }
+
+  const anadirNo = useServerFn(anadirNoCubrimos);
+  async function onNoCubrimos(a: Alerta, tipo: "criterio" | "nombre", texto: string): Promise<boolean> {
+    try {
+      const fila = await anadirNo({ data: { id: a.id, tipo, texto } });
+      qc.setQueryData<Alerta[]>(key, (l) => l?.map((x) => (x.id === a.id ? { ...x, ...fila } : x)));
+      toast.success("Guardado en Configuración. Se aplica desde la próxima tanda.");
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error && e.message.includes("caracteres") ? e.message : "No se pudo guardar en Configuración.");
+      return false;
+    }
   }
 
   const listRef = useRef<HTMLUListElement>(null);
@@ -163,7 +187,7 @@ export function Index() {
         {vista === "descartes" ? (
           <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} />
         ) : vista === "todas" ? (
-          <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} />
+          <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} onMotivo={onMotivo} onNoCubrimos={onNoCubrimos} />
         ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <div className="min-w-0 border bg-card">
@@ -186,7 +210,7 @@ export function Index() {
                 </ul>
               )}
           </div>
-          <div className="min-w-0">{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} /> : null}</div>
+          <div className="min-w-0">{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} esAdmin={admin} onMotivo={(m) => onMotivo(actual, m)} onNoCubrimos={(t, x) => onNoCubrimos(actual, t, x)} /> : null}</div>
         </div>
         )}
       </main>

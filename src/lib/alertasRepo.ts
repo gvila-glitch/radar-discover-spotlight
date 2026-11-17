@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import type { Alerta, CambiosValoracion } from "./types";
+import type { MotivoRuido } from "./ruido";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AlertaReciente, NuevaAlertaTrends } from "./trendsAlertas";
@@ -46,6 +47,18 @@ export async function valorar(id: number, cambios: CambiosValoracion): Promise<A
     .eq("id", id)
     .select("*")
     .single();
+  if (error) throw error;
+  return alerta(data);
+}
+
+/** Guarda (o borra) el motivo del ruido. La columna aún no está en los tipos generados: se escribe con este tipo. */
+export async function guardarMotivoRuido(id: number, motivo: MotivoRuido | null): Promise<Alerta> {
+  const tabla = supabase.from("alertas") as unknown as {
+    update: (v: { motivo_ruido: MotivoRuido | null }) => {
+      eq: (c: "id", v: number) => { select: (c: "*") => { single: () => PromiseLike<{ data: unknown; error: unknown }> } };
+    };
+  };
+  const { data, error } = await tabla.update({ motivo_ruido: motivo }).eq("id", id).select("*").single();
   if (error) throw error;
   return alerta(data);
 }

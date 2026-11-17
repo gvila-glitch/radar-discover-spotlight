@@ -9,6 +9,7 @@ import { puntuarAlerta, UMBRAL_ALTA } from "@/lib/prioridad";
 import { DesglosePuntos } from "./Puntos";
 import { BloqueAutoridad, EtiquetaAutoridad } from "./Autoridad";
 import { enlaceX, leerContexto } from "@/lib/contexto";
+import { MOTIVOS_RUIDO, sugerenciaNoCubrimos, type MotivoRuido } from "@/lib/ruido";
 
 // Ficha de una alerta. Arriba, lo necesario para decidir (cabecera y «Por qué ahora»); debajo, la competencia y
 // nuestras piezas, con lo largo plegado; al pie, los botones de valoración, siempre a la vista.
@@ -31,7 +32,14 @@ function motivoLegible(m: string): ReactNode {
 const sinSenalEn = (fuentes: string[]) =>
   fuentes.length < 3 ? fuentes.join(" ni en ") : `${fuentes.slice(0, -1).join(", ")} ni ${fuentes[fuentes.length - 1]}`;
 
-export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void }) {
+export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos }: {
+  a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void;
+  /** Para «Añadir a lo que no cubrimos», solo administradores. */
+  esAdmin?: boolean;
+  /** Motivo del ruido; sin esta función no se pregunta. */
+  onMotivo?: ((motivo: MotivoRuido | null) => void) | undefined;
+  onNoCubrimos?: ((tipo: "criterio" | "nombre", texto: string) => Promise<boolean>) | undefined;
+}) {
   const [editUrl, setEditUrl] = useState(false);
   const [url, setUrl] = useState("");
   const urlValida = url === "" || /^https:\/\/\S+$/.test(url);
@@ -118,6 +126,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
           {btn("ruido", "No, es ruido")}
           {btn("publicada", "La publicamos", () => { onValorar("publicada", a.estado === "publicada" ? a.pieza_url : null); setEditUrl(true); })}
         </div>
+        {a.estado === "ruido" && onMotivo && <SeccionRuido key={a.id} a={a} esAdmin={esAdmin} onMotivo={onMotivo} onNoCubrimos={onNoCubrimos} />}
         {a.estado === "publicada" && editUrl && (
           <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); if (!urlValida) return; onValorar("publicada", url || null); setEditUrl(false); }}>
             <label className="flex min-w-64 flex-1 flex-col gap-1 text-sm">
@@ -148,6 +157,70 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
 }
 
 /** Medios que ya están en Discover: los dos primeros titulares a la vista y el resto plegado. */
+/**
+ * Tras «No, es ruido»: por qué (opcional, un clic) y, si no es nuestro tema, «Añadir a lo que no cubrimos» para los
+ * administradores (lo simétrico de «Añadir como excepción» en los descartes).
+ */
+function SeccionRuido({ a, esAdmin, onMotivo, onNoCubrimos }: {
+  a: Alerta; esAdmin: boolean; onMotivo: (motivo: MotivoRuido | null) => void;
+  onNoCubrimos?: ((tipo: "criterio" | "nombre", texto: string) => Promise<boolean>) | undefined;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [tipo, setTipo] = useState<"criterio" | "nombre">("criterio");
+  const [texto, setTexto] = useState(() => sugerenciaNoCubrimos(nombreVisible(a.entidad)));
+  const [ocupado, setOcupado] = useState(false);
+  async function guardar() {
+    if (!onNoCubrimos) return;
+    setOcupado(true);
+    try { if (await onNoCubrimos(tipo, texto)) setAbierto(false); } finally { setOcupado(false); }
+  }
+  return (
+    <div className="mt-3">
+      <div role="group" aria-label="Por qué es ruido" className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="text-muted-foreground">¿Por qué? (opcional)</span>
+        {MOTIVOS_RUIDO.map((m) => (
+          <button key={m.id} type="button" aria-pressed={a.motivo_ruido === m.id} onClick={() => onMotivo(a.motivo_ruido === m.id ? null : m.id)}
+            className={cn("rounded-full border px-2.5 py-1 focus-visible:outline-2 focus-visible:outline-ring", a.motivo_ruido === m.id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      {a.motivo_ruido === "no_es_tema" && (a.no_cubrimos ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Añadido a lo que no cubrimos{a.no_cubrimos_por ? ` por ${a.no_cubrimos_por}` : ""}{a.no_cubrimos_en ? ` (${hace(a.no_cubrimos_en)})` : ""}: «{a.no_cubrimos}»
+        </p>
+      ) : esAdmin && onNoCubrimos ? (abierto ? (
+        <section aria-label="Añadir a lo que no cubrimos" className="mt-3 border bg-accent p-3 text-sm">
+          <h4 className="font-semibold">Añadir a lo que no cubrimos <span className="ml-1 text-xs font-normal text-muted-foreground">(solo administradores)</span></h4>
+          <div className="mt-2 space-y-2">
+            <label className="flex items-start gap-2">
+              <input type="radio" name={`no-${a.id}`} checked={tipo === "criterio"} onChange={() => setTipo("criterio")} className="mt-1" />
+              <span><span className="font-medium">Añadir un criterio para la IA</span> <span className="text-xs text-muted-foreground">(recomendado: lo aplica también a casos parecidos)</span></span>
+            </label>
+            {tipo === "criterio" && (
+              <textarea rows={2} maxLength={300} value={texto} onChange={(e) => setTexto(e.target.value)} aria-label="Criterio de lo que no cubrimos"
+                className="w-full rounded-md border border-input bg-card px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-ring" />
+            )}
+            <label className="flex items-start gap-2">
+              <input type="radio" name={`no-${a.id}`} checked={tipo === "nombre"} onChange={() => setTipo("nombre")} className="mt-1" />
+              <span><span className="font-medium">No avisar nunca de «{nombreVisible(a.entidad)}»</span> <span className="text-xs text-muted-foreground">(regla de «no»: descarta también cualquier noticia futura con este nombre)</span></span>
+            </label>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" disabled={ocupado} onClick={guardar} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">Guardar</button>
+            <button type="button" onClick={() => setAbierto(false)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">Ahora no</button>
+            <span className="text-xs text-muted-foreground">Se aplica desde la próxima tanda; queda registrado quién lo añadió.</span>
+          </div>
+        </section>
+      ) : (
+        <button type="button" onClick={() => setAbierto(true)} className="mt-2 text-xs text-primary underline-offset-2 hover:underline">
+          Añadir a lo que no cubrimos (solo administradores)
+        </button>
+      )) : null)}
+    </div>
+  );
+}
+
 function Competencia({ a }: { a: Alerta }) {
   const [abierto, setAbierto] = useState(false);
   if (sinDatosDiscover(a)) return <p className="text-sm text-muted-foreground">Sin datos de Discover todavía.</p>;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Detalle } from "./Detalle";
 import type { Alerta } from "@/lib/types";
 
@@ -194,6 +194,93 @@ describe("Detalle (ficha de la alerta)", () => {
     expect(screen.getByText("Valorada hace 3 min por Equipo")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Marcar como pendiente" }));
     expect(onValorar).toHaveBeenLastCalledWith("pendiente");
+  });
+
+  it("tras «No, es ruido» pregunta por qué (opcional); pulsar otra vez el mismo motivo lo quita", () => {
+    const onMotivo = vi.fn();
+    const { rerender } = render(
+      <Detalle a={{ ...YOLANDA, estado: "ruido" }} onValorar={nada} onMotivo={onMotivo} />,
+    );
+    const grupo = screen.getByRole("group", { name: "Por qué es ruido" });
+    expect(within(grupo).getAllByRole("button")).toHaveLength(4);
+    fireEvent.click(within(grupo).getByRole("button", { name: "No es nuestro tema" }));
+    expect(onMotivo).toHaveBeenLastCalledWith("no_es_tema");
+    rerender(
+      <Detalle
+        a={{ ...YOLANDA, estado: "ruido", motivo_ruido: "no_es_tema" }}
+        onValorar={nada}
+        onMotivo={onMotivo}
+      />,
+    );
+    const pulsado = screen.getByRole("button", { name: "No es nuestro tema" });
+    expect(pulsado).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(pulsado);
+    expect(onMotivo).toHaveBeenLastCalledWith(null);
+    // Quien no es administrador no ve «Añadir a lo que no cubrimos».
+    expect(screen.queryByText(/Añadir a lo que no cubrimos/)).not.toBeInTheDocument();
+    // Si no es ruido, no se pregunta.
+    rerender(<Detalle a={YOLANDA} onValorar={nada} onMotivo={onMotivo} />);
+    expect(screen.queryByRole("group", { name: "Por qué es ruido" })).not.toBeInTheDocument();
+  });
+
+  it("si no es nuestro tema, el administrador puede añadirlo a lo que no cubrimos", async () => {
+    const onNoCubrimos = vi.fn(async () => true);
+    const ruido = { ...YOLANDA, estado: "ruido" as const, motivo_ruido: "no_es_tema" as const };
+    const { rerender } = render(
+      <Detalle a={ruido} onValorar={nada} onMotivo={vi.fn()} esAdmin onNoCubrimos={onNoCubrimos} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Añadir a lo que no cubrimos/ }));
+    const seccion = screen.getByRole("region", { name: "Añadir a lo que no cubrimos" });
+    expect(within(seccion).getByLabelText("Criterio de lo que no cubrimos")).toHaveValue(
+      "No cubrimos temas como «Yolanda Díaz»: explica aquí por qué no nos interesan.",
+    );
+    fireEvent.click(within(seccion).getByRole("button", { name: "Guardar" }));
+    expect(onNoCubrimos).toHaveBeenLastCalledWith(
+      "criterio",
+      "No cubrimos temas como «Yolanda Díaz»: explica aquí por qué no nos interesan.",
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("region", { name: "Añadir a lo que no cubrimos" }),
+      ).not.toBeInTheDocument(),
+    );
+    // Ya añadido: se dice quién y qué, y no se ofrece otra vez.
+    rerender(
+      <Detalle
+        a={{
+          ...ruido,
+          no_cubrimos: "Temas de prueba",
+          no_cubrimos_por: "Audiencias",
+          no_cubrimos_en: hace(2),
+        }}
+        onValorar={nada}
+        onMotivo={vi.fn()}
+        esAdmin
+        onNoCubrimos={onNoCubrimos}
+      />,
+    );
+    expect(screen.getByText(/Añadido a lo que no cubrimos por Audiencias/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Añadir a lo que no cubrimos/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("la opción de nombre avisa de que descarta cualquier noticia futura con ese nombre", () => {
+    const onNoCubrimos = vi.fn(async () => true);
+    render(
+      <Detalle
+        a={{ ...YOLANDA, estado: "ruido", motivo_ruido: "no_es_tema" }}
+        onValorar={nada}
+        onMotivo={vi.fn()}
+        esAdmin
+        onNoCubrimos={onNoCubrimos}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Añadir a lo que no cubrimos/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /No avisar nunca de «Yolanda Díaz»/ }));
+    expect(screen.getByText(/descarta también cualquier noticia futura/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(onNoCubrimos).toHaveBeenLastCalledWith("nombre", expect.any(String));
   });
 
   it("sin ninguna fuente con señal lo dice en una línea, y enseña tal cual el contexto que no reconoce", () => {

@@ -10,6 +10,7 @@ import { enlaceX } from "@/lib/contexto";
 import { fuerzaSenal, sugerenciaExcepcion, UMBRAL_FUERTE, type Descarte } from "@/lib/descartes";
 import { anadirExcepcion, marcarDescarte } from "@/lib/descartes.functions";
 import type { Alerta, Estado } from "@/lib/types";
+import type { MotivoRuido } from "@/lib/ruido";
 import { Detalle } from "./Detalle";
 import { ContenidoAlerta } from "./ItemAlerta";
 import { DesglosePuntos } from "./Puntos";
@@ -485,11 +486,15 @@ export function VistaTodas({
   descartes,
   esAdmin,
   onValorar,
+  onMotivo,
+  onNoCubrimos,
 }: {
   alertas: Alerta[];
   descartes: Descarte[];
   esAdmin: boolean;
   onValorar: (a: Alerta, e: Estado, url?: string | null) => void;
+  onMotivo?: (a: Alerta, motivo: MotivoRuido | null) => void;
+  onNoCubrimos?: (a: Alerta, tipo: "criterio" | "nombre", texto: string) => Promise<boolean>;
 }) {
   type Item = { k: string; ms: number } & (
     { tipo: "alerta"; a: Alerta } | { tipo: "descarte"; d: Descarte }
@@ -542,7 +547,13 @@ export function VistaTodas({
         </div>
         <div className="min-w-0">
           {actual?.tipo === "alerta" ? (
-            <Detalle a={actual.a} onValorar={(e, u) => onValorar(actual.a, e, u)} />
+            <Detalle
+              a={actual.a}
+              onValorar={(e, u) => onValorar(actual.a, e, u)}
+              esAdmin={esAdmin}
+              onMotivo={onMotivo && ((m) => onMotivo(actual.a, m))}
+              onNoCubrimos={onNoCubrimos && ((t, x) => onNoCubrimos(actual.a, t, x))}
+            />
           ) : actual?.tipo === "descarte" ? (
             <FichaDescarte key={actual.d.id} d={actual.d} esAdmin={esAdmin} />
           ) : null}
