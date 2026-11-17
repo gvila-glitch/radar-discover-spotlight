@@ -25,6 +25,11 @@ import { AutoridadProvider } from "@/components/radar/Autoridad";
 
 export const Route = createFileRoute("/_authenticated/")({
   ssr: false,
+  // «?alerta=123» abre esa alerta (lo usa «Ver su alerta» en Discover ahora).
+  validateSearch: (s: Record<string, unknown>): { alerta?: number } => {
+    const n = Number(s["alerta"]);
+    return Number.isInteger(n) && n > 0 ? { alerta: n } : {};
+  },
   head: () => ({
     meta: [
       { title: "Alertas · Radar Discover" },
@@ -45,7 +50,11 @@ export function Index() {
   const [periodo, setPeriodo] = useState<Periodo>("7d");
   const [prio, setPrio] = useState<"todas" | Prioridad>("todas");
   const [estado, setEstado] = useState<"todos" | Estado>("todos");
-  const [sel, setSel] = useState<number | null>(null);
+  // «?alerta=123» (desde Discover ahora): se lee de la dirección para no depender del enrutador.
+  const [sel, setSel] = useState<number | null>(() => {
+    const n = typeof window === "undefined" ? NaN : Number(new URLSearchParams(window.location.search).get("alerta"));
+    return Number.isInteger(n) && n > 0 ? n : null;
+  });
   // Vistas: «Alertas», «Descartadas por la IA» (lo que la IA dejó fuera, para revisarlo) y «Todas».
   const [vista, setVista] = useState<Vista>("alertas");
   const [senal, setSenal] = useState<FiltroSenal>("todas");

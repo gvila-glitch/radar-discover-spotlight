@@ -1,29 +1,36 @@
 import { describe, it, expect } from "vitest";
 import {
   construirDiscoverMap,
+  dominioDe,
+  enPestana,
   nombresDelTitular,
   palabrasCorrientes,
+  textoRadar,
   ventanaValida,
+  type AlertaReciente,
   type ArticuloSnoop,
   type TemaMapa,
 } from "./discoverMap";
 
 const AHORA = new Date("2026-11-15T16:00:00Z");
 let n = 0;
-const art = (medio: string, titular: string, haceMin = 10): ArticuloSnoop => ({
+const hace = (min: number) => new Date(AHORA.getTime() - min * 60_000).toISOString();
+const art = (medio: string, titular: string, haceMin = 10, alerta?: string): ArticuloSnoop => ({
   id: ++n,
   url: `https://${medio}/a${n}`,
   medio,
   titular,
-  recibido_en: new Date(AHORA.getTime() - haceMin * 60_000).toISOString(),
+  recibido_en: hace(haceMin),
+  alerta: alerta ?? null,
 });
-const mapa = (articulos: ArticuloSnoop[], alertas: string[] = [], ventana: 1 | 3 | 6 = 6) =>
-  construirDiscoverMap({ articulos, alertas, ahora: AHORA, ventana });
+const mapa = (
+  articulos: ArticuloSnoop[],
+  alertas: AlertaReciente[] = [],
+  ventana: 1 | 3 | 6 = 6,
+  extra: { propio?: string | null; referencia?: string[] } = {},
+) => construirDiscoverMap({ articulos, alertas, ahora: AHORA, ventana, ...extra });
 const temas = (m: ReturnType<typeof mapa>) =>
-  Object.fromEntries(m.grupos.flatMap((g) => g.temas).map((t) => [t.nombre, t])) as Record<
-    string,
-    TemaMapa
-  >;
+  Object.fromEntries(m.temas.map((t) => [t.nombre, t])) as Record<string, TemaMapa>;
 
 describe("nombres propios de un titular", () => {
   it("quita la palabra corriente que abre la frase y conserva los nombres", () => {
@@ -40,10 +47,11 @@ describe("nombres propios de un titular", () => {
     ]);
     expect(nombresDelTitular("Muere Robe Iniesta", corrientes)).toEqual(["Robe Iniesta"]);
   });
-  it("la ventana solo admite 1, 3 o 6 horas", () => {
-    expect(ventanaValida(3)).toBe(3);
-    expect(ventanaValida(24)).toBe(6);
-    expect(ventanaValida("1")).toBe(6);
+  it("la ventana solo admite 1, 3 o 6 horas; por defecto, 3", () => {
+    expect(ventanaValida(1)).toBe(1);
+    expect(ventanaValida(6)).toBe(6);
+    expect(ventanaValida(24)).toBe(3);
+    expect(ventanaValida("1")).toBe(3);
   });
 });
 
@@ -61,15 +69,16 @@ describe("construirDiscoverMap", () => {
         art("x.com", "Pablo Bustinduy en el debate"),
         art("abc.es", "Bustinduy, en el debate de anoche", 8 * 60),
       ],
-      ["[SIN DISCOVER] Pablo Bustinduy"],
+      [{ id: 7, entidad: "[SIN DISCOVER] Pablo Bustinduy", creada_en: hace(60) }],
     );
     const t = temas(m)["Pablo Bustinduy"]!;
     expect(t.medios).toBe(3);
     expect(t.alias).toEqual(["Figaredo"]); // los dos artículos de Figaredo también hablan de Bustinduy
-    expect(t.mediosUltimaHora).toBe(3);
+    // elmundo.es ya lo tenía hace 2 horas: repetir el tema no cuenta como medio nuevo en la última hora.
+    expect(t.mediosUltimaHora).toBe(2);
     expect(t.subiendo).toBe(true);
-    expect(t.hayAlerta).toBe(true);
-    expect(t.listaMedios).toEqual(["elmundo.es", "lasexta.com", "elpais.com"]); // por orden de llegada
+    expect(t.alerta).toEqual({ id: 7, creada_en: hace(60) });
+    expect(t.llegadas.map((l) => l.medio)).toEqual(["elmundo.es", "lasexta.com", "elpais.com"]); // por orden de llegada
     expect(t.titulares.map((x) => x.medio)).toEqual(["lasexta.com", "elpais.com", "elmundo.es"]);
     expect(m.articulos).toBe(4); // sin x.com ni el de hace 8 horas
   });
@@ -107,7 +116,7 @@ describe("construirDiscoverMap", () => {
     expect(t["Elon Musk"]?.subiendo).toBe(true);
   });
 
-  it("agrupa los temas que comparten varios titulares y deja aparte a los demás", () => {
+  it("ordena por ritmo y dice con qué otros temas sale cada uno", () => {
     const m = mapa([
       art("elpais.com", "Abascal y Vox, contra los datos de Cornellà"),
       art("okdiario.com", "Abascal llena el mitin de Vox en Cornellá"),
@@ -115,26 +124,121 @@ describe("construirDiscoverMap", () => {
       art("elmundo.es", "Vox presenta su programa"),
       art("cadenaser.com", "Vox denuncia al portavoz"),
       art("libertaddigital.com", "Vox sube en las encuestas"),
-      art("abc.es", "Pedro Sánchez promete permisos por amistad"),
-      art("eldiario.es", "Sánchez avanza su programa"),
-      art("rtve.es", "Sánchez, en Albacete"),
-      art("elespanol.com", "Sánchez critica a Abascal"),
+      art("abc.es", "Pedro Sánchez promete permisos por amistad", 200),
+      art("publico.es", "Sánchez avanza su programa", 200),
+      art("rtve.es", "Sánchez, en Albacete", 200),
+      art("elespanol.com", "Sánchez critica a Abascal", 200),
     ]);
-    const nombres = m.grupos.map((g) => [g.nombre, g.temas.map((t) => t.nombre)]);
-    expect(nombres).toEqual([
-      ["Vox · Abascal", ["Vox", "Abascal"]],
-      ["Otros temas", ["Pedro Sánchez"]],
-    ]);
+    expect(m.temas.map((t) => t.nombre)).toEqual(["Vox", "Abascal", "Pedro Sánchez"]);
     expect(temas(m)["Pedro Sánchez"]!.relacionados.map((r) => r.nombre)).toEqual(["Abascal"]);
+    expect(temas(m)["Pedro Sánchez"]!.mediosUltimaHora).toBe(0);
   });
 
-  it("sin artículos devuelve un mapa vacío", () => {
+  it("nosotros: puesto de llegada y nuestra pieza; no contamos como competencia", () => {
+    const articulos = [
+      art("elpais.com", "Yolanda Díaz deja la vicepresidencia", 50),
+      art("nuestro.es", "Yolanda Díaz anuncia que deja el Gobierno", 40),
+      art("elmundo.es", "Yolanda Díaz se va", 30),
+      art("abc.es", "La marcha de Yolanda Díaz", 20),
+    ];
+    const t = temas(mapa(articulos, [], 6, { propio: "https://www.Nuestro.es/" }))["Yolanda Díaz"]!;
+    expect(t.medios).toBe(3);
+    expect(t.nosotros).toMatchObject({
+      puesto: 2,
+      titular: "Yolanda Díaz anuncia que deja el Gobierno",
+    });
+    expect(t.llegadas.map((l) => l.medio)).toEqual([
+      "elpais.com",
+      "nuestro.es",
+      "elmundo.es",
+      "abc.es",
+    ]);
+    expect(t.titulares.map((x) => x.medio)).not.toContain("nuestro.es");
+    // Sin nuestro dominio no se sabe si estamos: contamos como un medio más.
+    const sin = temas(mapa(articulos))["Yolanda Díaz"]!;
+    expect(sin.nosotros).toBeNull();
+    expect(sin.medios).toBe(4);
+  });
+
+  it("categorías de Snoop (de la más frecuente a la menos) y medios de referencia limpios", () => {
+    const m = mapa(
+      [
+        art("elpais.com", "Yolanda Díaz sube el salario mínimo", 10, "Economía"),
+        art("elmundo.es", "Acuerdo de Yolanda Díaz para el salario mínimo", 10, "Economía"),
+        art("abc.es", "Yolanda Díaz lleva el salario mínimo al Congreso", 10, "Política"),
+      ],
+      [],
+      6,
+      { referencia: ["https://www.elpais.com/", "elmundo.es", "elmundo.es", ""] },
+    );
+    expect(m.temas[0]?.categorias).toEqual(["Economía", "Política"]);
+    expect(m.categorias).toEqual(["Economía", "Política"]);
+    expect(m.referencia).toEqual(["elpais.com", "elmundo.es"]);
+  });
+
+  it("sin artículos devuelve una lista vacía", () => {
     expect(mapa([])).toEqual({
-      grupos: [],
+      temas: [],
+      categorias: [],
+      referencia: [],
+      propio: null,
       articulos: 0,
       ventana: 6,
       generado: AHORA.toISOString(),
     });
-    expect(mapa([art("elpais.com", "Pablo Bustinduy en el debate", 7 * 60)]).grupos).toEqual([]);
+    expect(mapa([art("elpais.com", "Pablo Bustinduy en el debate", 7 * 60)]).temas).toEqual([]);
+  });
+});
+
+const tema = (o: Partial<TemaMapa>): TemaMapa => ({
+  id: "t",
+  nombre: "Tema",
+  alias: [],
+  medios: 3,
+  mediosUltimaHora: 0,
+  subiendo: false,
+  primeraVez: hace(30),
+  llegadas: [],
+  titulares: [],
+  nosotros: null,
+  categorias: [],
+  relacionados: [],
+  alerta: null,
+  ...o,
+});
+
+describe("pestañas, radar y dominio", () => {
+  it("cada pestaña reúne lo suyo", () => {
+    const entrando = tema({ subiendo: true, medios: 4 });
+    const saturado = tema({ subiendo: true, medios: 7 });
+    const nuestro = tema({ nosotros: { puesto: 1, titular: "t", url: "u", hora: hace(5) } });
+    expect(enPestana(entrando, "entrando")).toBe(true);
+    expect(enPestana(saturado, "entrando")).toBe(false);
+    expect(enPestana(saturado, "consolidados")).toBe(true);
+    expect(enPestana(entrando, "sin_nosotros")).toBe(true);
+    expect(enPestana(nuestro, "sin_nosotros")).toBe(false);
+    expect(enPestana(nuestro, "todo")).toBe(true);
+  });
+
+  it("dice cuánto antes o después avisó el radar", () => {
+    expect(textoRadar("2026-11-15T15:00:00Z", "2026-11-15T15:35:00Z")).toEqual({
+      texto: "avisó 35 min antes",
+      antes: true,
+    });
+    expect(textoRadar("2026-11-15T15:45:00Z", "2026-11-15T15:35:00Z")).toEqual({
+      texto: "avisó 10 min después",
+      antes: false,
+    });
+    expect(textoRadar("2026-11-15T12:00:00Z", "2026-11-15T15:00:00Z").texto).toBe(
+      "avisó 3 h antes",
+    );
+  });
+
+  it("limpia el dominio de Configuración", () => {
+    expect(dominioDe("https://www.Nuestro.es/portada")).toBe("nuestro.es");
+    expect(dominioDe(" nuestro.es ")).toBe("nuestro.es");
+    expect(dominioDe("")).toBeNull();
+    expect(dominioDe(null)).toBeNull();
+    expect(dominioDe("nuestro")).toBeNull();
   });
 });

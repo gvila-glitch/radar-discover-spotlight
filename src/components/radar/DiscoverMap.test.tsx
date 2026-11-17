@@ -1,185 +1,205 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { CajonFicha, FichaTema, LeyendaMapa, MapaDiscover } from "./DiscoverMap";
-import { filtrarGrupos, type GrupoMapa, type TemaMapa } from "@/lib/discoverMap";
+import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
+import { useState, type ReactNode } from "react";
+import { LeyendaDiscover, ListaDiscover, SelectorPestanas } from "./DiscoverMap";
+import type { Pestana, TemaMapa } from "@/lib/discoverMap";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children, to, className }: { children: ReactNode; to: string; className?: string }) => (
-    <a href={to} className={className}>
+  Link: ({
+    children,
+    to,
+    search,
+    className,
+  }: {
+    children: ReactNode;
+    to: string;
+    search?: { alerta?: number };
+    className?: string;
+  }) => (
+    <a href={search?.alerta ? `${to}?alerta=${search.alerta}` : to} className={className}>
       {children}
     </a>
   ),
 }));
 
+const hace = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
 const tema = (nombre: string, o: Partial<TemaMapa> = {}): TemaMapa => ({
   id: nombre.toLowerCase(),
   nombre,
   alias: [],
-  medios: 3,
-  mediosUltimaHora: 0,
-  subiendo: false,
-  primeraVez: new Date().toISOString(),
-  listaMedios: ["elpais.com", "elmundo.es", "abc.es"],
+  medios: 4,
+  mediosUltimaHora: 3,
+  subiendo: true,
+  primeraVez: hace(50),
+  llegadas: [
+    { medio: "abc.es", hora: hace(50) },
+    { medio: "lavanguardia.com", hora: hace(40) },
+    { medio: "elmundo.es", hora: hace(30) },
+    { medio: "20minutos.es", hora: hace(20) },
+  ],
   titulares: [
     {
-      medio: "elpais.com",
-      titular: `Titular sobre ${nombre}`,
-      url: `https://elpais.com/${nombre}`,
-      recibido_en: new Date().toISOString(),
+      medio: "20minutos.es",
+      titular: `La ${nombre} deja avisos naranjas`,
+      url: "https://20minutos.es/a",
+      recibido_en: hace(20),
+    },
+    {
+      medio: "elmundo.es",
+      titular: `Qué zonas estarán en aviso por la ${nombre}`,
+      url: "https://elmundo.es/b",
+      recibido_en: hace(30),
     },
   ],
-  relacionados: [],
-  hayAlerta: false,
+  nosotros: null,
+  categorias: ["Sociedad"],
+  relacionados: [{ id: "aemet", nombre: "Aemet" }],
+  alerta: { id: 42, creada_en: hace(85) },
   ...o,
 });
-const GRUPOS: GrupoMapa[] = [
-  {
-    id: "vox",
-    nombre: "Vox",
-    temas: [
-      tema("Vox", { medios: 7 }),
-      tema("Abascal", { medios: 4, mediosUltimaHora: 2, subiendo: true }),
-    ],
+const BORRASCA = tema("Borrasca Claudia");
+const SALARIO = tema("Salario mínimo", {
+  medios: 2,
+  mediosUltimaHora: 2,
+  categorias: ["Economía"],
+  nosotros: {
+    puesto: 1,
+    titular: "Nuestra pieza del salario",
+    url: "https://nuestro.es/s",
+    hora: hace(25),
   },
-  {
-    id: "otros",
-    nombre: "Otros temas",
-    temas: [
-      tema("Pedro Sánchez", { medios: 10, mediosUltimaHora: 5, subiendo: true, hayAlerta: true }),
-    ],
-  },
-];
+  alerta: null,
+  relacionados: [],
+});
+
+/** La lista es controlada: este envoltorio guarda qué fila está abierta, como la página. */
+function Lista({
+  propio = "nuestro.es",
+  onAbrir,
+}: {
+  propio?: string | null;
+  onAbrir?: (id: string | null) => void;
+}) {
+  const [abierto, setAbierto] = useState<string | null>(null);
+  return (
+    <ListaDiscover
+      temas={[BORRASCA, SALARIO]}
+      referencia={["lavanguardia.com", "elmundo.es"]}
+      propio={propio}
+      abierto={abierto}
+      onAbrir={(id) => {
+        setAbierto(id);
+        onAbrir?.(id);
+      }}
+    />
+  );
+}
 
 afterEach(cleanup);
 
-describe("MapaDiscover (burbujas)", () => {
-  const burbuja = (nombre: RegExp | string) => screen.getByRole("button", { name: nombre });
-  const radio = (el: HTMLElement) => Number(el.querySelectorAll("circle")[0]?.getAttribute("r"));
-
-  it("pinta una burbuja por tema, con su grupo, y marca la seleccionada, las que suben y las que tienen alerta", () => {
-    const { container } = render(
-      <MapaDiscover grupos={GRUPOS} seleccion="vox" onSeleccion={() => {}} />,
-    );
-    expect(screen.getByRole("group", { name: "Mapa de temas en Discover" })).toBeInTheDocument();
-    expect(screen.getAllByRole("button")).toHaveLength(3);
-    expect(screen.getByText("Otros temas")).toBeInTheDocument();
-    expect(burbuja("Vox: 7 medios")).toHaveAttribute("aria-pressed", "true");
-    expect(burbuja("Abascal: 4 medios, sube 2 en la última hora")).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+describe("ListaDiscover", () => {
+  it("cada fila enseña la historia, el ritmo, los medios, si estamos y si el radar avisó antes", () => {
+    render(<Lista />);
+    const [fila1, fila2] = screen.getAllByRole("button", { expanded: false });
+    expect(within(fila1!).getByText("Borrasca Claudia")).toBeInTheDocument();
+    expect(within(fila1!).getByText("Sociedad")).toBeInTheDocument();
     expect(
-      burbuja(/Pedro Sánchez: 10 medios, sube 5 en la última hora, ya tiene alerta/),
+      within(fila1!).getByText(/La Borrasca Claudia deja avisos naranjas/),
     ).toBeInTheDocument();
-    expect(screen.getByText("+5")).toBeInTheDocument();
-    expect(screen.getByText("+2")).toBeInTheDocument();
-    expect(container.querySelectorAll("[data-alerta]")).toHaveLength(1);
+    expect(within(fila1!).getByText("+3 en 1 h")).toBeInTheDocument();
+    expect(within(fila1!).getByText("4 medios · justo")).toBeInTheDocument();
+    expect(within(fila1!).getByText("No")).toBeInTheDocument();
+    expect(within(fila1!).getByText("hace 50 min")).toBeInTheDocument();
+    expect(within(fila1!).getByText("avisó 35 min antes")).toBeInTheDocument();
+    expect(within(fila2!).getByText("2 medios · vas a tiempo")).toBeInTheDocument();
+    expect(within(fila2!).getByText("Sí · 1.º")).toBeInTheDocument();
+    expect(within(fila2!).getByText("sin alerta")).toBeInTheDocument();
   });
 
-  it("al pulsar una burbuja, o con Intro, avisa de qué tema es", () => {
-    const onSeleccion = vi.fn();
-    render(<MapaDiscover grupos={GRUPOS} seleccion={undefined} onSeleccion={onSeleccion} />);
-    fireEvent.click(burbuja(/^Abascal/));
-    fireEvent.keyDown(burbuja(/^Vox/), { key: "Enter" });
-    expect(onSeleccion.mock.calls).toEqual([["abascal"], ["vox"]]);
-  });
-
-  it("más medios, burbuja más grande; y el filtro «solo lo que sube»", () => {
-    const tamanos = [2, 3, 5, 7, 10].map((medios) => tema(`T${medios}`, { medios }));
-    render(
-      <MapaDiscover
-        grupos={[{ id: "otros", nombre: "Otros temas", temas: tamanos }]}
-        seleccion={undefined}
-        onSeleccion={() => {}}
-      />,
+  it("al pulsar una fila se despliega ahí mismo; al pulsarla otra vez, se pliega", () => {
+    render(<Lista />);
+    fireEvent.click(screen.getByRole("button", { name: /Borrasca Claudia/ }));
+    expect(screen.getByRole("button", { name: /Borrasca Claudia/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
     );
-    const radios = tamanos.map((t) => radio(burbuja(`${t.nombre}: ${t.medios} medios`)));
-    expect([...radios].sort((x, y) => x - y)).toEqual(radios);
-    expect(new Set(radios).size).toBe(5);
-    const sube = filtrarGrupos(GRUPOS, true);
-    expect(sube.map((g) => g.temas.map((t) => t.nombre))).toEqual([["Abascal"], ["Pedro Sánchez"]]);
-    expect(filtrarGrupos(GRUPOS, false)).toBe(GRUPOS);
-  });
-});
-
-describe("MapaDiscover: pulsar en vacío", () => {
-  it("avisa al pulsar fuera de las burbujas (para cerrar la ficha), pero no al pulsar una burbuja", () => {
-    const onFondo = vi.fn();
-    const onSeleccion = vi.fn();
-    render(
-      <MapaDiscover grupos={GRUPOS} seleccion="vox" onSeleccion={onSeleccion} onFondo={onFondo} />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /^Abascal/ }));
-    expect(onFondo).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("group", { name: "Mapa de temas en Discover" }));
-    expect(onFondo).toHaveBeenCalledTimes(1);
-    expect(onSeleccion).toHaveBeenCalledWith("abascal");
-  });
-});
-
-describe("CajonFicha", () => {
-  it("se abre como capa con la ficha, pone el foco en cerrar y se cierra con la X o con Esc", () => {
-    const onCerrar = vi.fn();
-    render(
-      <CajonFicha
-        tema={tema("Pedro Sánchez", { medios: 10 })}
-        onCerrar={onCerrar}
-        onSeleccion={() => {}}
-      />,
-    );
-    const capa = screen.getByRole("dialog", { name: "Ficha de Pedro Sánchez" });
-    expect(capa).toHaveAttribute("aria-modal", "false");
-    expect(screen.getByRole("heading", { name: "Pedro Sánchez" })).toBeInTheDocument();
-    const cerrar = screen.getByRole("button", { name: "Cerrar ficha" });
-    expect(cerrar).toHaveFocus();
-    fireEvent.click(cerrar);
-    fireEvent.keyDown(document, { key: "Escape" });
-    fireEvent.keyDown(document, { key: "Enter" });
-    expect(onCerrar).toHaveBeenCalledTimes(2);
-  });
-});
-
-describe("FichaTema", () => {
-  it("enseña cifras, medios por orden de llegada, titulares con enlace y temas relacionados", () => {
-    const onSeleccion = vi.fn();
-    const t = tema("Pedro Sánchez", {
-      medios: 12,
-      mediosUltimaHora: 5,
-      subiendo: true,
-      alias: ["Unión de amistad"],
-      listaMedios: Array.from({ length: 12 }, (_, i) => `medio${i + 1}.es`),
-      relacionados: [{ id: "psoe", nombre: "PSOE" }],
-    });
-    render(<FichaTema tema={t} onSeleccion={onSeleccion} />);
-    expect(screen.getByRole("heading", { name: "Pedro Sánchez" })).toBeInTheDocument();
-    expect(screen.getByText("Misma historia: Unión de amistad")).toBeInTheDocument();
-    expect(screen.getByText("Subiendo")).toBeInTheDocument();
-    expect(screen.getByText("sin alerta en el radar", { exact: false })).toBeInTheDocument();
-    expect(
-      screen.getAllByRole("listitem").filter((li) => li.textContent?.startsWith("medio")),
-    ).toHaveLength(10);
-    expect(screen.getByText("y 2 más")).toBeInTheDocument();
-    const enlace = screen.getByRole("link", { name: "Titular sobre Pedro Sánchez" });
-    expect(enlace).toHaveAttribute("target", "_blank");
-    expect(enlace).toHaveAttribute("rel", "noopener noreferrer");
-    fireEvent.click(screen.getByRole("button", { name: "PSOE" }));
-    expect(onSeleccion).toHaveBeenCalledWith("psoe");
-  });
-  it("si ya hay alerta, enlaza con Alertas", () => {
-    render(<FichaTema tema={tema("Abascal", { hayAlerta: true })} onSeleccion={() => {}} />);
-    expect(screen.getByRole("link", { name: "ya hay alerta en el radar" })).toHaveAttribute(
+    const titulares = screen.getByRole("region", { name: "Titulares en Discover" });
+    const enlaces = within(titulares).getAllByRole("link");
+    expect(enlaces).toHaveLength(2);
+    expect(enlaces[0]).toHaveAttribute("href", "https://20minutos.es/a");
+    expect(enlaces[0]).toHaveAttribute("target", "_blank");
+    const llegadas = screen.getByRole("region", { name: "Medios por orden de llegada" });
+    expect(within(llegadas).getAllByLabelText("medio de referencia")).toHaveLength(2);
+    expect(within(llegadas).getByText("nuestro.es · todavía no")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ver su alerta/ })).toHaveAttribute(
       "href",
-      "/",
+      "/?alerta=42",
     );
+    fireEvent.click(screen.getByRole("button", { name: /Borrasca Claudia/ }));
+    expect(screen.queryByRole("region", { name: "Titulares en Discover" })).not.toBeInTheDocument();
+  });
+
+  it("si estamos, enseña nuestra pieza; «Sale junto a» abre el otro tema", () => {
+    const onAbrir = vi.fn();
+    render(<Lista onAbrir={onAbrir} />);
+    fireEvent.click(screen.getByRole("button", { name: /Salario mínimo/ }));
+    expect(screen.getByRole("link", { name: "Nuestra pieza del salario" })).toHaveAttribute(
+      "href",
+      "https://nuestro.es/s",
+    );
+    expect(screen.queryByText(/todavía no/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Borrasca Claudia/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Aemet" }));
+    expect(onAbrir).toHaveBeenLastCalledWith("aemet");
+  });
+
+  it("sin nuestro dominio en Configuración, «Nosotros» sale con un guion", () => {
+    render(<Lista propio={null} />);
+    expect(screen.getAllByText("—").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText("No")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sí · 1.º")).not.toBeInTheDocument();
   });
 });
 
-describe("LeyendaMapa", () => {
-  it("está plegada y explica tamaño, grupos, subida y alerta", () => {
-    const { container } = render(<LeyendaMapa />);
+describe("SelectorPestanas", () => {
+  const cuentas: Record<Pestana, number> = {
+    entrando: 5,
+    sin_nosotros: 6,
+    consolidados: 9,
+    todo: 21,
+  };
+  it("enseña las cuatro pestañas con su recuento y avisa al cambiar", () => {
+    const onCambio = vi.fn();
+    render(
+      <SelectorPestanas
+        pestana="entrando"
+        onCambio={onCambio}
+        cuentas={cuentas}
+        sinDominio={false}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: "Entrando ahora (5)" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Sin nosotros (6)" }));
+    expect(onCambio).toHaveBeenCalledWith("sin_nosotros");
+    expect(screen.getByRole("tab", { name: "Todo (21)" })).toBeInTheDocument();
+  });
+  it("sin nuestro dominio, «Sin nosotros» queda desactivada", () => {
+    render(
+      <SelectorPestanas pestana="entrando" onCambio={() => {}} cuentas={cuentas} sinDominio />,
+    );
+    expect(screen.getByRole("tab", { name: "Sin nosotros (—)" })).toBeDisabled();
+  });
+});
+
+describe("LeyendaDiscover", () => {
+  it("está plegada y explica pestañas, ritmo, nosotros y radar", () => {
+    const { container } = render(<LeyendaDiscover />);
     expect(container.querySelector("details")?.open).toBe(false);
-    for (const t of ["Tamaño", "Grupos", "Número rojo", "Campana", "Qué cubre", "Cómo se detecta"])
+    for (const t of ["Pestañas", "Ritmo", "Medios en Discover", "Nosotros", "Radar", "Qué cubre"]) {
       expect(screen.getByText(t)).toBeInTheDocument();
+    }
   });
 });

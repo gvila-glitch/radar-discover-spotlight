@@ -1,6 +1,7 @@
-// Lectura del Discover Map desde el servidor. Los artículos de Snoop no son legibles desde el navegador (RLS sin
+// Lectura de «Discover ahora» desde el servidor. Los artículos de Snoop no son legibles desde el navegador (RLS sin
 // políticas): esta función comprueba primero que quien pregunta es del equipo y solo entonces lee con el cliente
 // privilegiado, que nunca sale del servidor. Solo lectura; no guarda nada.
+// Nuestro dominio no está en el código (el repositorio es público): se lee de la tabla config, clave «dominio_propio».
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { construirDiscoverMap, ventanaValida, type DiscoverMap } from "./discoverMap";
@@ -20,20 +21,27 @@ export const leerDiscoverMap = createServerFn({ method: "POST" })
     const ahora = new Date();
     const desde = new Date(ahora.getTime() - data.ventana * 3_600_000).toISOString();
     const hace24h = new Date(ahora.getTime() - 24 * 3_600_000).toISOString();
-    const [arts, alertas] = await Promise.all([
+    const [arts, alertas, propio, referencia] = await Promise.all([
       db
         .from("snoop_articulos")
-        .select("id, url, medio, titular, recibido_en")
+        .select("id, url, medio, titular, recibido_en, alerta")
         .gte("recibido_en", desde)
         .order("recibido_en", { ascending: false })
         .limit(MAX_ARTICULOS),
-      db.from("alertas").select("entidad").gte("creada_en", hace24h),
+      db.from("alertas").select("id, entidad, creada_en").gte("creada_en", hace24h),
+      db.from("config").select("valor").eq("clave", "dominio_propio").maybeSingle(),
+      db.from("medios_referencia").select("dominio").eq("activo", true),
     ]);
     if (arts.error || alertas.error) throw new Error("No se pudieron leer los datos de Discover.");
     return construirDiscoverMap({
       articulos: arts.data ?? [],
-      alertas: (alertas.data ?? []).map((a) => a.entidad),
+      alertas: (alertas.data ?? []).filter(
+        (a): a is { id: number; entidad: string; creada_en: string } => !!a.creada_en,
+      ),
       ahora,
       ventana: data.ventana,
+      // Si fallan estas dos lecturas, la sección funciona igual, sin «Nosotros» ni estrellas.
+      propio: propio.error ? null : (propio.data?.valor ?? null),
+      referencia: referencia.error ? [] : (referencia.data ?? []).map((m) => m.dominio),
     });
   });

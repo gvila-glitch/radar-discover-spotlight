@@ -1,42 +1,54 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Selector } from "@/components/radar/ui";
-import {
-  CajonFicha,
-  LeyendaBurbujas,
-  LeyendaMapa,
-  MapaDiscover,
-} from "@/components/radar/DiscoverMap";
+import { LeyendaDiscover, ListaDiscover, SelectorPestanas } from "@/components/radar/DiscoverMap";
 import { leerDiscoverMap } from "@/lib/discoverMap.functions";
-import { filtrarGrupos, ventanaValida, type Ventana } from "@/lib/discoverMap";
+import {
+  enPestana,
+  PESTANAS,
+  VENTANA_INICIAL,
+  ventanaValida,
+  type Pestana,
+  type Ventana,
+} from "@/lib/discoverMap";
 import { hora24 } from "@/lib/fechas";
 
+// La dirección sigue siendo /discover-map (enlaces guardados); la sección se llama «Discover ahora».
 export const Route = createFileRoute("/_authenticated/discover-map")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Discover Map · Radar Discover" },
+      { title: "Discover ahora · Radar Discover" },
       {
         name: "description",
-        content: "Qué nombres están entrando en Discover ahora y cuántos medios los publican.",
+        content:
+          "Lo que ya está en Discover: a qué ritmo entra, si estamos y si el radar avisó antes.",
       },
-      { property: "og:title", content: "Discover Map · Radar Discover" },
-      { property: "og:description", content: "Qué está entrando en Discover ahora." },
+      { property: "og:title", content: "Discover ahora · Radar Discover" },
+      { property: "og:description", content: "Lo que ya está en Discover ahora." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: DiscoverMapPagina,
+  component: DiscoverAhoraPagina,
 });
 
-function DiscoverMapPagina() {
-  const [ventana, setVentana] = useState<Ventana>(6);
-  const [soloSube, setSoloSube] = useState(false);
-  const [sel, setSel] = useState<string | null>(null);
+const VACIO: Record<Pestana, string> = {
+  entrando:
+    "Ahora mismo no está entrando ningún tema nuevo. En «Todo» tienes lo que ya está en Discover.",
+  sin_nosotros: "Estamos en todos los temas de esta ventana.",
+  consolidados: "Ningún tema tiene todavía 6 medios o más.",
+  todo: "Todavía no hay temas con varios medios en esta ventana.",
+};
+
+function DiscoverAhoraPagina() {
+  const [ventana, setVentana] = useState<Ventana>(VENTANA_INICIAL);
+  const [pestana, setPestana] = useState<Pestana>("entrando");
+  const [categoria, setCategoria] = useState("todas");
+  const [abierto, setAbierto] = useState<string | null>(null);
   const leer = useServerFn(leerDiscoverMap);
   // Se calcula al abrir la sección o al pulsar «Actualizar»: no se pide solo cada pocos minutos (ahorra consumo).
   const q = useQuery({
@@ -45,23 +57,32 @@ function DiscoverMapPagina() {
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
   });
-  const grupos = filtrarGrupos(q.data?.grupos ?? [], soloSube);
-  const temas = grupos.flatMap((g) => g.temas);
-  // La ficha solo se abre al pulsar una burbuja; si el tema deja de estar en el mapa, se cierra sola.
-  const actual = sel ? temas.find((t) => t.id === sel) : undefined;
-  const seleccionar = (id: string) => {
-    setSel(id);
-    if (soloSube && !temas.some((t) => t.id === id)) setSoloSube(false);
-  };
-  // Al cerrar, el foco vuelve a la burbuja que se había abierto (para quien usa el teclado).
-  const cerrar = useCallback(() => {
-    if (!sel) return;
-    const id = sel;
-    setSel(null);
+  const datos = q.data;
+  const sinDominio = !!datos && !datos.propio;
+  const deCategoria = (datos?.temas ?? []).filter(
+    (t) => categoria === "todas" || t.categorias.includes(categoria),
+  );
+  const cuentas = Object.fromEntries(
+    PESTANAS.map((p) => [p.id, deCategoria.filter((t) => enPestana(t, p.id)).length]),
+  ) as Record<Pestana, number>;
+  const lista = deCategoria.filter((t) => enPestana(t, pestana));
+  // En «Consolidados» manda el tamaño; en el resto, el ritmo (ya viene ordenado así).
+  if (pestana === "consolidados") lista.sort((a, b) => b.medios - a.medios);
+
+  // «Sale junto a» puede abrir un tema de otra pestaña: entonces se pasa a «Todo» y se lleva la fila a la vista.
+  const abrir = (id: string | null) => {
+    setAbierto(id);
+    if (!id) return;
+    if (!lista.some((t) => t.id === id)) {
+      setPestana("todo");
+      setCategoria("todas");
+    }
     requestAnimationFrame(() =>
-      document.querySelector<SVGGElement>(`[data-tema="${CSS.escape(id)}"]`)?.focus(),
+      document
+        .querySelector(`[data-tema="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" }),
     );
-  }, [sel]);
+  };
 
   return (
     <div className="min-h-screen">
@@ -71,13 +92,24 @@ function DiscoverMapPagina() {
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6">
-        <h2 className="tracking-tight text-3xl font-semibold">Discover Map</h2>
+        <h2 className="tracking-tight text-3xl font-semibold">Discover ahora</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Qué está entrando en Discover ahora · España · News y Política
+          Lo que ya está en Discover · España
+          {datos?.categorias.length ? ` · ${datos.categorias.join(", ")}` : ""}
         </p>
-        <LeyendaMapa />
+        <LeyendaDiscover />
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
+        <SelectorPestanas
+          pestana={pestana}
+          onCambio={(p) => {
+            setPestana(p);
+            setAbierto(null);
+          }}
+          cuentas={cuentas}
+          sinDominio={sinDominio}
+        />
+
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
           <Selector
             id="f-ventana"
             label="Ventana"
@@ -89,18 +121,22 @@ function DiscoverMapPagina() {
               { value: "6", label: "Últimas 6 horas" },
             ]}
           />
-          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Switch
-              checked={soloSube}
-              onCheckedChange={setSoloSube}
-              aria-label="Solo lo que sube"
+          {(datos?.categorias.length ?? 0) > 1 && (
+            <Selector
+              id="f-categoria"
+              label="Categoría"
+              value={categoria}
+              onChange={setCategoria}
+              options={[
+                { value: "todas", label: "Todas" },
+                ...(datos?.categorias ?? []).map((c) => ({ value: c, label: c })),
+              ]}
             />
-            Solo lo que sube
-          </label>
+          )}
           <span className="ml-auto flex items-center gap-4">
-            {q.data && (
+            {datos && (
               <span className="font-mono text-xs text-muted-foreground">
-                Actualizado {hora24(q.data.generado)} · {q.data.articulos} artículos
+                Actualizado {hora24(datos.generado)} · {datos.articulos} artículos
               </span>
             )}
             <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
@@ -109,40 +145,37 @@ function DiscoverMapPagina() {
           </span>
         </div>
 
-        <div className="mt-5">
+        {sinDominio && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Falta nuestro dominio en Configuración: por eso «Nosotros» sale con «—» y «Sin nosotros»
+            está desactivada.
+          </p>
+        )}
+
+        <div className="mt-4">
           {q.isError ? (
             <p role="alert" className="border bg-card p-4 text-sm text-destructive">
-              No se pudo cargar el mapa. Inténtalo de nuevo.
+              No se pudieron cargar los datos. Inténtalo de nuevo.
             </p>
           ) : q.isLoading ? (
-            <p className="border bg-card p-4 text-sm text-muted-foreground">Cargando el mapa…</p>
-          ) : q.data && q.data.articulos === 0 ? (
+            <p className="border bg-card p-4 text-sm text-muted-foreground">Cargando…</p>
+          ) : datos && datos.articulos === 0 ? (
             <p className="border bg-card p-4 text-sm text-muted-foreground">
               Snoop no ha enviado artículos en esta ventana. Prueba con una ventana más larga.
             </p>
-          ) : grupos.length === 0 ? (
-            <p className="border bg-card p-4 text-sm text-muted-foreground">
-              {soloSube
-                ? "Ahora mismo no hay ningún tema subiendo."
-                : "Todavía no hay temas con varios medios en esta ventana."}
-            </p>
+          ) : lista.length === 0 ? (
+            <p className="border bg-card p-4 text-sm text-muted-foreground">{VACIO[pestana]}</p>
           ) : (
-            <div className="border bg-card p-4">
-              <p className="mb-2 h-4 text-right text-xs text-muted-foreground">
-                {actual ? "" : "Pulsa una burbuja para ver su ficha"}
-              </p>
-              <MapaDiscover
-                grupos={grupos}
-                seleccion={actual?.id}
-                onSeleccion={seleccionar}
-                onFondo={cerrar}
-              />
-              <LeyendaBurbujas />
-            </div>
+            <ListaDiscover
+              temas={lista}
+              referencia={datos?.referencia ?? []}
+              propio={datos?.propio ?? null}
+              abierto={abierto}
+              onAbrir={abrir}
+            />
           )}
         </div>
       </main>
-      {actual && <CajonFicha tema={actual} onCerrar={cerrar} onSeleccion={seleccionar} />}
     </div>
   );
 }

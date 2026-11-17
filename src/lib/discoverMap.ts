@@ -1,13 +1,16 @@
-// Discover Map: qué nombres están entrando en Discover y cuántos medios los publican.
-// Lógica pura (sin base de datos): recibe los artículos que envía Snoop y las alertas recientes, y devuelve los temas
-// agrupados por relación. Sin IA: detecta los nombres propios de los titulares (palabras que empiezan por mayúscula),
-// así que es una aproximación. Es la misma lógica que la consulta validada a mano (datos/discover-temas, v3).
+// Discover ahora: qué temas ya están en Discover, a qué ritmo entran, si estamos nosotros y si el radar avisó antes.
+// Lógica pura (sin base de datos): recibe los artículos que envía Snoop, las alertas recientes, nuestro dominio y los
+// medios de referencia, y devuelve la lista de temas. Sin IA: detecta los nombres propios de los titulares (palabras
+// que empiezan por mayúscula), así que es una aproximación. Es la misma lógica que la consulta validada a mano
+// (datos/discover-temas, v3).
 import { claveEntidad, entidadesEquivalentes } from "./trendsAlertas";
+import { limpiarDominio } from "./snoopReceptor";
 
 export const VENTANAS = [1, 3, 6] as const;
 export type Ventana = (typeof VENTANAS)[number];
+export const VENTANA_INICIAL: Ventana = 3;
 export const ventanaValida = (v: unknown): Ventana =>
-  VENTANAS.includes(v as Ventana) ? (v as Ventana) : 6;
+  VENTANAS.includes(v as Ventana) ? (v as Ventana) : VENTANA_INICIAL;
 
 export type ArticuloSnoop = {
   id: number;
@@ -15,39 +18,90 @@ export type ArticuloSnoop = {
   medio: string;
   titular: string | null;
   recibido_en: string | null;
+  /** Nombre de la alerta de Snoop que lo envió: es la categoría («Política», «Economía»…). */
+  alerta?: string | null;
 };
+export type AlertaReciente = { id: number; entidad: string; creada_en: string };
 export type TitularMedio = { medio: string; titular: string; url: string; recibido_en: string };
 export type TemaMapa = {
   id: string;
   nombre: string;
   /** Otros nombres que salen siempre en los mismos artículos (la misma historia). */
   alias: string[];
+  /** Medios distintos que lo publican, sin contarnos a nosotros. */
   medios: number;
+  /** De esos medios, cuántos lo publicaron por primera vez en la última hora. */
   mediosUltimaHora: number;
   subiendo: boolean;
   primeraVez: string;
-  /** Medios en orden de llegada: el primero es el que lo publicó antes. */
-  listaMedios: string[];
-  /** Hasta 3 titulares recientes, de medios distintos. */
+  /** Todos los medios (también nosotros) en orden de llegada, con la hora de su primer artículo. */
+  llegadas: { medio: string; hora: string }[];
+  /** Hasta 3 titulares recientes de otros medios, de medios distintos. */
   titulares: TitularMedio[];
+  /** Nuestra pieza, si estamos: puesto de llegada, titular y enlace. */
+  nosotros: { puesto: number; titular: string; url: string; hora: string } | null;
+  /** Categorías de Snoop de sus artículos, de la más frecuente a la menos. */
+  categorias: string[];
   /** Nombres que aparecen en los mismos titulares (hasta 3). */
   relacionados: { id: string; nombre: string }[];
-  hayAlerta: boolean;
+  /** Primera alerta del radar sobre el tema en las últimas 24 horas. */
+  alerta: { id: number; creada_en: string } | null;
 };
-export type GrupoMapa = { id: string; nombre: string; temas: TemaMapa[] };
 export type DiscoverMap = {
-  grupos: GrupoMapa[];
+  temas: TemaMapa[];
+  /** Categorías que han llegado en la ventana, de la más frecuente a la menos. */
+  categorias: string[];
+  /** Dominios de los medios de referencia (Configuración). */
+  referencia: string[];
+  /** Nuestro dominio, si está en Configuración. Sin él, no se sabe si estamos. */
+  propio: string | null;
   articulos: number;
   ventana: Ventana;
   generado: string;
 };
 
-/** «Solo lo que sube»: deja en cada grupo los temas que están subiendo y quita los grupos que se quedan vacíos. */
-export function filtrarGrupos(grupos: GrupoMapa[], soloSube: boolean): GrupoMapa[] {
-  if (!soloSube) return grupos;
-  return grupos
-    .map((g) => ({ ...g, temas: g.temas.filter((t) => t.subiendo) }))
-    .filter((g) => g.temas.length > 0);
+/** Dominio limpio a partir de lo que se escriba en Configuración («https://www.medio.es/», «medio.es»…). */
+export function dominioDe(valor: string | null | undefined): string | null {
+  const t = (valor ?? "").trim().toLowerCase();
+  if (!t) return null;
+  try {
+    return limpiarDominio(new URL(t.includes("://") ? t : `https://${t}`).hostname);
+  } catch {
+    return null;
+  }
+}
+
+// Pestañas de la sección. «Entrando ahora» es lo que sube y todavía no está saturado (como «justo» o mejor).
+export const PESTANAS = [
+  { id: "entrando", titulo: "Entrando ahora" },
+  { id: "sin_nosotros", titulo: "Sin nosotros" },
+  { id: "consolidados", titulo: "Consolidados" },
+  { id: "todo", titulo: "Todo" },
+] as const;
+export type Pestana = (typeof PESTANAS)[number]["id"];
+export const UMBRAL_CONSOLIDADO = 6;
+
+export function enPestana(t: TemaMapa, p: Pestana): boolean {
+  if (p === "entrando") return t.subiendo && t.medios < UMBRAL_CONSOLIDADO;
+  if (p === "sin_nosotros") return !t.nosotros;
+  if (p === "consolidados") return t.medios >= UMBRAL_CONSOLIDADO;
+  return true;
+}
+
+const duracion = (ms: number) => {
+  const min = Math.round(Math.abs(ms) / 60_000);
+  if (min < 60) return `${min} min`;
+  const h = Math.round(min / 60);
+  return h < 48 ? `${h} h` : `${Math.round(h / 24)} días`;
+};
+
+/** «avisó 35 min antes» o «avisó 10 min después» de que el tema llegara a Discover. */
+export function textoRadar(
+  alertaCreada: string,
+  primeraVez: string,
+): { texto: string; antes: boolean } {
+  const ms = Date.parse(primeraVez) - Date.parse(alertaCreada);
+  return { texto: `avisó ${duracion(ms)} ${ms >= 0 ? "antes" : "después"}`, antes: ms >= 0 };
 }
 
 /** Webs que no son medios (publicaciones de redes que Discover también enseña): no cuentan. */
@@ -214,7 +268,6 @@ const LUGARES = new Set([
   "benidorm",
 ]);
 export const MINIMO_MEDIOS = 3;
-export const MIN_TITULARES_JUNTOS = 2;
 export const MAX_TEMAS = 40;
 const HORA = 3_600_000;
 
@@ -300,7 +353,21 @@ export function palabrasCorrientes(titulares: string[]): Set<string> {
 }
 
 type Mencion = { articulo: Valido; nombre: string; clave: string };
-type Valido = { id: number; url: string; medio: string; titular: string; ms: number };
+type Valido = {
+  id: number;
+  url: string;
+  medio: string;
+  titular: string;
+  ms: number;
+  categoria: string | null;
+};
+
+/** Valores de más frecuente a menos (a igualdad, por orden alfabético). */
+const porFrecuencia = (valores: string[]): string[] => {
+  const c = new Map<string, number>();
+  for (const v of valores) c.set(v, (c.get(v) ?? 0) + 1);
+  return [...c].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map(([v]) => v);
+};
 
 const masFrecuente = (nombres: string[]): string => {
   const c = new Map<string, number>();
@@ -312,18 +379,26 @@ const masFrecuente = (nombres: string[]): string => {
 
 export function construirDiscoverMap(input: {
   articulos: ArticuloSnoop[];
-  alertas: string[];
+  alertas: AlertaReciente[];
   ahora: Date;
   ventana: Ventana;
+  /** Nuestro dominio (Configuración); sin él, «nosotros» queda vacío. */
+  propio?: string | null;
+  referencia?: string[];
 }): DiscoverMap {
   const fin = input.ahora.getTime();
   const inicio = fin - input.ventana * HORA;
+  const propio = dominioDe(input.propio);
+  const referencia = [
+    ...new Set((input.referencia ?? []).map(dominioDe).filter((d): d is string => !!d)),
+  ];
   const validos: Valido[] = [];
   for (const a of input.articulos) {
     const ms = a.recibido_en ? Date.parse(a.recibido_en) : NaN;
     const titular = (a.titular ?? "").trim();
     if (!Number.isFinite(ms) || ms < inicio || ms > fin || !titular || REDES.has(a.medio)) continue;
-    validos.push({ id: a.id, url: a.url, medio: a.medio, titular, ms });
+    const categoria = (a.alerta ?? "").trim() || null;
+    validos.push({ id: a.id, url: a.url, medio: a.medio, titular, ms, categoria });
   }
   const corrientes = palabrasCorrientes(validos.map((v) => v.titular));
 
@@ -382,8 +457,9 @@ export function construirDiscoverMap(input: {
     raizDe.set(a.clave, padres[0]?.clave ?? a.clave);
   }
 
-  // 4) Cifras de cada tema (con los artículos del nombre principal).
-  const temasTodos: (TemaMapa & { arts: Set<number> })[] = [];
+  // 4) Cifras de cada tema (con los artículos del nombre principal). Nosotros contamos para la llegada, pero no
+  //    como competencia: «medios» y «ritmo» son de los demás.
+  const temasTodos: (TemaMapa & { arts: Set<number>; total: number })[] = [];
   for (const raiz of grupos.filter((g) => raizDe.get(g.clave) === g.clave)) {
     const miembros = grupos.filter(
       (g) => g.clave !== raiz.clave && raizDe.get(g.clave) === raiz.clave,
@@ -391,21 +467,30 @@ export function construirDiscoverMap(input: {
     const arts = [...raiz.arts.values()].sort((a, b) => a.ms - b.ms);
     const primeros = new Map<string, number>();
     for (const a of arts) if (!primeros.has(a.medio)) primeros.set(a.medio, a.ms);
-    const recientes = new Set(arts.filter((a) => a.ms >= fin - HORA).map((a) => a.medio));
+    const ajenos = [...primeros].filter(([m]) => m !== propio);
+    const recientes = ajenos.filter(([, ms]) => ms >= fin - HORA).length;
     const ultimoPorMedio = new Map<string, Valido>();
-    for (const a of arts) ultimoPorMedio.set(a.medio, a);
-    const medios = primeros.size;
+    for (const a of arts) if (a.medio !== propio) ultimoPorMedio.set(a.medio, a);
+    const llegadas = [...primeros].map(([medio, ms]) => ({
+      medio,
+      hora: new Date(ms).toISOString(),
+    }));
+    const puesto = propio ? llegadas.findIndex((l) => l.medio === propio) : -1;
+    const nuestra = puesto >= 0 ? arts.find((a) => a.medio === propio) : undefined;
+    const alertas = input.alertas
+      .filter((al) => entidadesEquivalentes(al.entidad, raiz.nombre))
+      .sort((a, b) => Date.parse(a.creada_en) - Date.parse(b.creada_en));
     temasTodos.push({
       id: raiz.clave,
       nombre: raiz.nombre,
       alias: miembros
         .sort((x, y) => y.medios - x.medios || (x.nombre < y.nombre ? -1 : 1))
         .map((m) => m.nombre),
-      medios,
-      mediosUltimaHora: recientes.size,
-      subiendo: recientes.size >= 2 && recientes.size * 2 >= medios,
+      medios: ajenos.length,
+      mediosUltimaHora: recientes,
+      subiendo: recientes >= 2 && recientes * 2 >= ajenos.length,
       primeraVez: new Date(arts[0]!.ms).toISOString(),
-      listaMedios: [...primeros.keys()],
+      llegadas,
       titulares: [...ultimoPorMedio.values()]
         .sort((a, b) => b.ms - a.ms)
         .slice(0, 3)
@@ -415,29 +500,38 @@ export function construirDiscoverMap(input: {
           url: a.url,
           recibido_en: new Date(a.ms).toISOString(),
         })),
+      nosotros: nuestra
+        ? {
+            puesto: puesto + 1,
+            titular: nuestra.titular,
+            url: nuestra.url,
+            hora: new Date(nuestra.ms).toISOString(),
+          }
+        : null,
+      categorias: porFrecuencia(arts.map((a) => a.categoria).filter((c): c is string => !!c)),
       relacionados: [],
-      hayAlerta: input.alertas.some((al) => entidadesEquivalentes(al, raiz.nombre)),
+      alerta: alertas[0] ? { id: alertas[0].id, creada_en: alertas[0].creada_en } : null,
       arts: new Set(raiz.arts.keys()),
+      total: primeros.size,
     });
   }
+  // Se enseña un tema con 3 medios o más (contándonos) o que esté subiendo. Primero, lo que más sube.
   const visibles = temasTodos
-    .filter((t) => t.medios >= MINIMO_MEDIOS || t.subiendo)
+    .filter((t) => t.total >= MINIMO_MEDIOS || t.subiendo)
     .sort(
       (a, b) =>
-        b.medios - a.medios ||
         b.mediosUltimaHora - a.mediosUltimaHora ||
+        b.medios - a.medios ||
         (a.nombre < b.nombre ? -1 : 1),
     )
     .slice(0, MAX_TEMAS);
 
-  // 5) Relación entre temas: artículos en común. Dos temas van en el mismo grupo si salen juntos en al menos
-  //    2 titulares (con uno solo puede ser casualidad). Provisional: se ajusta al ver los datos reales.
+  // 5) «Sale junto a»: los temas con los que comparte más titulares (hasta 3).
   const comunes = (a: Set<number>, b: Set<number>) => {
     let n = 0;
     for (const k of a) if (b.has(k)) n++;
     return n;
   };
-  const vecinos = new Map<string, string[]>(visibles.map((t) => [t.id, []]));
   for (const t of visibles) {
     const rel = visibles
       .filter((o) => o.id !== t.id)
@@ -445,53 +539,12 @@ export function construirDiscoverMap(input: {
       .filter((r) => r.n > 0);
     rel.sort((x, y) => y.n - x.n || y.o.medios - x.o.medios);
     t.relacionados = rel.slice(0, 3).map((r) => ({ id: r.o.id, nombre: r.o.nombre }));
-    for (const r of rel) if (r.n >= MIN_TITULARES_JUNTOS) vecinos.get(t.id)!.push(r.o.id);
   }
-  const visto = new Set<string>();
-  const componentes: (typeof visibles)[] = [];
-  for (const t of visibles) {
-    if (visto.has(t.id)) continue;
-    const comp: typeof visibles = [];
-    const pila = [t.id];
-    visto.add(t.id);
-    while (pila.length) {
-      const id = pila.pop()!;
-      comp.push(visibles.find((v) => v.id === id)!);
-      for (const v of vecinos.get(id) ?? [])
-        if (!visto.has(v)) {
-          visto.add(v);
-          pila.push(v);
-        }
-    }
-    componentes.push(comp);
-  }
-  const limpio = ({ arts: _arts, ...t }: TemaMapa & { arts: Set<number> }): TemaMapa => t;
-  const orden = (l: typeof visibles) =>
-    [...l].sort(
-      (a, b) =>
-        b.medios - a.medios ||
-        b.mediosUltimaHora - a.mediosUltimaHora ||
-        (a.nombre < b.nombre ? -1 : 1),
-    );
-  const salida: GrupoMapa[] = componentes
-    .filter((c) => c.length > 1)
-    .map((c) => {
-      const temas = orden(c).map(limpio);
-      // El grupo se nombra con sus tres temas más grandes («Pedro Sánchez · PSOE · Feijóo»).
-      return {
-        id: temas[0]!.id,
-        nombre: temas
-          .slice(0, 3)
-          .map((t) => t.nombre)
-          .join(" · "),
-        temas,
-      };
-    });
-  const sueltos = componentes.filter((c) => c.length === 1).flat();
-  if (sueltos.length)
-    salida.push({ id: "otros", nombre: "Otros temas", temas: orden(sueltos).map(limpio) });
   return {
-    grupos: salida,
+    temas: visibles.map(({ arts: _arts, total: _total, ...t }) => t),
+    categorias: porFrecuencia(validos.map((v) => v.categoria).filter((c): c is string => !!c)),
+    referencia,
+    propio,
     articulos: validos.length,
     ventana: input.ventana,
     generado: input.ahora.toISOString(),

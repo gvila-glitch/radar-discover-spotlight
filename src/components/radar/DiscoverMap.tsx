@@ -1,390 +1,334 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { horaOFecha } from "@/lib/fechas";
-import type { GrupoMapa, TemaMapa } from "@/lib/discoverMap";
-import { ANCHO_FILA, colocarBurbujas } from "@/lib/discoverMapLayout";
-import { ComoLeer } from "./ui";
+import { Bell, ChevronDown, ChevronRight, ExternalLink, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { hace, horaOFecha } from "@/lib/fechas";
+import { llegada } from "@/lib/metricas";
+import { PESTANAS, textoRadar, type Pestana, type TemaMapa } from "@/lib/discoverMap";
+import { ComoLeer, Etiqueta } from "./ui";
 
-// Tinte de cada grupo. Se mezcla con el color de las tarjetas, así funciona igual en modo claro y oscuro.
-const TONOS = [250, 300, 150, 200, 70, 350];
-const tono = (indice: number, otros: boolean, pct: number) =>
-  otros
-    ? `color-mix(in oklab, var(--muted-foreground) ${Math.round(pct * 0.6)}%, var(--card))`
-    : `color-mix(in oklab, oklch(0.65 0.12 ${TONOS[indice % TONOS.length]}) ${pct}%, var(--card))`;
-const TEXTO = { fill: "var(--foreground)" } as const;
-const SUAVE = { fill: "var(--muted-foreground)" } as const;
-const MONO = "var(--font-mono, ui-monospace, monospace)";
+// «Discover ahora»: lista de lo que ya está en Discover, ordenada por ritmo. Cada fila enseña la historia (último
+// titular), el ritmo, los medios con la misma etiqueta que la ficha de Alertas, si estamos y si el radar avisó antes;
+// al pulsarla se despliega ahí mismo con los titulares, el orden de llegada y los temas con los que sale.
 
-const describir = (t: TemaMapa) =>
-  `${t.nombre}: ${t.medios} medios` +
-  (t.subiendo ? `, sube ${t.mediosUltimaHora} en la última hora` : "") +
-  (t.hayAlerta ? ", ya tiene alerta en el radar" : "");
+const PUNTO = { ok: "bg-ok", warn: "bg-warn", bad: "bg-bad" } as const;
+const LLEGADA = { ok: "vas a tiempo", warn: "justo", bad: "tarde" } as const;
+const COLUMNAS =
+  "lg:grid lg:grid-cols-[minmax(0,1fr)_88px_184px_88px_112px_168px_16px] lg:items-center lg:gap-4";
+const MAX_LLEGADAS = 10;
 
-/** Mapa de burbujas: tamaño = medios que lo publican; los temas que salen juntos en titulares van en el mismo círculo. */
-/** Ancho real del contenedor (en saltos de 40 px para no recolocar el mapa por cada píxel). */
-function useAncho(inicial: number | null) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [ancho, setAncho] = useState<number | null>(inicial);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
-    const obs = new ResizeObserver(([e]) => {
-      if (e) setAncho(Math.floor(e.contentRect.width / 40) * 40);
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return [ref, ancho] as const;
-}
-
-export function MapaDiscover({
-  grupos,
-  seleccion,
-  onSeleccion,
-  onFondo,
-  anchoInicial = null,
+export function SelectorPestanas({
+  pestana,
+  onCambio,
+  cuentas,
+  sinDominio,
 }: {
-  grupos: GrupoMapa[];
-  seleccion: string | undefined;
-  onSeleccion: (id: string) => void;
-  /** Al pulsar en una zona vacía del mapa (sirve para cerrar la ficha). */
-  onFondo?: () => void;
-  /** Ancho a usar antes de poder medir (vistas previas y pruebas). */
-  anchoInicial?: number | null;
+  pestana: Pestana;
+  onCambio: (p: Pestana) => void;
+  cuentas: Record<Pestana, number>;
+  /** Sin nuestro dominio en Configuración no se sabe dónde no estamos. */
+  sinDominio: boolean;
 }) {
-  const [contenedor, ancho] = useAncho(anchoInicial);
-  // Las filas se reparten con el ancho real disponible: así el texto sale a su tamaño en cualquier pantalla.
-  const mapa = useMemo(
-    () => colocarBurbujas(grupos, ancho ? Math.max(300, ancho - 20) : ANCHO_FILA),
-    [grupos, ancho],
-  );
-  const [enfocada, setEnfocada] = useState<string | null>(null);
-  const otrosDe = new Map(mapa.grupos.map((g) => [g.indice, g.otros]));
-  const teclas = (e: KeyboardEvent, id: string) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSeleccion(id);
-    }
-  };
   return (
-    <div ref={contenedor}>
-      <svg
-        viewBox={mapa.caja.join(" ")}
-        className="mx-auto block h-auto w-full"
-        style={{ maxWidth: mapa.caja[2] }}
-        role="group"
-        aria-label="Mapa de temas en Discover"
-        onClick={(e) => {
-          if (!(e.target as Element).closest("[data-tema]")) onFondo?.();
-        }}
-      >
-        {mapa.grupos.map((g) => (
-          <g key={g.id}>
-            <circle
-              cx={g.x}
-              cy={g.y}
-              r={g.r}
-              strokeDasharray="4 4"
-              strokeWidth={1.2}
-              style={{ fill: tono(g.indice, g.otros, 6), stroke: tono(g.indice, g.otros, 45) }}
-            />
-            <text
-              x={g.x}
-              y={g.y - g.r - 8}
-              textAnchor="middle"
-              fontSize={13}
-              fontWeight={500}
-              style={SUAVE}
-            >
-              {g.otros ? "Otros temas" : g.nombre}
-            </text>
-          </g>
-        ))}
-        {mapa.burbujas.map(({ tema: t, grupo, x, y, r, etiqueta }) => {
-          const otros = otrosDe.get(grupo) ?? false;
-          const on = t.id === seleccion;
-          const foco = t.id === enfocada;
-          const n = etiqueta.lineas.length;
-          return (
-            <g
-              key={t.id}
-              role="button"
-              tabIndex={0}
-              aria-pressed={on}
-              aria-label={describir(t)}
-              data-tema={t.id}
-              className="cursor-pointer outline-none"
-              onClick={() => onSeleccion(t.id)}
-              onKeyDown={(e) => teclas(e, t.id)}
-              onFocus={() => setEnfocada(t.id)}
-              onBlur={() => setEnfocada((v) => (v === t.id ? null : v))}
-            >
-              <title>{describir(t)}</title>
-              {foco && (
-                <circle
-                  cx={x}
-                  cy={y}
-                  r={r + 5}
-                  fill="none"
-                  strokeWidth={2}
-                  style={{ stroke: "var(--ring)" }}
-                />
-              )}
-              <circle
-                cx={x}
-                cy={y}
-                r={r}
-                strokeWidth={on ? 3.5 : 1.2}
-                style={{
-                  fill: tono(grupo, otros, 24),
-                  stroke: on ? "var(--primary)" : tono(grupo, otros, 60),
-                }}
-              />
-              {etiqueta.dentro ? (
-                <>
-                  {etiqueta.lineas.map((l, k) => (
-                    <text
-                      key={k}
-                      x={x}
-                      y={y + (k - (n - 1) / 2) * etiqueta.tamano * 1.1 - etiqueta.tamano * 0.25}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fontSize={etiqueta.tamano}
-                      fontWeight={t.medios >= 5 ? 600 : 500}
-                      style={TEXTO}
-                    >
-                      {l}
-                    </text>
-                  ))}
-                  <text
-                    x={x}
-                    y={y + (n / 2) * etiqueta.tamano * 1.1 + 2}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={Math.max(10, etiqueta.tamano * 0.7)}
-                    style={{ ...SUAVE, fontFamily: MONO }}
-                  >
-                    {t.medios}
-                  </text>
-                </>
-              ) : (
-                <>
-                  <text
-                    x={x}
-                    y={y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={11}
-                    style={{ ...SUAVE, fontFamily: MONO }}
-                  >
-                    {t.medios}
-                  </text>
-                  <text
-                    x={x}
-                    y={y + r + 15}
-                    textAnchor="middle"
-                    fontSize={etiqueta.tamano}
-                    fontWeight={500}
-                    style={TEXTO}
-                  >
-                    {t.nombre}
-                  </text>
-                </>
-              )}
-              {t.subiendo && (
-                <g aria-hidden>
-                  <circle
-                    cx={x + r * 0.72}
-                    cy={y - r * 0.72}
-                    r={12}
-                    style={{ fill: "var(--bad)" }}
-                  />
-                  <text
-                    x={x + r * 0.72}
-                    y={y - r * 0.72 + 0.5}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={10.5}
-                    fontWeight={700}
-                    style={{ fill: "var(--card)" }}
-                  >
-                    +{t.mediosUltimaHora}
-                  </text>
-                </g>
-              )}
-              {t.hayAlerta && (
-                <g aria-hidden data-alerta="">
-                  <circle
-                    cx={x - r * 0.72}
-                    cy={y - r * 0.72}
-                    r={11}
-                    strokeWidth={1.2}
-                    style={{ fill: "var(--card)", stroke: "var(--primary)" }}
-                  />
-                  <Bell
-                    x={x - r * 0.72 - 7}
-                    y={y - r * 0.72 - 7}
-                    width={14}
-                    height={14}
-                    className="text-primary"
-                  />
-                </g>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+    <div
+      role="tablist"
+      aria-label="Qué ver"
+      className="mt-4 inline-flex flex-wrap rounded-md border bg-card p-1 text-sm"
+    >
+      {PESTANAS.map((p) => {
+        const off = p.id === "sin_nosotros" && sinDominio;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={pestana === p.id}
+            disabled={off}
+            title={off ? "Falta nuestro dominio en Configuración" : undefined}
+            onClick={() => onCambio(p.id)}
+            className={cn(
+              "rounded-md px-3 py-1.5 focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50",
+              pestana === p.id
+                ? "bg-accent font-medium text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {p.titulo} <span className="font-mono">({off ? "—" : cuentas[p.id]})</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-/** Leyenda corta debajo del mapa. */
-export function LeyendaBurbujas() {
+export function ListaDiscover({
+  temas,
+  referencia,
+  propio,
+  abierto,
+  onAbrir,
+}: {
+  temas: TemaMapa[];
+  referencia: string[];
+  propio: string | null;
+  abierto: string | null;
+  onAbrir: (id: string | null) => void;
+}) {
   return (
-    <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t pt-3 text-xs text-muted-foreground">
-      <li>Tamaño de la burbuja = medios que lo publican</li>
-      <li>Número rojo = medios nuevos en la última hora</li>
-      <li>Campana = ya hay alerta</li>
-      <li>Círculo de puntos = nombres que salen juntos en titulares</li>
-    </ul>
+    <div className="border bg-card">
+      <div
+        aria-hidden
+        className={cn("hidden border-b px-4 py-2 text-xs text-muted-foreground", COLUMNAS)}
+      >
+        <span>Tema y último titular</span>
+        <span>Ritmo</span>
+        <span>Medios en Discover</span>
+        <span>Nosotros</span>
+        <span>En Discover desde</span>
+        <span>Radar</span>
+        <span />
+      </div>
+      <ul className="divide-y">
+        {temas.map((t) => (
+          <FilaTema
+            key={t.id}
+            tema={t}
+            referencia={referencia}
+            propio={propio}
+            abierta={t.id === abierto}
+            onAbrir={onAbrir}
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function Bloque({ titulo, children }: { titulo: string; children: ReactNode }) {
-  return (
-    <section className="mt-5">
-      <h4 className="mb-2 text-sm font-semibold">{titulo}</h4>
-      {children}
-    </section>
-  );
-}
-
-const MAX_MEDIOS_LISTA = 10;
-
-export function FichaTema({
+function FilaTema({
   tema: t,
-  onSeleccion,
+  referencia,
+  propio,
+  abierta,
+  onAbrir,
 }: {
   tema: TemaMapa;
-  onSeleccion: (id: string) => void;
+  referencia: string[];
+  propio: string | null;
+  abierta: boolean;
+  onAbrir: (id: string | null) => void;
 }) {
-  const resto = t.listaMedios.length - MAX_MEDIOS_LISTA;
+  const nivel = llegada(t.medios).nivel;
+  const ultimo = t.titulares[0];
+  const radar = t.alerta ? textoRadar(t.alerta.creada_en, t.primeraVez) : null;
   return (
-    <aside aria-label={`Detalle de ${t.nombre}`} className="p-5">
-      <h3 className="tracking-tight text-2xl font-semibold leading-tight">{t.nombre}</h3>
-      {t.alias.length > 0 && (
-        <p className="mt-1 text-sm text-muted-foreground">Misma historia: {t.alias.join(" · ")}</p>
-      )}
-      <p className="mt-2 text-sm">
-        <span className="font-mono">{t.medios}</span> medios ·{" "}
-        <span className="font-mono">{t.mediosUltimaHora}</span> en la última hora
-      </p>
-      {t.subiendo && (
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-bad">Subiendo</p>
-      )}
-      <p className="mt-1 text-xs text-muted-foreground">
-        Primer artículo: {horaOFecha(t.primeraVez)} ·{" "}
-        {t.hayAlerta ? (
-          <Link to="/" className="text-primary underline underline-offset-4">
-            ya hay alerta en el radar
-          </Link>
-        ) : (
-          "sin alerta en el radar"
+    <li data-tema={t.id}>
+      <button
+        type="button"
+        aria-expanded={abierta}
+        onClick={() => onAbrir(abierta ? null : t.id)}
+        className={cn(
+          "flex w-full flex-col gap-2 px-4 py-3 text-left hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+          COLUMNAS,
+          abierta && "bg-accent hover:bg-accent",
         )}
-      </p>
-      <Bloque titulo="Medios, por orden de llegada">
-        <ol className="list-decimal space-y-0.5 pl-5 text-sm">
-          {t.listaMedios.slice(0, MAX_MEDIOS_LISTA).map((m) => (
-            <li key={m}>{m}</li>
-          ))}
-        </ol>
-        {resto > 0 && <p className="mt-1 text-xs text-muted-foreground">y {resto} más</p>}
-      </Bloque>
-      <Bloque titulo="Titulares recientes">
-        <ul className="space-y-3">
-          {t.titulares.map((x) => (
-            <li key={x.url} className="text-sm leading-snug">
+      >
+        <span className="block min-w-0">
+          <span className="flex items-baseline gap-2">
+            <span className="font-semibold tracking-tight">{t.nombre}</span>
+            {t.categorias[0] && (
+              <span className="text-xs text-muted-foreground">{t.categorias[0]}</span>
+            )}
+          </span>
+          {ultimo && (
+            <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+              <span className="font-mono text-xs">{ultimo.medio}</span> · «{ultimo.titular}»
+            </span>
+          )}
+        </span>
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm lg:contents">
+          <span className={t.subiendo ? "font-semibold text-bad" : "text-muted-foreground"}>
+            {t.mediosUltimaHora > 0 ? `+${t.mediosUltimaHora} en 1 h` : "sin nuevos en 1 h"}
+          </span>
+          <span>
+            <Etiqueta punto={PUNTO[nivel]}>
+              {t.medios} {t.medios === 1 ? "medio" : "medios"} · {LLEGADA[nivel]}
+            </Etiqueta>
+          </span>
+          <span>
+            <span className="text-muted-foreground lg:hidden">Nosotros: </span>
+            {!propio ? (
+              <span className="text-muted-foreground">—</span>
+            ) : t.nosotros ? (
+              <span className="font-medium text-ok">Sí · {t.nosotros.puesto}.º</span>
+            ) : (
+              <span className="font-semibold">No</span>
+            )}
+          </span>
+          <span className="text-muted-foreground">{hace(t.primeraVez)}</span>
+          <span>
+            {radar ? (
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1.5",
+                  radar.antes ? "text-ok" : "text-warn",
+                )}
+              >
+                <Bell aria-hidden className="size-3.5 shrink-0" /> {radar.texto}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">sin alerta</span>
+            )}
+          </span>
+          {abierta ? (
+            <ChevronDown aria-hidden className="hidden size-4 text-muted-foreground lg:block" />
+          ) : (
+            <ChevronRight aria-hidden className="hidden size-4 text-muted-foreground lg:block" />
+          )}
+        </span>
+      </button>
+      {abierta && (
+        <DetalleTema tema={t} referencia={referencia} propio={propio} onAbrir={onAbrir} />
+      )}
+    </li>
+  );
+}
+
+export function DetalleTema({
+  tema: t,
+  referencia,
+  propio,
+  onAbrir,
+}: {
+  tema: TemaMapa;
+  referencia: string[];
+  propio: string | null;
+  onAbrir: (id: string | null) => void;
+}) {
+  const llegadas = t.llegadas.slice(0, MAX_LLEGADAS);
+  const resto = t.llegadas.length - llegadas.length;
+  const nosotrosFuera = t.nosotros && t.nosotros.puesto > MAX_LLEGADAS;
+  return (
+    <div className="border-t bg-accent/40 px-4 pt-3 pb-4">
+      {t.alias.length > 0 && (
+        <p className="mb-3 text-sm text-muted-foreground">Misma historia: {t.alias.join(" · ")}</p>
+      )}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.8fr)]">
+        <section aria-label="Titulares en Discover">
+          <h4 className="mb-2 text-sm font-semibold">Titulares en Discover</h4>
+          <ul className="grid grid-cols-[max-content_minmax(0,1fr)_max-content] gap-x-3">
+            {t.titulares.map((x) => (
+              <li
+                key={x.url}
+                className="col-span-full grid grid-cols-subgrid items-baseline py-1 text-sm"
+              >
+                <span className="font-mono text-xs text-muted-foreground">{x.medio}</span>
+                <a
+                  href={x.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-baseline gap-1.5 underline-offset-4 hover:underline"
+                >
+                  {x.titular}
+                  <ExternalLink aria-hidden className="size-3 shrink-0 self-center text-primary" />
+                </a>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {horaOFecha(x.recibido_en)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {t.nosotros && (
+            <p className="mt-3 text-sm">
+              <span className="text-muted-foreground">Nuestra pieza: </span>
               <a
-                href={x.url}
+                href={t.nosotros.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline-offset-4 hover:underline"
+                className="text-primary underline-offset-4 hover:underline"
               >
-                {x.titular}
+                {t.nosotros.titular}
               </a>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                {x.medio} · {horaOFecha(x.recibido_en)}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Bloque>
-      {t.relacionados.length > 0 && (
-        <Bloque titulo="Sale junto a">
-          <div className="flex flex-wrap gap-2">
-            {t.relacionados.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => onSeleccion(r.id)}
-                className="rounded-md border px-2 py-1 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+            </p>
+          )}
+        </section>
+        <section aria-label="Medios por orden de llegada">
+          <h4 className="mb-2 text-sm font-semibold">Medios por orden de llegada</h4>
+          <ol className="grid grid-cols-[max-content_minmax(0,1fr)_max-content] gap-x-3 text-sm">
+            {llegadas.map((m, i) => (
+              <li
+                key={m.medio}
+                className="col-span-full grid grid-cols-subgrid items-baseline py-0.5"
               >
-                {r.nombre}
-              </button>
+                <span className="font-mono text-xs text-muted-foreground">{i + 1}.º</span>
+                <span
+                  className={cn(
+                    "inline-flex min-w-0 items-center gap-1.5",
+                    m.medio === propio && "font-semibold text-ok",
+                  )}
+                >
+                  <span className="truncate">{m.medio}</span>
+                  {referencia.includes(m.medio) && (
+                    <Star
+                      aria-label="medio de referencia"
+                      className="size-3 shrink-0 fill-current text-warn"
+                    />
+                  )}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {horaOFecha(m.hora)}
+                </span>
+              </li>
             ))}
-          </div>
-        </Bloque>
-      )}
-    </aside>
-  );
-}
-
-/**
- * Ficha como capa lateral: se abre por encima del mapa desde la derecha, sin empujarlo ni oscurecer el fondo.
- * El mapa sigue activo (pulsar otra burbuja cambia la ficha). Se cierra con la X, con Esc o pulsando en vacío.
- */
-export function CajonFicha({
-  tema,
-  onCerrar,
-  onSeleccion,
-}: {
-  tema: TemaMapa;
-  onCerrar: () => void;
-  onSeleccion: (id: string) => void;
-}) {
-  const cerrar = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    cerrar.current?.focus();
-  }, []);
-  useEffect(() => {
-    const tecla = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onCerrar();
-    };
-    document.addEventListener("keydown", tecla);
-    return () => document.removeEventListener("keydown", tecla);
-  }, [onCerrar]);
-  return (
-    <div
-      role="dialog"
-      aria-modal="false"
-      aria-label={`Ficha de ${tema.nombre}`}
-      className="fixed inset-y-0 right-0 z-40 flex w-full flex-col border-l bg-card shadow-lg animate-in slide-in-from-right duration-300 sm:w-[28rem]"
-    >
-      <div className="flex items-center justify-between border-b py-3 pl-5 pr-4">
-        <span className="text-xs text-muted-foreground">Ficha del tema · Esc para cerrar</span>
-        <button
-          ref={cerrar}
-          type="button"
-          onClick={onCerrar}
-          aria-label="Cerrar ficha"
-          className="rounded-md border p-1.5 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <FichaTema tema={tema} onSeleccion={onSeleccion} />
+            {propio && (!t.nosotros || nosotrosFuera) && (
+              <li className="col-span-full grid grid-cols-subgrid items-baseline py-0.5">
+                <span className="font-mono text-xs text-muted-foreground">
+                  {t.nosotros ? `${t.nosotros.puesto}.º` : "—"}
+                </span>
+                <span className={t.nosotros ? "font-semibold text-ok" : "font-semibold"}>
+                  {propio}
+                  {t.nosotros ? "" : " · todavía no"}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {t.nosotros ? horaOFecha(t.nosotros.hora) : ""}
+                </span>
+              </li>
+            )}
+          </ol>
+          {resto > 0 && <p className="mt-1 text-xs text-muted-foreground">y {resto} más</p>}
+          {referencia.length > 0 && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Star aria-hidden className="size-3 fill-current text-warn" /> Medio de referencia
+              (Configuración)
+            </p>
+          )}
+        </section>
+        <section aria-label="Sale junto a">
+          {t.relacionados.length > 0 && (
+            <>
+              <h4 className="mb-2 text-sm font-semibold">Sale junto a</h4>
+              <div className="flex flex-wrap gap-2">
+                {t.relacionados.map((r) => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onAbrir(r.id)}
+                    className="rounded-md border bg-card px-2 py-1 text-xs hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {r.nombre}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {t.alerta && (
+            <Link
+              to="/"
+              search={{ alerta: t.alerta.id }}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            >
+              <Bell aria-hidden className="size-3.5" /> Ver su alerta
+            </Link>
+          )}
+        </section>
       </div>
     </div>
   );
@@ -392,21 +336,32 @@ export function CajonFicha({
 
 const LEYENDA: { t: string; d: string }[] = [
   {
-    t: "Tamaño",
-    d: "Cada burbuja es un nombre. Cuantos más medios distintos lo han publicado en la ventana elegida, más grande es. El número de debajo es ese recuento.",
+    t: "Pestañas",
+    d: "«Entrando ahora»: temas que suben y todavía tienen 5 medios o menos. «Sin nosotros»: temas en los que no estamos. «Consolidados»: 6 medios o más. «Todo»: todos los de la ventana.",
   },
   {
-    t: "Grupos",
-    d: "Las burbujas dentro del mismo círculo de puntos salen juntas en al menos 2 titulares. El grupo se titula con sus tres temas más grandes; los que no tienen relación van en «Otros temas».",
+    t: "Ritmo",
+    d: "Medios que lo han publicado por primera vez en la última hora. En rojo cuando son al menos 2 y al menos la mitad del total: el tema está entrando ahora. La lista va de lo que más sube a lo que menos.",
   },
   {
-    t: "Número rojo",
-    d: "Medios nuevos en la última hora. Sale cuando son al menos 2 y al menos la mitad del total: el tema está entrando ahora.",
+    t: "Medios en Discover",
+    d: "Medios distintos que ya lo tienen en Discover, sin contarnos a nosotros. Misma etiqueta que en la ficha de Alertas: «vas a tiempo» con 0–2, «justo» con 3–5 y «tarde» con 6 o más.",
   },
-  { t: "Campana", d: "El radar ya tiene una alerta de ese tema en las últimas 24 horas." },
+  {
+    t: "Nosotros",
+    d: "Si ya estamos en Discover con ese tema y en qué puesto llegamos. Necesita nuestro dominio en Configuración; sin él sale «—».",
+  },
+  {
+    t: "Radar",
+    d: "Si el radar creó una alerta del tema en las últimas 24 horas y cuánto antes (o después) de su primer artículo en Discover. «Ver su alerta» la abre en Alertas.",
+  },
+  {
+    t: "Estrella",
+    d: "Medios de referencia de Configuración, en la lista de medios por orden de llegada.",
+  },
   {
     t: "Qué cubre",
-    d: "Lo que envía Snoop de las categorías News y News/Politics en España. Las publicaciones de X, YouTube, Instagram, TikTok o Facebook no cuentan como medio.",
+    d: "Lo que envía Snoop de las categorías que tengan alerta allí (el nombre de cada alerta es la categoría). Las publicaciones de X, YouTube, Instagram, TikTok o Facebook no cuentan como medio.",
   },
   {
     t: "Cómo se detecta",
@@ -414,9 +369,9 @@ const LEYENDA: { t: string; d: string }[] = [
   },
 ];
 
-export function LeyendaMapa() {
+export function LeyendaDiscover() {
   return (
-    <ComoLeer titulo="Cómo leer el mapa">
+    <ComoLeer titulo="Cómo leer esta sección">
       <dl className="mt-3 grid gap-x-6 gap-y-3 border bg-card p-4 sm:grid-cols-2">
         {LEYENDA.map((e) => (
           <div key={e.t}>
