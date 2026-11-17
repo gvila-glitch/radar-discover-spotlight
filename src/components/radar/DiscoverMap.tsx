@@ -334,6 +334,41 @@ export function DetalleTema({
   );
 }
 
+const cuantos = (n: number, uno: string, varios: string) =>
+  `${n.toLocaleString("es-ES")} ${n === 1 ? uno : varios}`;
+
+/**
+ * «250 artículos en la ventana: 90 forman los 28 temas de la lista; 140 no tienen nombre propio en el titular y 20
+ * hablan de nombres que salen en menos de 3 medios.» Para que el filtro no sea invisible.
+ */
+export function ResumenVentana({
+  articulos,
+  temas,
+  resumen: r,
+}: {
+  articulos: number;
+  temas: number;
+  resumen: { enTemas: number; sinNombre: number; pocosMedios: number; fueraDeLista: number };
+}) {
+  const fuera = [
+    r.sinNombre > 0 &&
+      `${r.sinNombre.toLocaleString("es-ES")} no tienen nombre propio en el titular`,
+    r.pocosMedios > 0 &&
+      `${r.pocosMedios.toLocaleString("es-ES")} hablan de nombres que salen en menos de 3 medios`,
+    r.fueraDeLista > 0 &&
+      `${r.fueraDeLista.toLocaleString("es-ES")} son de temas que no caben en la lista (máximo 40)`,
+  ].filter((x): x is string => !!x);
+  const ultimo = fuera.pop();
+  return (
+    <p className="mt-3 text-xs text-muted-foreground">
+      {cuantos(articulos, "artículo", "artículos")} en la ventana:{" "}
+      {r.enTemas.toLocaleString("es-ES")} forman {temas === 1 ? "el tema" : `los ${temas} temas`} de
+      la lista
+      {ultimo ? `; ${fuera.length ? `${fuera.join(", ")} y ${ultimo}` : ultimo}` : ""}.
+    </p>
+  );
+}
+
 const LEYENDA: { t: string; d: string }[] = [
   {
     t: "Pestañas",
@@ -365,7 +400,7 @@ const LEYENDA: { t: string; d: string }[] = [
   },
   {
     t: "Cómo se detecta",
-    d: "Sin IA: se juntan los nombres propios de los titulares y se quitan lugares y palabras generales. Es una aproximación y puede haber algo de ruido.",
+    d: "Sin IA: se juntan los nombres propios de los titulares y se quitan lugares y palabras generales. Un nombre es tema si sale en 3 medios o más (o en 2 de la última hora). Es una aproximación y puede haber algo de ruido. La línea bajo los filtros dice cuántos artículos se quedan fuera y por qué.",
   },
 ];
 

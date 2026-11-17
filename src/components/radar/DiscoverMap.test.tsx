@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import { useState, type ReactNode } from "react";
-import { LeyendaDiscover, ListaDiscover, SelectorPestanas } from "./DiscoverMap";
+import { LeyendaDiscover, ListaDiscover, ResumenVentana, SelectorPestanas } from "./DiscoverMap";
 import type { Pestana, TemaMapa } from "@/lib/discoverMap";
 
 vi.mock("@tanstack/react-router", () => ({
@@ -191,6 +191,29 @@ describe("SelectorPestanas", () => {
       <SelectorPestanas pestana="entrando" onCambio={() => {}} cuentas={cuentas} sinDominio />,
     );
     expect(screen.getByRole("tab", { name: "Sin nosotros (—)" })).toBeDisabled();
+  });
+});
+
+describe("ResumenVentana", () => {
+  it("dice cuántos artículos forman los temas y por qué se quedan fuera los demás", () => {
+    const { container, rerender } = render(
+      <ResumenVentana
+        articulos={250}
+        temas={28}
+        resumen={{ enTemas: 90, sinNombre: 140, pocosMedios: 20, fueraDeLista: 0 }}
+      />,
+    );
+    expect(container).toHaveTextContent(
+      "250 artículos en la ventana: 90 forman los 28 temas de la lista; 140 no tienen nombre propio en el titular y 20 hablan de nombres que salen en menos de 3 medios.",
+    );
+    rerender(
+      <ResumenVentana
+        articulos={5}
+        temas={1}
+        resumen={{ enTemas: 5, sinNombre: 0, pocosMedios: 0, fueraDeLista: 0 }}
+      />,
+    );
+    expect(container).toHaveTextContent("5 artículos en la ventana: 5 forman el tema de la lista.");
   });
 });
 

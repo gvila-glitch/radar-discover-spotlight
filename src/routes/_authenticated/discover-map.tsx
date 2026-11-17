@@ -4,7 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Selector } from "@/components/radar/ui";
-import { LeyendaDiscover, ListaDiscover, SelectorPestanas } from "@/components/radar/DiscoverMap";
+import {
+  LeyendaDiscover,
+  ListaDiscover,
+  ResumenVentana,
+  SelectorPestanas,
+} from "@/components/radar/DiscoverMap";
 import { leerDiscoverMap } from "@/lib/discoverMap.functions";
 import {
   enPestana,
@@ -119,6 +124,7 @@ function DiscoverAhoraPagina() {
               { value: "1", label: "Última hora" },
               { value: "3", label: "Últimas 3 horas" },
               { value: "6", label: "Últimas 6 horas" },
+              { value: "24", label: "Últimas 24 horas" },
             ]}
           />
           {(datos?.categorias.length ?? 0) > 1 && (
@@ -136,7 +142,7 @@ function DiscoverAhoraPagina() {
           <span className="ml-auto flex items-center gap-4">
             {datos && (
               <span className="font-mono text-xs text-muted-foreground">
-                Actualizado {hora24(datos.generado)} · {datos.articulos} artículos
+                Actualizado {hora24(datos.generado)}
               </span>
             )}
             <Button variant="outline" size="sm" onClick={() => q.refetch()} disabled={q.isFetching}>
@@ -144,6 +150,14 @@ function DiscoverAhoraPagina() {
             </Button>
           </span>
         </div>
+
+        {datos && datos.articulos > 0 && (
+          <ResumenVentana
+            articulos={datos.articulos}
+            temas={datos.temas.length}
+            resumen={datos.resumen}
+          />
+        )}
 
         {sinDominio && (
           <p className="mt-3 text-xs text-muted-foreground">

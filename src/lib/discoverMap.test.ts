@@ -47,11 +47,11 @@ describe("nombres propios de un titular", () => {
     ]);
     expect(nombresDelTitular("Muere Robe Iniesta", corrientes)).toEqual(["Robe Iniesta"]);
   });
-  it("la ventana solo admite 1, 3 o 6 horas; por defecto, 3", () => {
+  it("la ventana admite 1, 3, 6 o 24 horas; por defecto, 6", () => {
     expect(ventanaValida(1)).toBe(1);
-    expect(ventanaValida(6)).toBe(6);
-    expect(ventanaValida(24)).toBe(3);
-    expect(ventanaValida("1")).toBe(3);
+    expect(ventanaValida(24)).toBe(24);
+    expect(ventanaValida(12)).toBe(6);
+    expect(ventanaValida("1")).toBe(6);
   });
 });
 
@@ -176,6 +176,20 @@ describe("construirDiscoverMap", () => {
     expect(m.referencia).toEqual(["elpais.com", "elmundo.es"]);
   });
 
+  it("dice cuántos artículos forman los temas y por qué se quedan fuera los demás", () => {
+    const m = mapa([
+      art("elpais.com", "Pedro Sánchez comparece en el Congreso"),
+      art("elmundo.es", "Pedro Sánchez defiende la financiación"),
+      art("abc.es", "Pedro Sánchez responde a la oposición"),
+      art("lavanguardia.com", "La inflación se dispara en noviembre"),
+      art("20minutos.es", "El precio de la luz baja mañana"),
+      art("elconfidencial.com", "Ábalos recurre al Supremo", 200),
+      art("publico.es", "Ábalos pide anular la causa", 200),
+    ]);
+    expect(m.temas.map((t) => t.nombre)).toEqual(["Pedro Sánchez"]);
+    expect(m.resumen).toEqual({ enTemas: 3, sinNombre: 2, pocosMedios: 2, fueraDeLista: 0 });
+  });
+
   it("sin artículos devuelve una lista vacía", () => {
     expect(mapa([])).toEqual({
       temas: [],
@@ -183,6 +197,7 @@ describe("construirDiscoverMap", () => {
       referencia: [],
       propio: null,
       articulos: 0,
+      resumen: { enTemas: 0, sinNombre: 0, pocosMedios: 0, fueraDeLista: 0 },
       ventana: 6,
       generado: AHORA.toISOString(),
     });

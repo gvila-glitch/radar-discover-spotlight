@@ -6,9 +6,9 @@
 import { claveEntidad, entidadesEquivalentes } from "./trendsAlertas";
 import { limpiarDominio } from "./snoopReceptor";
 
-export const VENTANAS = [1, 3, 6] as const;
+export const VENTANAS = [1, 3, 6, 24] as const;
 export type Ventana = (typeof VENTANAS)[number];
-export const VENTANA_INICIAL: Ventana = 3;
+export const VENTANA_INICIAL: Ventana = 6;
 export const ventanaValida = (v: unknown): Ventana =>
   VENTANAS.includes(v as Ventana) ? (v as Ventana) : VENTANA_INICIAL;
 
@@ -56,6 +56,8 @@ export type DiscoverMap = {
   /** Nuestro dominio, si está en Configuración. Sin él, no se sabe si estamos. */
   propio: string | null;
   articulos: number;
+  /** Cómo se reparten los artículos de la ventana: en los temas de la lista o fuera, y por qué. */
+  resumen: { enTemas: number; sinNombre: number; pocosMedios: number; fueraDeLista: number };
   ventana: Ventana;
   generado: string;
 };
@@ -516,15 +518,28 @@ export function construirDiscoverMap(input: {
     });
   }
   // Se enseña un tema con 3 medios o más (contándonos) o que esté subiendo. Primero, lo que más sube.
-  const visibles = temasTodos
+  const candidatos = temasTodos
     .filter((t) => t.total >= MINIMO_MEDIOS || t.subiendo)
     .sort(
       (a, b) =>
         b.mediosUltimaHora - a.mediosUltimaHora ||
         b.medios - a.medios ||
         (a.nombre < b.nombre ? -1 : 1),
-    )
-    .slice(0, MAX_TEMAS);
+    );
+  const visibles = candidatos.slice(0, MAX_TEMAS);
+
+  // Qué se queda fuera, para decirlo en la página: artículos sin nombre propio, con nombres que salen en menos de
+  // 3 medios o de temas que no caben en la lista.
+  const union = (l: typeof candidatos) => new Set(l.flatMap((t) => [...t.arts]));
+  const enVisibles = union(visibles);
+  const enCandidatos = union(candidatos);
+  const conNombre = new Set(menciones.map((m) => m.articulo.id));
+  const resumen = {
+    enTemas: enVisibles.size,
+    sinNombre: validos.length - conNombre.size,
+    pocosMedios: conNombre.size - enCandidatos.size,
+    fueraDeLista: enCandidatos.size - enVisibles.size,
+  };
 
   // 5) «Sale junto a»: los temas con los que comparte más titulares (hasta 3).
   const comunes = (a: Set<number>, b: Set<number>) => {
@@ -546,6 +561,7 @@ export function construirDiscoverMap(input: {
     referencia,
     propio,
     articulos: validos.length,
+    resumen,
     ventana: input.ventana,
     generado: input.ahora.toISOString(),
   };
