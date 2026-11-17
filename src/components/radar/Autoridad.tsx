@@ -1,11 +1,11 @@
 import { createContext, useContext, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BloqueFicha, Etiqueta, Pliegue } from "./ui";
 import {
   mesCorto,
   nombreMes,
   textoPeriodo,
-  UMBRAL_AUTORIDAD_ALTA,
   type Autoridad,
   type NivelAutoridad,
   type ResultadoAutoridad,
@@ -61,48 +61,52 @@ export function AutoridadLista({ entidad }: { entidad: string }) {
   );
 }
 
-/** Bloque de la ficha: nivel, piezas, clics, mes de la última y las mejores piezas con su enlace. */
+/** Etiqueta de la cabecera de la ficha: «Autoridad alta · 6 piezas» o «Tema nuevo para nosotros». Sin datos, nada. */
+export function EtiquetaAutoridad({ entidad }: { entidad: string }) {
+  const a = useAutoridad(entidad);
+  if (!a) return null;
+  const { nivel, total } = a.r;
+  if (nivel === "nuevo") {
+    return <Etiqueta punto="bg-muted-foreground/40">Tema nuevo para nosotros</Etiqueta>;
+  }
+  return (
+    <Etiqueta punto={nivel === "alta" ? "bg-ok" : "bg-warn"}>
+      Autoridad {nivel} · {n(total)} {total === 1 ? "pieza" : "piezas"}
+    </Etiqueta>
+  );
+}
+
+/**
+ * Bloque «Nuestras piezas en Discover» de la ficha: la mejor pieza con su enlace y, plegadas, las demás. El nivel va
+ * en la etiqueta de la cabecera; los umbrales, en «Cómo leer este panel».
+ */
 export function BloqueAutoridad({ entidad }: { entidad: string }) {
   const a = useAutoridad(entidad);
   const [todas, setTodas] = useState(false);
   if (!a) return null;
   const { r, periodo } = a;
   const nombre = entidad.replace(/^\[(SIN DISCOVER|PRUEBA)\]\s*/i, "");
-  const visibles = todas ? r.piezas : r.piezas.slice(0, 3);
+  const visibles = todas ? r.piezas : r.piezas.slice(0, 1);
+  const resumen = [
+    `${n(r.clics)} clics en total`,
+    r.ultimoMes && `la última, en ${nombreMes(r.ultimoMes)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <section className="mt-5" aria-label="Nuestra autoridad en Discover">
-      <h3 className="mb-2 text-sm font-semibold">Nuestra autoridad en Discover</h3>
+    <BloqueFicha
+      titulo="Nuestras piezas en Discover"
+      derecha={`Search Console · ${textoPeriodo(periodo)}`}
+    >
       {r.nivel === "nuevo" ? (
-        <div className="border px-3 py-2.5 text-sm">
-          <AutoridadTag nivel="nuevo" />
-          <p className="mt-1 text-muted-foreground">
-            Ninguna pieza nuestra sobre «{nombre}» ha tenido tráfico de Discover{" "}
-            {textoPeriodo(periodo)}.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Ninguna pieza nuestra sobre «{nombre}» ha tenido tráfico de Discover en estas fechas.
+        </p>
       ) : (
-        <div className="border">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 px-3 py-2.5 text-sm">
-            <AutoridadTag nivel={r.nivel} />
-            <span className="text-muted-foreground">·</span>
-            <span>
-              <span className="font-mono">{n(r.total)}</span> {r.total === 1 ? "pieza" : "piezas"}{" "}
-              con tráfico de Discover
-            </span>
-            <span className="text-muted-foreground">·</span>
-            <span>
-              <span className="font-mono">{n(r.clics)}</span> clics
-            </span>
-            {r.ultimoMes && (
-              <>
-                <span className="text-muted-foreground">·</span>
-                <span>la última, en {nombreMes(r.ultimoMes)}</span>
-              </>
-            )}
-          </div>
-          <ul className="divide-y border-t">
+        <>
+          <ul className="divide-y">
             {visibles.map((p) => (
-              <li key={p.url} className="flex items-baseline gap-3 px-3 py-2 text-sm">
+              <li key={p.url} className="flex items-baseline gap-3 py-1.5 text-sm">
                 <span className="w-20 shrink-0 truncate text-xs text-muted-foreground">
                   {p.seccion}
                 </span>
@@ -123,32 +127,26 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
               </li>
             ))}
           </ul>
-          {r.piezas.length > 3 && (
-            <div className="border-t px-3 py-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setTodas((t) => !t)}
-                className="text-primary underline underline-offset-4"
-              >
-                {todas
-                  ? "Ver solo las 3 mejores"
-                  : r.total > r.piezas.length
-                    ? `Ver las ${r.piezas.length} mejores (de ${n(r.total)})`
-                    : `Ver las ${r.total} piezas`}
-              </button>
-            </div>
+          {r.piezas.length > 1 && (
+            <Pliegue
+              abierto={todas}
+              onCambio={() => setTodas((t) => !t)}
+              abrir={
+                r.total > r.piezas.length
+                  ? `Ver las ${r.piezas.length} mejores (de ${n(r.total)})`
+                  : `Ver las ${r.total} piezas`
+              }
+              cerrar="Ver solo la mejor"
+              resumen={resumen}
+            />
           )}
-        </div>
+        </>
       )}
       {r.unaPalabra && (
         <p className="mt-2 text-xs text-warn">
           «{nombre}» es una sola palabra: comprueba que las piezas hablan de la misma persona.
         </p>
       )}
-      <p className="mt-2 text-xs text-muted-foreground">
-        Search Console · Discover · {textoPeriodo(periodo)}. Alta: {UMBRAL_AUTORIDAD_ALTA} piezas o
-        más; media: 1 o 2.
-      </p>
-    </section>
+    </BloqueFicha>
   );
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { AutoridadLista, AutoridadProvider, BloqueAutoridad } from "./Autoridad";
+import { AutoridadLista, AutoridadProvider, BloqueAutoridad, EtiquetaAutoridad } from "./Autoridad";
 import { calcularAutoridad, type Autoridad, type FilaAutoridad } from "@/lib/autoridad";
 
 const fila = (
@@ -29,42 +29,39 @@ const conDatos = (a: Autoridad | null, ui: React.ReactNode) =>
 describe("BloqueAutoridad", () => {
   afterEach(cleanup);
 
-  it("autoridad alta: nivel, piezas, clics, la última y las 3 mejores con su enlace", () => {
+  it("autoridad alta: la mejor pieza con su enlace y, plegadas, las demás", () => {
     conDatos(datos(["Yolanda Díaz"]), <BloqueAutoridad entidad="Yolanda Díaz" />);
-    expect(screen.getByText("Nuestra autoridad en Discover")).toBeInTheDocument();
-    expect(screen.getByText("Autoridad alta")).toBeInTheDocument();
-    expect(screen.getByText(/con tráfico de Discover/).textContent).toBe(
-      "4 piezas con tráfico de Discover",
-    );
-    expect(screen.getByText("la última, en noviembre")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Nuestras piezas en Discover" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Search Console · del 1 de septiembre al 15 de noviembre"),
+    ).toBeInTheDocument();
     const enlaces = screen.getAllByRole("link");
-    expect(enlaces).toHaveLength(3);
+    expect(enlaces).toHaveLength(1);
     expect(enlaces[0]).toHaveAttribute(
       "href",
       "https://www.ejemplo.es/politica/candidatura-yolanda-diaz-oit_1_5000.html",
     );
     expect(enlaces[0]).toHaveAttribute("target", "_blank");
-    expect(
-      screen.getByText(
-        "Search Console · Discover · del 1 de septiembre al 15 de noviembre. Alta: 3 piezas o más; media: 1 o 2.",
-      ),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Ver las 4 piezas" }));
+    // Plegado, dice qué hay dentro: cuántas piezas, los clics y cuándo fue la última.
+    const pliegue = screen.getByRole("button", { name: /Ver las 4 piezas/ });
+    expect(pliegue).toHaveAttribute("aria-expanded", "false");
+    expect(pliegue.textContent).toContain("14.500 clics en total · la última, en noviembre");
+    fireEvent.click(pliegue);
     expect(screen.getAllByRole("link")).toHaveLength(4);
-    fireEvent.click(screen.getByRole("button", { name: "Ver solo las 3 mejores" }));
-    expect(screen.getAllByRole("link")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: "Ver solo la mejor" }));
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    // Los umbrales están en «Cómo leer este panel», no en la ficha.
+    expect(screen.queryByText(/Alta: 3 piezas o más/)).not.toBeInTheDocument();
   });
 
-  it("autoridad media, sin botón para ver más", () => {
+  it("autoridad media con una sola pieza, sin pliegue", () => {
     conDatos(datos(["Marcial Dorado"]), <BloqueAutoridad entidad="Marcial Dorado" />);
-    expect(screen.getByText("Autoridad media")).toBeInTheDocument();
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
   it("tema nuevo: lo dice en gris, sin piezas", () => {
     conDatos(datos(["[SIN DISCOVER] Pedri"]), <BloqueAutoridad entidad="[SIN DISCOVER] Pedri" />);
-    expect(screen.getByText("Tema nuevo para nosotros")).toBeInTheDocument();
     expect(screen.getByText(/Ninguna pieza nuestra sobre «Pedri»/)).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
@@ -85,6 +82,25 @@ describe("BloqueAutoridad", () => {
     expect(render(<BloqueAutoridad entidad="Ayuso" />).container).toBeEmptyDOMElement();
     cleanup();
     expect(conDatos(datos(["J"]), <BloqueAutoridad entidad="J" />).container).toBeEmptyDOMElement();
+  });
+});
+
+describe("EtiquetaAutoridad", () => {
+  afterEach(cleanup);
+  it("en la cabecera de la ficha: nivel y piezas, o tema nuevo; sin datos, nada", () => {
+    conDatos(
+      datos(["Yolanda Díaz", "Marcial Dorado", "Pedri"]),
+      <>
+        <EtiquetaAutoridad entidad="Yolanda Díaz" />
+        <EtiquetaAutoridad entidad="Marcial Dorado" />
+        <EtiquetaAutoridad entidad="Pedri" />
+      </>,
+    );
+    expect(screen.getByText("Autoridad alta · 4 piezas")).toBeInTheDocument();
+    expect(screen.getByText("Autoridad media · 1 pieza")).toBeInTheDocument();
+    expect(screen.getByText("Tema nuevo para nosotros")).toBeInTheDocument();
+    cleanup();
+    expect(render(<EtiquetaAutoridad entidad="Ayuso" />).container).toBeEmptyDOMElement();
   });
 });
 

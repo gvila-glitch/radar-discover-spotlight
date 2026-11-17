@@ -5,7 +5,7 @@ import type { Alerta } from "@/lib/types";
 import { EstadoTag, LlegadaTag, PrioridadTag } from "./ui";
 import { AutoridadLista } from "./Autoridad";
 
-/** Contenido de una fila de alerta (hora, nombre, contexto y etiquetas). Se usa en «Alertas» y en «Todas». */
+/** Contenido de una fila de alerta (hora, nombre y etiquetas; el contexto va en la ficha). Se usa en «Alertas» y en «Todas». */
 export function ContenidoAlerta({ a }: { a: Alerta }) {
   const medios = `En Discover: ${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`;
   return (
@@ -22,7 +22,6 @@ export function ContenidoAlerta({ a }: { a: Alerta }) {
             </Radar>
           )}
         </div>
-        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.contexto}</p>
         <AutoridadLista entidad={a.entidad} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">

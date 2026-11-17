@@ -56,10 +56,11 @@ describe("Leyenda", () => {
     expect(container.querySelectorAll("summary svg")).toHaveLength(2);
     for (const t of [
       "Prioridad",
-      "Señal",
+      "Por qué ahora",
       "Llegada",
       "Autoridad",
-      "Por qué es afín",
+      "Competencia en Discover",
+      "Por qué nos interesa",
       "Valoración",
       "Indicadores",
     ]) {

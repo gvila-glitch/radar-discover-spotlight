@@ -52,6 +52,43 @@ export function Selector<T extends string>({ label, value, options, onChange, id
   );
 }
 
+/** Etiqueta redonda de la cabecera de la ficha: un punto de color y el texto («Prioridad alta · 12 puntos»). */
+export function Etiqueta({ punto, children }: { punto: string; children: ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium">
+      <span aria-hidden className={cn("inline-block size-2 shrink-0 rounded-full", punto)} />
+      {children}
+    </span>
+  );
+}
+
+/** Bloque de la ficha: título pequeño en mayúsculas, un dato opcional a la derecha y el contenido. */
+export function BloqueFicha({ titulo, derecha, children }: { titulo: string; derecha?: ReactNode; children: ReactNode }) {
+  return (
+    <section aria-label={titulo} className="border-t px-6 py-4">
+      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h3>
+        {derecha && <span className="ml-auto text-xs text-muted-foreground">{derecha}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** «⌄ Ver las 22 piezas · 683.563 clics en total»: abre y cierra una parte plegada. Cerrada, dice qué hay dentro. */
+export function Pliegue({ abierto, onCambio, abrir, cerrar, resumen }: {
+  abierto: boolean; onCambio: () => void; abrir: string; cerrar: string; resumen?: string;
+}) {
+  return (
+    <button type="button" aria-expanded={abierto} onClick={onCambio}
+      className="mt-2 inline-flex flex-wrap items-center gap-x-1.5 text-left text-xs focus-visible:outline-2 focus-visible:outline-ring">
+      <ChevronDown aria-hidden className={cn("size-3.5 shrink-0 text-primary transition-transform", abierto && "rotate-180")} />
+      <span className="font-medium text-primary underline-offset-4 hover:underline">{abierto ? cerrar : abrir}</span>
+      {!abierto && resumen && <span className="text-muted-foreground">· {resumen}</span>}
+    </button>
+  );
+}
+
 /** «ⓘ Cómo leer… ⌄»: desplegable de ayuda. La ⓘ dice que hay una explicación y la flecha, que se despliega (gira al abrirlo). */
 export function ComoLeer({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (

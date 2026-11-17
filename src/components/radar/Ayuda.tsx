@@ -31,8 +31,8 @@ export function PrimerosPasos() {
       <ol className="mt-2 list-decimal space-y-1 pl-5 text-muted-foreground">
         <li>Elige una alerta de la lista.</li>
         <li>
-          Mira en <span className="text-foreground">«Señal»</span> dónde se mueve el tema y en{" "}
-          <span className="text-foreground">«Ángulo sugerido»</span> qué enfoque se propone.
+          Mira en la cabecera de la ficha la prioridad, si llegamos a tiempo y por qué nos interesa,
+          y en <span className="text-foreground">«Por qué ahora»</span> dónde se mueve el tema.
         </li>
         <li>
           Valórala con <span className="text-foreground">Útil</span>,{" "}
@@ -64,24 +64,24 @@ const ENTRADAS: { t: string; d: string }[] = [
     d: "Por puntos: suman el puesto en X (y haber entrado hace poco), el volumen en Google, el pico en Wikipedia, coincidir en varias fuentes, tener 0–2 medios en Discover y encajar con la línea editorial; restan un hashtag sin relación y tener ya 3 o más medios. Alta: 5 puntos o más, que encaje con la línea o venga de 2 fuentes o más, y que aún lleguemos a tiempo. En la ficha de cada alerta, pasa el ratón por encima de «N puntos» (o púlsalo) para ver el desglose.",
   },
   {
-    t: "Señal",
-    d: "X (España): puesto y hora desde la que está en tendencia. Volumen en Google: tramo de búsquedas. Wikipedia: cuántas veces sobre su media de visitas. Discover: medios que ya lo tienen; el icono de radar junto al nombre indica que ya está en Discover.",
+    t: "Por qué ahora",
+    d: "El titular del que se habla y cada fuente con señal: puesto en X y hora desde la que está en tendencia, tramo de búsquedas en Google y visitas en Wikipedia (cuántas veces sobre su media). Debajo, en gris, las fuentes sin señal. En la lista, el icono de radar junto al nombre indica que el tema ya está en Discover.",
   },
   {
     t: "Llegada",
-    d: "Puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. Con 6 o más medios ya en Discover no se genera alerta. Si todavía no hay datos de Discover, no se muestra.",
+    d: "En la lista, puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. En la ficha se dice en palabras («2 medios en Discover · vas a tiempo»). Con 6 o más medios ya en Discover no se genera alerta. Si todavía no hay datos de Discover, se indica.",
   },
   {
     t: "Autoridad",
-    d: "Cuántas piezas nuestras sobre ese tema han tenido tráfico de Discover, según Search Console: alta con 3 o más, media con 1 o 2, y «tema nuevo para nosotros» si no hay ninguna (puede ser una oportunidad). En la ficha salen las mejores piezas con su enlace. Los datos se cargan a mano cada mes; al pie del bloque se ve qué fechas cubren.",
+    d: "Cuántas piezas nuestras sobre ese tema han tenido tráfico de Discover, según Search Console: alta con 3 o más, media con 1 o 2, y «tema nuevo para nosotros» si no hay ninguna (puede ser una oportunidad). En «Nuestras piezas en Discover» sale la mejor con su enlace y, al pulsar, las demás. Los datos se cargan a mano cada mes; junto al título del bloque se ve qué fechas cubren.",
   },
   {
-    t: "Titulares en Discover",
-    d: "Los titulares más recientes de los medios que ya han publicado sobre el tema (hasta tres, de medios distintos).",
+    t: "Competencia en Discover",
+    d: "Los medios que ya están en Discover con el tema y sus titulares más recientes (hasta tres, de medios distintos). Se ven los dos primeros; el resto, al pulsar «Ver N medios más».",
   },
   {
-    t: "Por qué es afín",
-    d: "Por qué el filtro dejó pasar el tema. Lo decide una IA (Gemini) con el perfil editorial de Configuración: «Encaja (IA, alto)» o «medio»; lo que ve fuera de línea no llega a ser alerta. Si la IA no responde, decide el filtro por reglas. El ángulo sugerido sigue pendiente.",
+    t: "Por qué nos interesa",
+    d: "La frase bajo las etiquetas de la ficha: por qué el filtro dejó pasar el tema y qué sección se sugiere. Lo decide una IA (Gemini) con el perfil editorial de Configuración: «Encaja mucho» o «Puede encajar según el enfoque»; lo que ve fuera de línea no llega a ser alerta. Si la IA no responde, decide el filtro por reglas. El ángulo sugerido se enseñará cuando la IA lo escriba.",
   },
   {
     t: "Valoración",

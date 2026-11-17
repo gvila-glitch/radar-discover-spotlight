@@ -141,6 +141,88 @@ export function conResumen(contexto: string, r: ResumenWikipedia): string {
   return partes.length ? `${partes.join(" · ")} · ${contexto}` : contexto;
 }
 
+/** Las partes del contexto de una alerta, para enseñarlas por separado en la ficha. */
+export type ContextoLeido = {
+  /** Descripción corta de Wikipedia («Narcotraficante gallego»). */
+  queEs: string | null;
+  /** Primera frase del artículo de Wikipedia. */
+  frase: string | null;
+  /** Titular del que se habla (de Google Noticias o de Google Trends). */
+  seHabla: Noticia | null;
+  /** Categoría y publicaciones de X, si las hay. */
+  x: { categoria: string | null; publicaciones: string | null } | null;
+  /** Lo que no se reconoce, tal cual, para no perder nada. */
+  resto: string | null;
+};
+
+const TAMBIEN = / · También en [^·]*/g;
+const FUENTE = / · Fuentes?: [^()·]*?(?: \(([^()]*)\))?$/;
+const TENDENCIA_X = /(?:^| · )En tendencia en X España \(([^()]*)\)/;
+const PICO_WIKIPEDIA = /(?:^| · )Pico en Wikipedia: [^·]*/;
+const SE_HABLA = /^Se habla de: «(.*)»(?: \(([^()]*)\))?$/;
+const RESUMEN = /^(?:(.+?) · )?«(.*)»$/;
+
+/** «puesto 4 · Política · 12.300 publicaciones» → categoría y publicaciones (el puesto ya está en su campo). */
+function leerDetalleX(detalle: string): ContextoLeido["x"] {
+  let categoria: string | null = null;
+  let publicaciones: string | null = null;
+  for (const parte of detalle.split(" · ")) {
+    const p = parte.trim();
+    if (!p || /^puesto \d+$/.test(p)) continue;
+    if (/publicaciones$/.test(p)) publicaciones = p;
+    else categoria = p;
+  }
+  return categoria || publicaciones ? { categoria, publicaciones } : null;
+}
+
+/**
+ * Separa el contexto que montan conNoticia, conResumen, detalleX, las alertas de Trends y Wikipedia y la combinación
+ * de alertas («· También en …»). Quita lo que la ficha ya enseña con sus propios datos (fuentes, pico de Wikipedia).
+ */
+export function leerContexto(a: {
+  contexto: string;
+  trends_activo: boolean;
+  wikipedia_ratio?: number | null;
+}): ContextoLeido {
+  const r: ContextoLeido = { queEs: null, frase: null, seHabla: null, x: null, resto: null };
+  let detalle: string | null = null;
+  let s = (a.contexto ?? "").trim().replace(TAMBIEN, "");
+  const fuente = FUENTE.exec(s);
+  if (fuente) {
+    detalle = fuente[1] ?? null;
+    s = s.slice(0, fuente.index);
+  }
+  const tendencia = TENDENCIA_X.exec(s);
+  if (tendencia) {
+    detalle = tendencia[1] ?? null;
+    s = s.replace(TENDENCIA_X, "");
+  }
+  s = s
+    .replace(PICO_WIKIPEDIA, "")
+    .replace(/^ · | · $/g, "")
+    .trim();
+  if (detalle) r.x = leerDetalleX(detalle);
+  const noticia = SE_HABLA.exec(s);
+  if (noticia) {
+    r.seHabla = { titular: noticia[1]!, medio: noticia[2] ?? null };
+    s = "";
+  } else if (s === "Tendencia en Google España") {
+    s = "";
+  } else if (a.trends_activo && s) {
+    r.seHabla = { titular: s, medio: null };
+    s = "";
+  } else if (a.wikipedia_ratio != null && s) {
+    const resumen = RESUMEN.exec(s);
+    if (resumen) {
+      r.queEs = resumen[1] ?? null;
+      r.frase = resumen[2] || null;
+    } else r.queEs = s;
+    s = "";
+  }
+  r.resto = s || null;
+  return r;
+}
+
 /** Enlace a la búsqueda del tema en X. */
 export const enlaceX = (tema: string) =>
   `https://x.com/search?q=${encodeURIComponent(tema.trim())}`;

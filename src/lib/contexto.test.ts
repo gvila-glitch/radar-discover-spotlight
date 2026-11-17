@@ -5,6 +5,7 @@ import {
   detalleX,
   elegirNoticia,
   enlaceX,
+  leerContexto,
   leerNoticiasGoogle,
   leerResumenWikipedia,
   primeraFrase,
@@ -182,5 +183,84 @@ describe("contexto de las alertas de X", () => {
     expect(plan.nuevas[0]?.contexto).toBe(
       "En tendencia en X España (puesto 4 · Política · 12.300 publicaciones) · Fuente: X",
     );
+  });
+});
+
+describe("leerContexto (partes del contexto para la ficha)", () => {
+  const base = { trends_activo: false, wikipedia_ratio: null };
+  const vacio = { queEs: null, frase: null, seHabla: null, x: null, resto: null };
+  const soloX = `En tendencia en X España (${detalleX({ posicion: 4, categoria: "Política", publicaciones: 12300 })}) · Fuente: X`;
+
+  it("alerta de X con noticia: titular, medio, categoría y publicaciones", () => {
+    const contexto = conNoticia(soloX, {
+      titular: "Los sindicatos respaldan a Yolanda Díaz",
+      medio: "Europa Press",
+    });
+    expect(leerContexto({ ...base, contexto })).toEqual({
+      ...vacio,
+      seHabla: { titular: "Los sindicatos respaldan a Yolanda Díaz", medio: "Europa Press" },
+      x: { categoria: "Política", publicaciones: "12.300 publicaciones" },
+    });
+  });
+
+  it("alerta de X sin noticia y combinada después con otra fuente", () => {
+    expect(
+      leerContexto({
+        ...base,
+        contexto:
+          "En tendencia en X España (puesto 7 · Entretenimiento) · Fuente: X · También en Wikipedia",
+      }),
+    ).toEqual({ ...vacio, x: { categoria: "Entretenimiento", publicaciones: null } });
+    expect(
+      leerContexto({ ...base, contexto: "En tendencia en X España (puesto 0) · Fuente: X" }),
+    ).toEqual(vacio);
+  });
+
+  it("alerta de Trends: el titular es de lo que se habla; con X, sus datos salen de «Fuentes»", () => {
+    const trends = { ...base, trends_activo: true };
+    expect(
+      leerContexto({
+        ...trends,
+        contexto:
+          "La final de Supervivientes (Telecinco) · Fuentes: Google Trends y X (puesto 3 · 31.000 publicaciones)",
+      }),
+    ).toEqual({
+      ...vacio,
+      seHabla: { titular: "La final de Supervivientes (Telecinco)", medio: null },
+      x: { categoria: null, publicaciones: "31.000 publicaciones" },
+    });
+    expect(
+      leerContexto({ ...trends, contexto: "Tendencia en Google España · Fuente: Google Trends" }),
+    ).toEqual(vacio);
+  });
+
+  it("alerta de Wikipedia: qué es y primera frase, cada una por separado", () => {
+    const pico =
+      "Pico en Wikipedia: 9.000 visitas, ×6 sobre su media de 7 días · Fuente: Wikipedia";
+    const wiki = { ...base, wikipedia_ratio: 6 };
+    const con = (descripcion: string | null, frase: string | null) =>
+      leerContexto({ ...wiki, contexto: conResumen(pico, { descripcion, frase }) });
+    expect(con("Narcotraficante gallego", "Marcial Dorado es un empresario gallego.")).toEqual({
+      ...vacio,
+      queEs: "Narcotraficante gallego",
+      frase: "Marcial Dorado es un empresario gallego.",
+    });
+    expect(con("Narcotraficante gallego", null)).toEqual({
+      ...vacio,
+      queEs: "Narcotraficante gallego",
+    });
+    expect(con(null, "Marcial Dorado es un empresario gallego.")).toEqual({
+      ...vacio,
+      frase: "Marcial Dorado es un empresario gallego.",
+    });
+    expect(con(null, null)).toEqual(vacio);
+  });
+
+  it("lo que no reconoce lo devuelve tal cual, para no perderlo", () => {
+    expect(leerContexto({ ...base, contexto: "Aviso manual: revisar portada" })).toEqual({
+      ...vacio,
+      resto: "Aviso manual: revisar portada",
+    });
+    expect(leerContexto({ ...base, contexto: "" })).toEqual(vacio);
   });
 });
