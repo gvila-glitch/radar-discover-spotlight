@@ -104,7 +104,7 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
         </p>
       ) : (
         <>
-          <ul className="divide-y">
+          <ul>
             {visibles.map((p) => (
               <li key={p.url} className="flex items-baseline gap-3 py-1.5 text-sm">
                 <span className="w-20 shrink-0 truncate text-xs text-muted-foreground">

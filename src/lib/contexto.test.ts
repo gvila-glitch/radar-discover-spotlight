@@ -256,6 +256,33 @@ describe("leerContexto (partes del contexto para la ficha)", () => {
     expect(con(null, null)).toEqual(vacio);
   });
 
+  it("al combinar alertas manda la fuente que la creó, no los campos que se añaden después", () => {
+    // Nació en Wikipedia y luego llegó Google: la descripción sigue siendo «qué es», no un titular.
+    const wikiMasGoogle = conResumen(
+      "Pico en Wikipedia: 9.000 visitas, ×6 sobre su media de 7 días · Fuente: Wikipedia · También en Google Trends",
+      { descripcion: "Narcotraficante gallego", frase: null },
+    );
+    expect(
+      leerContexto({ contexto: wikiMasGoogle, trends_activo: true, wikipedia_ratio: 6 }),
+    ).toEqual({ ...vacio, queEs: "Narcotraficante gallego" });
+    // Nació en Google y luego llegó Wikipedia: el texto sigue siendo el titular.
+    expect(
+      leerContexto({
+        contexto: "Final de Supervivientes · Fuente: Google Trends · También en Wikipedia",
+        trends_activo: true,
+        wikipedia_ratio: 4,
+      }),
+    ).toEqual({ ...vacio, seHabla: { titular: "Final de Supervivientes", medio: null } });
+    // Nació en X sin noticia y luego llegó Google: no hay titular que enseñar.
+    expect(
+      leerContexto({
+        contexto: "En tendencia en X España (puesto 7) · Fuente: X · También en Google Trends",
+        trends_activo: true,
+        wikipedia_ratio: null,
+      }),
+    ).toEqual(vacio);
+  });
+
   it("lo que no reconoce lo devuelve tal cual, para no perderlo", () => {
     expect(leerContexto({ ...base, contexto: "Aviso manual: revisar portada" })).toEqual({
       ...vacio,

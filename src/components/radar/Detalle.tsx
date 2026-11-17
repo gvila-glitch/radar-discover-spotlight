@@ -106,7 +106,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
 
       <div className="sticky bottom-0 z-10 border-t bg-card px-6 py-3 shadow-[0_-6px_12px_-10px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto text-sm text-muted-foreground">¿Te sirve esta alerta?</span>
+          <span className="mr-auto text-[15px] font-semibold">¿Te sirve esta alerta?</span>
           {btn("util", "Útil")}
           {btn("ruido", "Ruido")}
           {btn("publicada", "Publicamos", () => { onValorar("publicada", a.estado === "publicada" ? a.pieza_url : null); setEditUrl(true); })}
@@ -154,7 +154,7 @@ function Competencia({ a }: { a: Alerta }) {
   const ocultos = [...titulares.slice(2).map((t) => t.medio), ...sinTitular];
   return (
     <>
-      <ul className="divide-y">
+      <ul>
         {(abierto ? titulares : titulares.slice(0, 2)).map((t, i) => (
           <li key={i} className="flex gap-3 py-1.5 text-sm"><span className="w-32 shrink-0 truncate font-mono text-xs leading-5 text-muted-foreground" title={t.medio}>{t.medio}</span><span>{t.titular}</span></li>
         ))}

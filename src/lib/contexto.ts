@@ -178,6 +178,8 @@ function leerDetalleX(detalle: string): ContextoLeido["x"] {
 /**
  * Separa el contexto que montan conNoticia, conResumen, detalleX, las alertas de Trends y Wikipedia y la combinación
  * de alertas («· También en …»). Quita lo que la ficha ya enseña con sus propios datos (fuentes, pico de Wikipedia).
+ * Qué es el texto del principio depende de la fuente que creó la alerta, que dice su «Fuente: …»: al combinarla con
+ * otra, trends_activo o wikipedia_ratio pueden cambiar, pero ese texto no. Sin «Fuente: …», se usan esos campos.
  */
 export function leerContexto(a: {
   contexto: string;
@@ -187,9 +189,13 @@ export function leerContexto(a: {
   const r: ContextoLeido = { queEs: null, frase: null, seHabla: null, x: null, resto: null };
   let detalle: string | null = null;
   let s = (a.contexto ?? "").trim().replace(TAMBIEN, "");
+  let deTrends = a.trends_activo;
+  let deWikipedia = a.wikipedia_ratio != null;
   const fuente = FUENTE.exec(s);
   if (fuente) {
     detalle = fuente[1] ?? null;
+    deTrends = /Google Trends/.test(fuente[0]);
+    deWikipedia = /^ · Fuente: Wikipedia$/.test(fuente[0]);
     s = s.slice(0, fuente.index);
   }
   const tendencia = TENDENCIA_X.exec(s);
@@ -208,10 +214,10 @@ export function leerContexto(a: {
     s = "";
   } else if (s === "Tendencia en Google España") {
     s = "";
-  } else if (a.trends_activo && s) {
+  } else if (deTrends && s) {
     r.seHabla = { titular: s, medio: null };
     s = "";
-  } else if (a.wikipedia_ratio != null && s) {
+  } else if (deWikipedia && s) {
     const resumen = RESUMEN.exec(s);
     if (resumen) {
       r.queEs = resumen[1] ?? null;

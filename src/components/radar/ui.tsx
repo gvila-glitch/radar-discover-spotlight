@@ -62,12 +62,15 @@ export function Etiqueta({ punto, children }: { punto: string; children: ReactNo
   );
 }
 
-/** Bloque de la ficha: título pequeño en mayúsculas, un dato opcional a la derecha y el contenido. */
+/**
+ * Bloque de la ficha: título, un dato opcional a la derecha y el contenido. La línea de arriba es la única que separa
+ * bloques (dentro, las filas van sin líneas) y hay más aire entre bloques que dentro de ellos.
+ */
 export function BloqueFicha({ titulo, derecha, children }: { titulo: string; derecha?: ReactNode; children: ReactNode }) {
   return (
-    <section aria-label={titulo} className="border-t px-6 py-4">
-      <div className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h3>
+    <section aria-label={titulo} className="border-t px-6 py-5.5">
+      <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <h3 className="text-[15px] font-semibold leading-snug">{titulo}</h3>
         {derecha && <span className="ml-auto text-xs text-muted-foreground">{derecha}</span>}
       </div>
       {children}
