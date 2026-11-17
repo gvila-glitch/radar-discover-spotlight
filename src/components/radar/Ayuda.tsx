@@ -89,7 +89,7 @@ const ENTRADAS: { t: string; d: string }[] = [
   },
   {
     t: "Indicadores",
-    d: "Alertas de hoy (objetivo 3–8), Útiles (≥ 50 % de las valoradas), Acabaron en pieza (≥ 20 % del total) y Llegada (mediana ≤ 2 medios, solo con alertas que tienen datos de Discover).",
+    d: "Alertas de hoy (objetivo 3–8), Útiles (≥ 50 % de las valoradas), Acabaron en pieza (≥ 20 % del total) y Llegada (mediana ≤ 2 medios, solo con alertas que tienen datos de Discover). Útiles, Acabaron en pieza y Llegada usan siempre los últimos 7 días, aunque la lista enseñe otro periodo.",
   },
 ];
 

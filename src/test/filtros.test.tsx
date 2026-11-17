@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 
 import { Index } from "@/routes/_authenticated/index";
-import { valorar } from "@/lib/alertasRepo";
+import { listAlertas, valorar } from "@/lib/alertasRepo";
 import { toast } from "sonner";
 
 import { crearDemoAlertas } from '@/data/demoAlertas';
@@ -28,19 +28,41 @@ async function alertasVisibles() {
 
 const selector = (nombre: string) => screen.getByLabelText(nombre) as HTMLSelectElement;
 
+// Con «Hoy» por defecto, cuántas alertas de ejemplo son de hoy depende de la hora a la que se ejecute la prueba: las
+// pruebas que cuentan alertas pasan antes a «Últimos 7 días» (las 8 de ejemplo).
+async function panelSieteDias() {
+  renderPanel();
+  fireEvent.change(await screen.findByLabelText("Periodo"), { target: { value: "7d" } });
+  await waitFor(() => expect(screen.getByText("8 de 8")).toBeInTheDocument());
+}
+const haceDias = (d: number) => new Date(Date.now() - d * 86_400_000).toISOString();
+
 describe("selectores de filtros", () => {
-  it("arrancan en Prioridad Todas, Estado Todos y Periodo 7 días", async () => {
+  it("arrancan en Periodo Hoy, Estado Todos y Prioridad Todas, en ese orden", async () => {
     renderPanel();
-    await alertasVisibles();
-    expect(selector("Prioridad").value).toBe("todas");
+    await screen.findByLabelText("Periodo");
+    expect(selector("Periodo").value).toBe("hoy");
     expect(selector("Estado").value).toBe("todos");
-    expect(selector("Periodo").value).toBe("7d");
-    expect(screen.getByText("8 de 8")).toBeInTheDocument();
+    expect(selector("Prioridad").value).toBe("todas");
+    const orden = screen.getAllByRole("combobox").map((c) => c.id);
+    expect(orden).toEqual(["f-periodo", "f-estado", "f-prioridad", "f-fuente"]);
+    expect(screen.queryByText("Restablecer filtros")).not.toBeInTheDocument();
+  });
+
+  it("si hoy aún no hay alertas lo dice, y los indicadores siguen usando los últimos 7 días", async () => {
+    vi.mocked(listAlertas).mockResolvedValueOnce(
+      crearDemoAlertas().map((a) => ({ ...a, creada_en: haceDias(3) })),
+    );
+    renderPanel();
+    expect(
+      await screen.findByText("Hoy todavía no hay alertas. Cambia el periodo para ver las anteriores."),
+    ).toBeInTheDocument();
+    // Ejemplo: 5 valoradas, 4 útiles o publicadas → 80 %.
+    expect(screen.getByText("80 %")).toBeInTheDocument();
   });
 
   it("Estado Ruido deja solo la alerta de ruido", async () => {
-    renderPanel();
-    await alertasVisibles();
+    await panelSieteDias();
     fireEvent.change(selector("Estado"), { target: { value: "ruido" } });
     await waitFor(() => expect(screen.getByText("1 de 8")).toBeInTheDocument());
     const visibles = await alertasVisibles();
@@ -49,8 +71,7 @@ describe("selectores de filtros", () => {
   });
 
   it("Prioridad Alta deja las 4 alertas altas", async () => {
-    renderPanel();
-    await alertasVisibles();
+    await panelSieteDias();
     fireEvent.change(selector("Prioridad"), { target: { value: "alta" } });
     await waitFor(() => expect(screen.getByText("4 de 8")).toBeInTheDocument());
     expect(await alertasVisibles()).toHaveLength(4);
@@ -58,23 +79,19 @@ describe("selectores de filtros", () => {
 
   it("Restablecer filtros vuelve a los valores por defecto y solo aparece si algo está filtrado", async () => {
     renderPanel();
-    await alertasVisibles();
+    await screen.findByLabelText("Periodo");
     expect(screen.queryByText("Restablecer filtros")).not.toBeInTheDocument();
-
     fireEvent.change(selector("Estado"), { target: { value: "publicada" } });
-    await waitFor(() => expect(screen.getByText("2 de 8")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Restablecer filtros"));
-
-    await waitFor(() => expect(screen.getByText("8 de 8")).toBeInTheDocument());
+    fireEvent.change(selector("Periodo"), { target: { value: "30d" } });
+    fireEvent.click(await screen.findByText("Restablecer filtros"));
+    await waitFor(() => expect(selector("Periodo").value).toBe("hoy"));
     expect(selector("Estado").value).toBe("todos");
     expect(selector("Prioridad").value).toBe("todas");
-    expect(selector("Periodo").value).toBe("7d");
     expect(screen.queryByText("Restablecer filtros")).not.toBeInTheDocument();
   });
 
   it("«Todos menos ruido» deja fuera solo la alerta de ruido", async () => {
-    renderPanel();
-    await alertasVisibles();
+    await panelSieteDias();
     fireEvent.change(selector("Estado"), { target: { value: "sin_ruido" } });
     await waitFor(() => expect(screen.getByText("7 de 8")).toBeInTheDocument());
     const textos = (await alertasVisibles()).map((o) => o.textContent ?? "");
@@ -82,8 +99,7 @@ describe("selectores de filtros", () => {
   });
 
   it("Fuente: «X» es tener señal en X; «Varias fuentes», dos o más", async () => {
-    renderPanel();
-    await alertasVisibles();
+    await panelSieteDias();
     expect(selector("Fuente").value).toBe("todas");
     fireEvent.change(selector("Fuente"), { target: { value: "varias" } });
     await waitFor(() => expect(screen.getByText("4 de 8")).toBeInTheDocument());
@@ -92,13 +108,12 @@ describe("selectores de filtros", () => {
     fireEvent.change(selector("Fuente"), { target: { value: "wikipedia" } });
     await waitFor(() => expect(screen.getByText("No hay alertas con estos filtros.")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Restablecer filtros"));
-    await waitFor(() => expect(screen.getByText("8 de 8")).toBeInTheDocument());
-    expect(selector("Fuente").value).toBe("todas");
+    await waitFor(() => expect(selector("Fuente").value).toBe("todas"));
   });
 
   it("sin datos de Search Console no sale el filtro de Autoridad", async () => {
     renderPanel();
-    await alertasVisibles();
+    await screen.findByLabelText("Periodo");
     expect(screen.queryByLabelText("Autoridad")).not.toBeInTheDocument();
   });
 
@@ -107,8 +122,7 @@ describe("selectores de filtros", () => {
       ...crearDemoAlertas().find((a) => a.id === id)!,
       ...cambios,
     }));
-    renderPanel();
-    await alertasVisibles();
+    await panelSieteDias();
     fireEvent.click(screen.getByRole("button", { name: "No, es ruido" }));
     await waitFor(() =>
       expect(vi.mocked(toast)).toHaveBeenLastCalledWith(expect.stringContaining("Sigue en la lista")),

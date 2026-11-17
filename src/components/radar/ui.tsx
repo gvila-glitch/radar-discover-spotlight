@@ -31,6 +31,8 @@ export function EstadoTag({ e }: { e: Estado }) {
   );
 }
 
+/** Desplegable de filtro. El foco se marca con la línea de debajo en azul (no con un recuadro: Chrome lo deja visible
+ * también después de elegir con el ratón y parecía un fallo). */
 export function Selector<T extends string>({ label, value, options, onChange, id }: {
   label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; id: string;
 }) {
@@ -42,7 +44,7 @@ export function Selector<T extends string>({ label, value, options, onChange, id
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value as T)}
-          className="cursor-pointer appearance-none border-b border-input bg-transparent py-1 pr-5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="cursor-pointer appearance-none border-b border-input bg-transparent py-1 pr-5 text-sm text-foreground focus:outline-none focus-visible:border-primary focus-visible:shadow-[0_1px_0_0_var(--primary)]"
         >
           {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
