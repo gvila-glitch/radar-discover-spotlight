@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { instrucciones, leerRespuestaIA, listaParaIA, MAX_CANDIDATAS_IA } from "./ia";
+import {
+  ESQUEMA_RESPUESTA,
+  instrucciones,
+  leerRespuestaIA,
+  listaParaIA,
+  MAX_CANDIDATAS_IA,
+  SECCIONES_IA,
+} from "./ia";
 import {
   clasificarConIA,
   informeIA,
@@ -30,6 +37,20 @@ describe("instrucciones y lista para la IA", () => {
     expect(instrucciones({ perfil: "", ambito: "", excepciones: "" })).toContain(
       "No hay perfil escrito todavía",
     );
+  });
+  it("sigue lo que marcó Audiencias: televisión y última hora no se descartan solas, y secciones cerradas", () => {
+    const t = instrucciones(PERFIL);
+    expect(t).not.toContain("programas de televisión");
+    expect(t).toContain(
+      "agencia = true solo si es un resultado deportivo, o un sorteo o una lotería",
+    );
+    expect(t).toContain("fallecimientos NO son agencia");
+    expect(t).toContain("Política, Economía, Internacional");
+    expect(ESQUEMA_RESPUESTA.properties.temas.items.properties.seccion.enum).toEqual([
+      ...SECCIONES_IA,
+    ]);
+    expect(SECCIONES_IA).toContain("Televisión");
+    expect(SECCIONES_IA.join(" ")).not.toMatch(/podcast|Deportes/i);
   });
   it("lista sin repetidos, con titulares recortados y como mucho 40 temas", () => {
     const { texto, temas } = listaParaIA([
