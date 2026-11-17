@@ -3,6 +3,7 @@ import { horaOFecha } from "@/lib/fechas";
 import { nombreVisible } from "@/lib/metricas";
 import type { Alerta } from "@/lib/types";
 import { EstadoTag, LlegadaTag, PrioridadTag } from "./ui";
+import { AutoridadLista } from "./Autoridad";
 
 /** Contenido de una fila de alerta (hora, nombre, contexto y etiquetas). Se usa en «Alertas» y en «Todas». */
 export function ContenidoAlerta({ a }: { a: Alerta }) {
@@ -22,6 +23,7 @@ export function ContenidoAlerta({ a }: { a: Alerta }) {
           )}
         </div>
         <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{a.contexto}</p>
+        <AutoridadLista entidad={a.entidad} />
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <PrioridadTag p={a.prioridad} />

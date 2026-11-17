@@ -6,6 +6,7 @@ import { nombreVisible, sinDatosDiscover } from "@/lib/metricas";
 import { LlegadaTag, PrioridadTag } from "./ui";
 import { puntuarAlerta, UMBRAL_ALTA } from "@/lib/prioridad";
 import { DesglosePuntos } from "./Puntos";
+import { BloqueAutoridad } from "./Autoridad";
 import { enlaceX } from "@/lib/contexto";
 
 export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void }) {
@@ -43,6 +44,8 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
           <Bloque t="Discover">{a.medios_discover > 0 ? <><span className="font-mono">{a.medios_discover}</span> {a.medios_discover === 1 ? "medio" : "medios"}<div className="mt-1 text-xs text-muted-foreground">{a.medios_lista.join(", ")}</div></> : sinDatosDiscover(a) ? "Sin datos de Discover todavía" : "Nadie ha llegado aún"}</Bloque>
         </div>
       </Seccion>
+
+      <BloqueAutoridad key={a.id} entidad={a.entidad} />
 
       <div className="mt-6 border-y border-foreground/80 py-3">
         <div className="text-xs text-muted-foreground">Ángulo sugerido <span className="text-foreground">→ {a.seccion_sugerida}</span></div>

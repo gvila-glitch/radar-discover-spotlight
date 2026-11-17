@@ -58,6 +58,7 @@ describe("Leyenda", () => {
       "Prioridad",
       "Señal",
       "Llegada",
+      "Autoridad",
       "Por qué es afín",
       "Valoración",
       "Indicadores",

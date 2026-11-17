@@ -20,6 +20,8 @@ import { listarDescartes } from "@/lib/descartes.functions";
 import { diaMadrid, OPCIONES_SENAL, pasaSenal, type FiltroSenal } from "@/lib/descartes";
 import { AvisoDescartes, SelectorVistas, VistaDescartes, VistaTodas, type Vista } from "@/components/radar/Descartes";
 import { ContenidoAlerta } from "@/components/radar/ItemAlerta";
+import { leerAutoridad } from "@/lib/autoridad.functions";
+import { AutoridadProvider } from "@/components/radar/Autoridad";
 
 export const Route = createFileRoute("/_authenticated/")({
   ssr: false,
@@ -62,6 +64,10 @@ export function Index() {
     queryFn: () => { const d = desdePeriodo(periodo); return leerDescartes({ data: { desde: d ? diaMadrid(d) : undefined, todos: true } }); },
     staleTime: 60_000,
   });
+  // Autoridad en Discover (Search Console): una sola petición para todas las alertas del periodo. Si falla o no hay datos cargados, no se enseña.
+  const leerAut = useServerFn(leerAutoridad);
+  const entidades = useMemo(() => [...new Set(data.map((a) => a.entidad))].sort(), [data]);
+  const qa = useQuery({ queryKey: ["autoridad", entidades], queryFn: () => leerAut({ data: { entidades } }), enabled: entidades.length > 0, staleTime: 10 * 60_000, retry: false });
   const descartes = (qd.data ?? []).filter((d) => pasaSenal(d, senal) && (revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto)));
 
   const k = useMemo(() => kpis(data, claveDia, claveDia(new Date())), [data]);
@@ -104,6 +110,7 @@ export function Index() {
         </div>
       </header>
 
+      <AutoridadProvider value={qa.data ?? null}>
       <main className="mx-auto max-w-7xl px-4 py-6">
         <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
         <p className="mt-1 text-sm text-muted-foreground">Qué empieza a subir antes de llegar a Discover · España · X, Google Trends y Wikipedia</p>
@@ -165,6 +172,7 @@ export function Index() {
         </div>
         )}
       </main>
+      </AutoridadProvider>
     </div>
   );
 }

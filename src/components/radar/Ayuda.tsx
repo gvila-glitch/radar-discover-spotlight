@@ -72,6 +72,10 @@ const ENTRADAS: { t: string; d: string }[] = [
     d: "Puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. Con 6 o más medios ya en Discover no se genera alerta. Si todavía no hay datos de Discover, no se muestra.",
   },
   {
+    t: "Autoridad",
+    d: "Cuántas piezas nuestras sobre ese tema han tenido tráfico de Discover, según Search Console: alta con 3 o más, media con 1 o 2, y «tema nuevo para nosotros» si no hay ninguna (puede ser una oportunidad). En la ficha salen las mejores piezas con su enlace. Los datos se cargan a mano cada mes; al pie del bloque se ve qué fechas cubren.",
+  },
+  {
     t: "Titulares en Discover",
     d: "Los titulares más recientes de los medios que ya han publicado sobre el tema (hasta tres, de medios distintos).",
   },
