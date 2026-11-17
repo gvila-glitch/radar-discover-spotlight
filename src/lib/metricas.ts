@@ -6,6 +6,12 @@ export function sinDatosDiscover(a: Pick<Alerta, "entidad">): boolean {
   return typeof a.entidad === "string" && /^\[SIN DISCOVER\]/i.test(a.entidad);
 }
 
+// El radar suma a cada alerta los medios que llegan a Discover durante las 24 horas siguientes a crearla (cruzar_snoop
+// en la base de datos). Pasado ese plazo, sus cifras de Discover ya no cambian.
+export const HORAS_SEGUIMIENTO = 24;
+export const seguimientoCerrado = (creada: string, ahora = Date.now()) =>
+  ahora - Date.parse(creada) > HORAS_SEGUIMIENTO * 3_600_000;
+
 export function llegada(mediosDiscover: number) {
   const puesto = mediosDiscover + 1;
   const nivel = mediosDiscover <= 2 ? "ok" : mediosDiscover <= 5 ? "warn" : "bad";

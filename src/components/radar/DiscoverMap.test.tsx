@@ -54,7 +54,7 @@ const tema = (nombre: string, o: Partial<TemaMapa> = {}): TemaMapa => ({
   nosotros: null,
   categorias: ["Sociedad"],
   relacionados: [{ id: "aemet", nombre: "Aemet" }],
-  alerta: { id: 42, creada_en: hace(85) },
+  alerta: { id: 42, creada_en: hace(85), reciente: true },
   ...o,
 });
 const BORRASCA = tema("Borrasca Claudia");
@@ -151,6 +151,24 @@ describe("ListaDiscover", () => {
     fireEvent.click(screen.getByRole("button", { name: /Borrasca Claudia/ }));
     fireEvent.click(screen.getByRole("button", { name: "Aemet" }));
     expect(onAbrir).toHaveBeenLastCalledWith("aemet");
+  });
+
+  it("una alerta de otra ocasión sale en gris como «alerta anterior», sin presumir de acierto", () => {
+    render(
+      <ListaDiscover
+        temas={[
+          tema("María Tardón", {
+            alerta: { id: 45, creada_en: hace(3 * 24 * 60), reciente: false },
+          }),
+        ]}
+        referencia={[]}
+        propio="nuestro.es"
+        abierto={null}
+        onAbrir={() => {}}
+      />,
+    );
+    expect(screen.getByText(/alerta anterior · hace 3 días/)).toBeInTheDocument();
+    expect(screen.queryByText(/avisó/)).not.toBeInTheDocument();
   });
 
   it("sin nuestro dominio en Configuración, «Nosotros» sale con un guion", () => {

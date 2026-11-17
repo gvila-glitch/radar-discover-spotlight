@@ -3,7 +3,7 @@ import { ExternalLink, Newspaper, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
-import { llegada, nombreVisible, sinDatosDiscover } from "@/lib/metricas";
+import { HORAS_SEGUIMIENTO, llegada, nombreVisible, seguimientoCerrado, sinDatosDiscover } from "@/lib/metricas";
 import { BloqueFicha, Etiqueta, Pliegue } from "./ui";
 import { puntuarAlerta, UMBRAL_ALTA } from "@/lib/prioridad";
 import { DesglosePuntos } from "./Puntos";
@@ -13,6 +13,8 @@ import { enlaceX, leerContexto } from "@/lib/contexto";
 // Ficha de una alerta. Arriba, lo necesario para decidir (cabecera y «Por qué ahora»); debajo, la competencia y
 // nuestras piezas, con lo largo plegado; al pie, los botones de valoración, siempre a la vista.
 const LLEGADA_TEXTO = { ok: "vas a tiempo", warn: "justo", bad: "tarde" } as const;
+// Pasadas las 24 h de seguimiento, la llegada es historia: sin «vas».
+const LLEGADA_PASADA = { ok: "a tiempo", warn: "justo", bad: "tarde" } as const;
 const LLEGADA_PUNTO = { ok: "bg-ok", warn: "bg-warn", bad: "bg-bad" } as const;
 const GRIS = "bg-muted-foreground/40";
 
@@ -40,6 +42,8 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
   const hayTrends = a.trends_activo && !!a.trends_crecimiento;
   const vacias = [!a.x_posicion && "X", !hayTrends && "Google", !a.wikipedia_ratio && "Wikipedia"].filter((f): f is string => !!f);
   const seccion = a.seccion_sugerida && a.seccion_sugerida !== "Sin sugerir" ? a.seccion_sugerida : null;
+  const cerrado = seguimientoCerrado(a.creada_en);
+  const medios = a.medios_discover === 0 ? "Nadie" : `${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`;
 
   const btn = (estado: Estado, label: string, onClick?: () => void) => (
     <button aria-pressed={a.estado === estado} onClick={onClick ?? (() => onValorar(estado))}
@@ -63,7 +67,9 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
           </Etiqueta>
           {sinDatosDiscover(a)
             ? <Etiqueta punto={GRIS}>Sin datos de Discover todavía</Etiqueta>
-            : <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{a.medios_discover === 0 ? "Nadie en Discover aún" : `${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"} en Discover`} · {LLEGADA_TEXTO[l.nivel]}</Etiqueta>}
+            : cerrado
+              ? <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{medios} en Discover en sus primeras {HORAS_SEGUIMIENTO} h · {LLEGADA_PASADA[l.nivel]}</Etiqueta>
+              : <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{a.medios_discover === 0 ? "Nadie en Discover aún" : `${medios} en Discover`} · {LLEGADA_TEXTO[l.nivel]}</Etiqueta>}
           <EtiquetaAutoridad entidad={a.entidad} />
         </div>
         {(a.motivo_afinidad || seccion) && (
@@ -100,6 +106,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
 
       <BloqueFicha titulo="Competencia en Discover" icono={Newspaper}>
         <Competencia key={a.id} a={a} />
+        {cerrado && <p className="mt-2 text-xs text-muted-foreground">Medido en las {HORAS_SEGUIMIENTO} horas siguientes a la alerta, hasta el {fechaLarga(new Date(Date.parse(a.creada_en) + HORAS_SEGUIMIENTO * 3_600_000).toISOString())}. Si ha vuelto a Discover, lo verás en «Discover ahora».</p>}
       </BloqueFicha>
 
       <BloqueAutoridad key={a.id} entidad={a.entidad} />

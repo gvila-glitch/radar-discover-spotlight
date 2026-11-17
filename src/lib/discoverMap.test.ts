@@ -77,7 +77,7 @@ describe("construirDiscoverMap", () => {
     // elmundo.es ya lo tenía hace 2 horas: repetir el tema no cuenta como medio nuevo en la última hora.
     expect(t.mediosUltimaHora).toBe(2);
     expect(t.subiendo).toBe(true);
-    expect(t.alerta).toEqual({ id: 7, creada_en: hace(60) });
+    expect(t.alerta).toEqual({ id: 7, creada_en: hace(60), reciente: true });
     expect(t.llegadas.map((l) => l.medio)).toEqual(["elmundo.es", "lasexta.com", "elpais.com"]); // por orden de llegada
     expect(t.titulares.map((x) => x.medio)).toEqual(["lasexta.com", "elpais.com", "elmundo.es"]);
     expect(m.articulos).toBe(4); // sin x.com ni el de hace 8 horas
@@ -174,6 +174,25 @@ describe("construirDiscoverMap", () => {
     expect(m.temas[0]?.categorias).toEqual(["Economía", "Política"]);
     expect(m.categorias).toEqual(["Economía", "Política"]);
     expect(m.referencia).toEqual(["elpais.com", "elmundo.es"]);
+  });
+
+  it("distingue la alerta de esta vez de una anterior, de otra ocasión en que el tema fue noticia", () => {
+    const articulos = [
+      art("elpais.com", "María Tardón, en el foco", 40),
+      art("elmundo.es", "Tardón responde a las críticas", 30),
+      art("abc.es", "Tardón comparece hoy", 20),
+    ];
+    const anterior = { id: 45, entidad: "maría tardón", creada_en: hace(3 * 24 * 60) };
+    const deHoy = { id: 60, entidad: "María Tardón", creada_en: hace(90) };
+    expect(temas(mapa(articulos, [anterior]))["María Tardón"]?.alerta).toEqual({
+      id: 45,
+      creada_en: anterior.creada_en,
+      reciente: false,
+    });
+    expect(temas(mapa(articulos, [anterior, deHoy]))["María Tardón"]?.alerta).toMatchObject({
+      id: 60,
+      reciente: true,
+    });
   });
 
   it("dice cuántos artículos forman los temas y por qué se quedan fuera los demás", () => {

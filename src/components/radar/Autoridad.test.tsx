@@ -34,10 +34,12 @@ describe("BloqueAutoridad", () => {
       datos(["Yolanda Díaz"]),
       <BloqueAutoridad entidad="Yolanda Díaz" />,
     );
-    expect(screen.getByRole("region", { name: "Nuestras piezas en Discover" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Nuestro historial en Discover" }),
+    ).toBeInTheDocument();
     expect(container.querySelector("h3 svg")).not.toBeNull();
     expect(
-      screen.getByText("Search Console · del 1 de septiembre al 15 de noviembre"),
+      screen.getByText("Tráfico del 1 de septiembre al 15 de noviembre · Search Console"),
     ).toBeInTheDocument();
     const enlaces = screen.getAllByRole("link");
     expect(enlaces).toHaveLength(1);
@@ -66,7 +68,9 @@ describe("BloqueAutoridad", () => {
 
   it("tema nuevo: lo dice en gris, sin piezas", () => {
     conDatos(datos(["[SIN DISCOVER] Pedri"]), <BloqueAutoridad entidad="[SIN DISCOVER] Pedri" />);
-    expect(screen.getByText(/Ninguna pieza nuestra sobre «Pedri»/)).toBeInTheDocument();
+    expect(
+      screen.getByText("No tenemos historial en Discover sobre «Pedri» en estas fechas."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 

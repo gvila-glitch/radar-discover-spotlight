@@ -69,11 +69,11 @@ const ENTRADAS: { t: string; d: string }[] = [
   },
   {
     t: "Llegada",
-    d: "En la lista, puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. En la ficha se dice en palabras («2 medios en Discover · vas a tiempo»). Con 6 o más medios ya en Discover no se genera alerta. Si todavía no hay datos de Discover, se indica.",
+    d: "En la lista, puesto en el que llegaríamos a Discover: «a tiempo» si ya hay 0–2 medios, «justo» si hay 3–5 y «tarde» si hay 6 o más. En la ficha se dice en palabras («2 medios en Discover · vas a tiempo»). Con 6 o más medios ya en Discover no se genera alerta. Si todavía no hay datos de Discover, se indica. Se mide durante las 24 horas siguientes a la alerta; pasado ese plazo, la ficha lo dice y las cifras ya no cambian.",
   },
   {
     t: "Autoridad",
-    d: "Cuántas piezas nuestras sobre ese tema han tenido tráfico de Discover, según Search Console: alta con 3 o más, media con 1 o 2, y «tema nuevo para nosotros» si no hay ninguna (puede ser una oportunidad). En «Nuestras piezas en Discover» sale la mejor con su enlace y, al pulsar, las demás. Los datos se cargan a mano cada mes; junto al título del bloque se ve qué fechas cubren.",
+    d: "Cuántas piezas nuestras sobre ese tema han tenido tráfico de Discover, según Search Console: alta con 3 o más, media con 1 o 2, y «tema nuevo para nosotros» si no hay ninguna (puede ser una oportunidad). En «Nuestro historial en Discover» sale la mejor con su enlace y, al pulsar, las demás: son piezas anteriores, no lo conseguido con la alerta. Los datos se cargan a mano cada mes; junto al título del bloque se ve de qué fechas es el tráfico.",
   },
   {
     t: "Competencia en Discover",

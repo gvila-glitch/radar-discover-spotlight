@@ -44,8 +44,12 @@ export type TemaMapa = {
   categorias: string[];
   /** Nombres que aparecen en los mismos titulares (hasta 3). */
   relacionados: { id: string; nombre: string }[];
-  /** Primera alerta del radar sobre el tema en las últimas 24 horas. */
-  alerta: { id: number; creada_en: string } | null;
+  /**
+   * Alerta del radar sobre el tema (últimos 7 días). «reciente»: creada como mucho 24 horas antes de su primer artículo
+   * en Discover (o después), así que cuenta para saber si el radar avisó a tiempo. Si no, es una alerta anterior de
+   * otra ocasión en que el tema fue noticia.
+   */
+  alerta: { id: number; creada_en: string; reciente: boolean } | null;
 };
 export type DiscoverMap = {
   temas: TemaMapa[];
@@ -272,6 +276,7 @@ const LUGARES = new Set([
 export const MINIMO_MEDIOS = 3;
 export const MAX_TEMAS = 40;
 const HORA = 3_600_000;
+const DIA = 24 * HORA;
 
 // Secuencias de palabras que empiezan por mayúscula, con lo que hay justo delante (para saber si abren frase).
 const NOMBRES = /(^|[:.?!¿¡«"“(]\s*|\s)(\p{Lu}[\p{L}'’-]*(?:\s+\p{Lu}[\p{L}'’-]*)*)/gu;
@@ -482,6 +487,9 @@ export function construirDiscoverMap(input: {
     const alertas = input.alertas
       .filter((al) => entidadesEquivalentes(al.entidad, raiz.nombre))
       .sort((a, b) => Date.parse(a.creada_en) - Date.parse(b.creada_en));
+    // La primera alerta de esta vez; si no la hay, la última de otra ocasión.
+    const deEstaVez = alertas.filter((al) => Date.parse(al.creada_en) >= arts[0]!.ms - DIA);
+    const elegida = deEstaVez[0] ?? alertas[alertas.length - 1];
     temasTodos.push({
       id: raiz.clave,
       nombre: raiz.nombre,
@@ -512,7 +520,9 @@ export function construirDiscoverMap(input: {
         : null,
       categorias: porFrecuencia(arts.map((a) => a.categoria).filter((c): c is string => !!c)),
       relacionados: [],
-      alerta: alertas[0] ? { id: alertas[0].id, creada_en: alertas[0].creada_en } : null,
+      alerta: elegida
+        ? { id: elegida.id, creada_en: elegida.creada_en, reciente: deEstaVez.length > 0 }
+        : null,
       arts: new Set(raiz.arts.keys()),
       total: primeros.size,
     });

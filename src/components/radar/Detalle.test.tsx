@@ -83,7 +83,7 @@ describe("Detalle (ficha de la alerta)", () => {
     const hora = container.querySelector("time");
     expect(hora?.textContent).toBe("hace 25 min");
     expect(hora?.getAttribute("title")).toBeTruthy();
-    // Cada bloque lleva su icono junto al título (sin datos de autoridad, «Nuestras piezas» no sale).
+    // Cada bloque lleva su icono junto al título (sin datos de autoridad, «Nuestro historial» no sale).
     expect(container.querySelectorAll("section h3 svg")).toHaveLength(2);
   });
 
@@ -153,6 +153,20 @@ describe("Detalle (ficha de la alerta)", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Pedri" })).toBeInTheDocument();
     expect(screen.getByText("Sin datos de Discover todavía")).toBeInTheDocument();
     expect(screen.getByText("Sin datos de Discover todavía.")).toBeInTheDocument();
+  });
+
+  it("pasadas 24 horas, dice que Discover se midió en las 24 horas siguientes a la alerta", () => {
+    render(
+      <Detalle
+        a={alerta({ entidad: "maría tardón", creada_en: hace(30 * 60) })}
+        onValorar={nada}
+      />,
+    );
+    expect(
+      screen.getByText("Nadie en Discover en sus primeras 24 h · a tiempo"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Nadie en Discover aún/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Medido en las 24 horas siguientes a la alerta/)).toBeInTheDocument();
   });
 
   it("los botones valoran y «Publicamos» abre el hueco para el enlace solo al pulsarlo", () => {

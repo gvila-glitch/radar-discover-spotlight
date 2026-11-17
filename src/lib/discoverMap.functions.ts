@@ -20,7 +20,9 @@ export const leerDiscoverMap = createServerFn({ method: "POST" })
     const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
     const ahora = new Date();
     const desde = new Date(ahora.getTime() - data.ventana * 3_600_000).toISOString();
-    const hace24h = new Date(ahora.getTime() - 24 * 3_600_000).toISOString();
+    // Alertas de los últimos 7 días (lo mismo que enseña Alertas por defecto): las de hace más de un día salen como
+    // «alerta anterior».
+    const hace7d = new Date(ahora.getTime() - 7 * 24 * 3_600_000).toISOString();
     const [arts, alertas, propio, referencia] = await Promise.all([
       db
         .from("snoop_articulos")
@@ -28,7 +30,7 @@ export const leerDiscoverMap = createServerFn({ method: "POST" })
         .gte("recibido_en", desde)
         .order("recibido_en", { ascending: false })
         .limit(MAX_ARTICULOS),
-      db.from("alertas").select("id, entidad, creada_en").gte("creada_en", hace24h),
+      db.from("alertas").select("id, entidad, creada_en").gte("creada_en", hace7d),
       db.from("config").select("valor").eq("clave", "dominio_propio").maybeSingle(),
       db.from("medios_referencia").select("dominio").eq("activo", true),
     ]);

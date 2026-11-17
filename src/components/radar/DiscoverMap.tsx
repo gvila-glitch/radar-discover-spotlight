@@ -118,7 +118,8 @@ function FilaTema({
 }) {
   const nivel = llegada(t.medios).nivel;
   const ultimo = t.titulares[0];
-  const radar = t.alerta ? textoRadar(t.alerta.creada_en, t.primeraVez) : null;
+  // Solo una alerta de esta vez dice si el radar avisó a tiempo; una de otra ocasión sale en gris.
+  const radar = t.alerta?.reciente ? textoRadar(t.alerta.creada_en, t.primeraVez) : null;
   return (
     <li data-tema={t.id}>
       <button
@@ -173,6 +174,11 @@ function FilaTema({
                 )}
               >
                 <Bell aria-hidden className="size-3.5 shrink-0" /> {radar.texto}
+              </span>
+            ) : t.alerta ? (
+              <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                <Bell aria-hidden className="size-3.5 shrink-0" /> alerta anterior ·{" "}
+                {hace(t.alerta.creada_en)}
               </span>
             ) : (
               <span className="text-muted-foreground">sin alerta</span>
@@ -388,7 +394,7 @@ const LEYENDA: { t: string; d: string }[] = [
   },
   {
     t: "Radar",
-    d: "Si el radar creó una alerta del tema en las últimas 24 horas y cuánto antes (o después) de su primer artículo en Discover. «Ver su alerta» la abre en Alertas.",
+    d: "Si el radar creó una alerta del tema y cuánto antes (o después) de su primer artículo en Discover. Solo cuenta si se creó como mucho un día antes; si es de otra ocasión en que el tema fue noticia, sale en gris como «alerta anterior». Se buscan alertas de los últimos 7 días. «Ver su alerta» la abre en Alertas.",
   },
   {
     t: "Estrella",

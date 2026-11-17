@@ -77,7 +77,8 @@ export function EtiquetaAutoridad({ entidad }: { entidad: string }) {
 }
 
 /**
- * Bloque «Nuestras piezas en Discover» de la ficha: la mejor pieza con su enlace y, plegadas, las demás. El nivel va
+ * Bloque «Nuestro historial en Discover» de la ficha: piezas ANTERIORES nuestras que tuvieron tráfico de Discover
+ * (Search Console), no lo conseguido con la alerta. La mejor pieza con su enlace y, plegadas, las demás. El nivel va
  * en la etiqueta de la cabecera; los umbrales, en «Cómo leer este panel».
  */
 export function BloqueAutoridad({ entidad }: { entidad: string }) {
@@ -95,13 +96,13 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
     .join(" · ");
   return (
     <BloqueFicha
-      titulo="Nuestras piezas en Discover"
+      titulo="Nuestro historial en Discover"
       icono={Trophy}
-      derecha={`Search Console · ${textoPeriodo(periodo)}`}
+      derecha={`Tráfico ${textoPeriodo(periodo)} · Search Console`}
     >
       {r.nivel === "nuevo" ? (
         <p className="text-sm text-muted-foreground">
-          Ninguna pieza nuestra sobre «{nombre}» ha tenido tráfico de Discover en estas fechas.
+          No tenemos historial en Discover sobre «{nombre}» en estas fechas.
         </p>
       ) : (
         <>
