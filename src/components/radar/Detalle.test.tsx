@@ -83,6 +83,8 @@ describe("Detalle (ficha de la alerta)", () => {
     const hora = container.querySelector("time");
     expect(hora?.textContent).toBe("hace 25 min");
     expect(hora?.getAttribute("title")).toBeTruthy();
+    // Cada bloque lleva su icono junto al título (sin datos de autoridad, «Nuestras piezas» no sale).
+    expect(container.querySelectorAll("section h3 svg")).toHaveLength(2);
   });
 
   it("por qué ahora (desplegado): titular, fuentes con señal y, en gris, las que no tienen", () => {

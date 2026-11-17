@@ -1,4 +1,4 @@
-import { ChevronDown, Info } from "lucide-react";
+import { ChevronDown, Info, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { llegada, sinDatosDiscover } from "@/lib/metricas";
@@ -63,14 +63,17 @@ export function Etiqueta({ punto, children }: { punto: string; children: ReactNo
 }
 
 /**
- * Bloque de la ficha: título, un dato opcional a la derecha y el contenido. La línea de arriba es la única que separa
- * bloques (dentro, las filas van sin líneas) y hay más aire entre bloques que dentro de ellos.
+ * Bloque de la ficha: icono azul y título, un dato opcional a la derecha y el contenido. La línea de arriba es la única
+ * que separa bloques (dentro, las filas van sin líneas) y hay más aire entre bloques que dentro de ellos.
  */
-export function BloqueFicha({ titulo, derecha, children }: { titulo: string; derecha?: ReactNode; children: ReactNode }) {
+export function BloqueFicha({ titulo, icono: Icono, derecha, children }: { titulo: string; icono?: LucideIcon; derecha?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={titulo} className="border-t px-6 py-5.5">
       <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <h3 className="text-[15px] font-semibold leading-snug">{titulo}</h3>
+        <h3 className="text-[15px] font-semibold leading-snug">
+          {Icono && <Icono aria-hidden strokeWidth={2.25} className="mr-2 inline-block size-[18px] align-[-3px] text-primary" />}
+          {titulo}
+        </h3>
         {derecha && <span className="ml-auto text-xs text-muted-foreground">{derecha}</span>}
       </div>
       {children}

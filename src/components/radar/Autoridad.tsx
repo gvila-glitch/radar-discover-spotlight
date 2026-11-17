@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BloqueFicha, Etiqueta, Pliegue } from "./ui";
 import {
@@ -96,6 +96,7 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
   return (
     <BloqueFicha
       titulo="Nuestras piezas en Discover"
+      icono={Trophy}
       derecha={`Search Console · ${textoPeriodo(periodo)}`}
     >
       {r.nivel === "nuevo" ? (
@@ -104,23 +105,25 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
         </p>
       ) : (
         <>
-          <ul>
+          {/* Tabla (subgrid): la columna de secciones mide lo que la más larga, así el título queda cerca. */}
+          <ul className="grid grid-cols-[max-content_minmax(0,1fr)_auto] gap-x-3">
             {visibles.map((p) => (
-              <li key={p.url} className="flex items-baseline gap-3 py-1.5 text-sm">
-                <span className="w-20 shrink-0 truncate text-xs text-muted-foreground">
-                  {p.seccion}
-                </span>
+              <li
+                key={p.url}
+                className="col-span-full grid grid-cols-subgrid items-baseline py-1.5 text-sm"
+              >
+                <span className="max-w-32 truncate text-xs text-muted-foreground">{p.seccion}</span>
                 <a
                   href={p.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   title={p.titulo}
-                  className="inline-flex min-w-0 flex-1 items-baseline gap-1.5 text-primary underline-offset-4 hover:underline"
+                  className="inline-flex min-w-0 items-baseline gap-1.5 text-primary underline-offset-4 hover:underline"
                 >
                   <span className="truncate">{p.titulo}</span>
                   <ExternalLink aria-hidden className="size-3.5 shrink-0 self-center" />
                 </a>
-                <span className="shrink-0 text-right font-mono text-xs text-muted-foreground">
+                <span className="text-right font-mono text-xs text-muted-foreground">
                   {n(p.clics)}
                   {p.mes && ` · ${mesCorto(p.mes)}`}
                 </span>

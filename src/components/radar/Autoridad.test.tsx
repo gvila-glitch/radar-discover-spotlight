@@ -30,8 +30,12 @@ describe("BloqueAutoridad", () => {
   afterEach(cleanup);
 
   it("autoridad alta: la mejor pieza con su enlace y, plegadas, las demás", () => {
-    conDatos(datos(["Yolanda Díaz"]), <BloqueAutoridad entidad="Yolanda Díaz" />);
+    const { container } = conDatos(
+      datos(["Yolanda Díaz"]),
+      <BloqueAutoridad entidad="Yolanda Díaz" />,
+    );
     expect(screen.getByRole("region", { name: "Nuestras piezas en Discover" })).toBeInTheDocument();
+    expect(container.querySelector("h3 svg")).not.toBeNull();
     expect(
       screen.getByText("Search Console · del 1 de septiembre al 15 de noviembre"),
     ).toBeInTheDocument();

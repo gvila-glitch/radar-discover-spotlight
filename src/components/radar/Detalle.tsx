@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { BookOpen, ExternalLink, Search } from "lucide-react";
+import { ExternalLink, Newspaper, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Alerta, Estado } from "@/lib/types";
 import { fechaLarga, hace, hora24, esHoy } from "@/lib/fechas";
@@ -74,22 +74,22 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
         )}
       </div>
 
-      <BloqueFicha titulo="Por qué ahora">
+      <BloqueFicha titulo="Por qué ahora" icono={TrendingUp}>
         {c.seHabla && <p className="mb-1 text-sm">Se habla de: <span className="font-medium">«{c.seHabla.titular}»</span>{c.seHabla.medio && <span className="text-muted-foreground"> ({c.seHabla.medio})</span>}</p>}
         {c.resto && <p className="mb-1 text-sm text-muted-foreground">{c.resto}</p>}
         {vacias.length < 3 && (
-          <ul>
+          <ul className="grid grid-cols-[max-content_minmax(0,1fr)_auto] gap-x-3">
             {a.x_posicion ? (
-              <Fuente icono="X" nombre="X" enlace={<a href={enlaceX(nombreVisible(a.entidad))} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-4">Ver en X <ExternalLink aria-hidden className="size-3" /></a>}>
+              <Fuente nombre="X" enlace={<a href={enlaceX(nombreVisible(a.entidad))} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-4">Ver en X <ExternalLink aria-hidden className="size-3" /></a>}>
                 puesto <span className="font-mono">{a.x_posicion}</span>
                 {a.x_desde && (esHoy(a.x_desde) ? <> desde las <span className="font-mono">{hora24(a.x_desde)}</span></> : <> desde el <span className="font-mono">{fechaLarga(a.x_desde)}</span></>)}
                 {c.x?.categoria && <> · {c.x.categoria}</>}
                 {c.x?.publicaciones && <> · {c.x.publicaciones}</>}
               </Fuente>
             ) : null}
-            {hayTrends && <Fuente icono={<Search aria-hidden className="size-3.5" />} nombre="Google"><span className="font-mono">{a.trends_crecimiento}</span> búsquedas</Fuente>}
+            {hayTrends && <Fuente nombre="Google"><span className="font-mono">{a.trends_crecimiento}</span> búsquedas</Fuente>}
             {a.wikipedia_ratio ? (
-              <Fuente icono={<BookOpen aria-hidden className="size-3.5" />} nombre="Wikipedia">
+              <Fuente nombre="Wikipedia">
                 <span className="font-mono">{(a.wikipedia_visitas ?? 0).toLocaleString("es-ES")}</span> visitas en un día, <span className="font-mono">×{Number(a.wikipedia_ratio).toLocaleString("es-ES")}</span> sobre su media
               </Fuente>
             ) : null}
@@ -98,7 +98,7 @@ export function Detalle({ a, onValorar }: { a: Alerta; onValorar: (estado: Estad
         {vacias.length > 0 && <p className="mt-1 text-xs text-muted-foreground">Sin señal en {sinSenalEn(vacias)}.</p>}
       </BloqueFicha>
 
-      <BloqueFicha titulo="Competencia en Discover">
+      <BloqueFicha titulo="Competencia en Discover" icono={Newspaper}>
         <Competencia key={a.id} a={a} />
       </BloqueFicha>
 
@@ -154,9 +154,9 @@ function Competencia({ a }: { a: Alerta }) {
   const ocultos = [...titulares.slice(2).map((t) => t.medio), ...sinTitular];
   return (
     <>
-      <ul>
+      <ul className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3">
         {(abierto ? titulares : titulares.slice(0, 2)).map((t, i) => (
-          <li key={i} className="flex gap-3 py-1.5 text-sm"><span className="w-32 shrink-0 truncate font-mono text-xs leading-5 text-muted-foreground" title={t.medio}>{t.medio}</span><span>{t.titular}</span></li>
+          <li key={i} className="col-span-full grid grid-cols-subgrid py-1.5 text-sm"><span className="max-w-40 truncate font-mono text-xs leading-5 text-muted-foreground" title={t.medio}>{t.medio}</span><span>{t.titular}</span></li>
         ))}
       </ul>
       {abierto && sinTitular.length > 0 && <p className="mt-1 text-xs text-muted-foreground">Sin titular todavía: {sinTitular.join(", ")}</p>}
@@ -167,14 +167,16 @@ function Competencia({ a }: { a: Alerta }) {
   );
 }
 
-function Fuente({ icono, nombre, enlace, children }: { icono: ReactNode; nombre: string; enlace?: ReactNode; children: ReactNode }) {
+/**
+ * Una fuente con señal: el nombre a la izquierda y el dato al lado. La lista es una tabla (subgrid): la columna de los
+ * nombres mide lo que el más largo de esa ficha, así el dato queda cerca y las filas, alineadas.
+ */
+function Fuente({ nombre, enlace, children }: { nombre: string; enlace?: ReactNode; children: ReactNode }) {
   return (
-    <li className="flex flex-wrap items-center gap-x-2.5 gap-y-1 py-1.5 text-sm">
-      <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md border text-xs font-semibold">{icono}</span>
-      <span className="font-medium">{nombre}</span>
-      <span aria-hidden className="text-muted-foreground">·</span>
-      <span>{children}</span>
-      {enlace && <span className="ml-auto">{enlace}</span>}
+    <li className="col-span-full grid grid-cols-subgrid items-baseline py-1.5 text-sm">
+      <span className="text-xs text-muted-foreground">{nombre}</span>
+      <span className="min-w-0">{children}</span>
+      {enlace && <span>{enlace}</span>}
     </li>
   );
 }
