@@ -132,14 +132,50 @@ export function parsearModo(valor: string | null | undefined): "permisivo" | "es
   return valor?.trim().toLowerCase() === "estricto" ? "estricto" : "permisivo";
 }
 
-// Palabra completa por defecto; con "*" basta con que una palabra empiece así; en hashtags se busca dentro del texto.
-function coincide(textoNormalizado: string, regla: Regla, dentroDelTexto: boolean): boolean {
+// Palabra completa por defecto; con "*" basta con que una palabra empiece así.
+function coincide(textoNormalizado: string, regla: Regla): boolean {
   if (!textoNormalizado) return false;
-  if (dentroDelTexto) return textoNormalizado.includes(regla.texto);
   const envuelto = ` ${textoNormalizado}`;
   return regla.prefijo
     ? envuelto.includes(` ${regla.texto}`)
     : `${envuelto} `.includes(` ${regla.texto} `);
+}
+
+/**
+ * Los hashtags juntan palabras; se separan por las mayúsculas: #FelizMiercoles → «feliz miercoles», #ApoyoERC →
+ * «apoyo erc», #Elecciones28A → «elecciones 28a». Las cifras pegadas a mayúsculas no se separan (#8M, #G20, #11M).
+ * Unas siglas pegadas a otra palabra se pueden leer de dos maneras (#PSOEyFrente: «psoe y frente»; #CNNEspañol:
+ * «cnn español»), así que se devuelven las dos lecturas.
+ */
+export function lecturasDeHashtag(hashtag: string): string[] {
+  const base = hashtag.replace(/^#/, "").replace(/(\p{Ll})(\p{Lu}|\d)/gu, "$1 $2");
+  const lecturas = [
+    base.replace(/(\p{Lu}{2,})(\p{Ll})/gu, "$1 $2"),
+    base.replace(/(\p{Lu}+)(\p{Lu}\p{Ll})/gu, "$1 $2"),
+  ].map(normalizarTexto);
+  return [...new Set(lecturas)];
+}
+
+/**
+ * Dentro de un hashtag (sin separar en palabras) solo se buscan las reglas de 5 letras o más: así «ayuso» salta en
+ * #antiayuso, pero unas siglas cortas como «erc» no saltan en #FelizMiercoles. Las cortas tienen que ir sueltas.
+ */
+export const MIN_LETRAS_DENTRO_DE_HASHTAG = 5;
+
+/** Comprueba las reglas contra el término de una tendencia: palabras completas y, si es un hashtag, sus lecturas. */
+function lectorDeTermino(termino: string): (regla: Regla) => boolean {
+  const t = termino.trim();
+  if (!t.startsWith("#")) {
+    const texto = normalizarTexto(t);
+    return (regla) => coincide(texto, regla);
+  }
+  const lecturas = lecturasDeHashtag(t);
+  const pegado = normalizarTexto(t.slice(1)).replace(/ /g, "");
+  return (regla) => {
+    if (lecturas.some((l) => coincide(l, regla))) return true;
+    const reglaPegada = regla.texto.replace(/ /g, "");
+    return reglaPegada.length >= MIN_LETRAS_DENTRO_DE_HASHTAG && pegado.includes(reglaPegada);
+  };
 }
 
 // Descartar: solo se mira el término (para que un titular no tumbe una tendencia buena).
@@ -149,15 +185,12 @@ export function clasificarPorReglas(
   titular: string | null,
   reglas: Reglas,
 ): ResultadoReglas {
-  const esHashtag = termino.trim().startsWith("#");
-  const textoTermino = normalizarTexto(termino);
+  const enTermino = lectorDeTermino(termino);
   const textoTitular = titular ? normalizarTexto(titular) : "";
-  const no = reglas.no.find((regla) => coincide(textoTermino, regla, esHashtag));
+  const no = reglas.no.find(enTermino);
   if (no)
     return { decision: "descartar", motivo: `Descartada por reglas: «${no.texto}»`, seccion: null };
-  const si = reglas.si.find(
-    (regla) => coincide(textoTermino, regla, esHashtag) || coincide(textoTitular, regla, false),
-  );
+  const si = reglas.si.find((regla) => enTermino(regla) || coincide(textoTitular, regla));
   if (si)
     return { decision: "afin", motivo: `Encaja por reglas: «${si.texto}»`, seccion: si.seccion };
   return {
