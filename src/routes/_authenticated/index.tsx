@@ -170,7 +170,7 @@ export function Index() {
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
           <Kpi titulo="Útiles" valor={pct(k.pctUtiles)} ok={k.pctUtiles == null ? null : k.pctUtiles >= 50} sub="valoradas en los últimos 7 días · objetivo ≥ 50 %" />
           <Kpi titulo="Acabaron en pieza" valor={pct(k.pctPublicadas)} ok={k.pctPublicadas == null ? null : k.pctPublicadas >= 20} sub="del total de los últimos 7 días · objetivo ≥ 20 %" />
-          <Kpi titulo="Llegada" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={k.medianaLlegada == null ? null : k.medianaLlegada <= 2} sub={k.medianaLlegada == null ? "sin datos de Discover en los últimos 7 días · objetivo ≤ 2" : "mediana de medios ya en Discover, últimos 7 días · objetivo ≤ 2"} />
+          <Kpi titulo="Medios en Discover" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={null} sub={k.medianaLlegada == null ? "sin datos de Discover en los últimos 7 días" : "mediana de medios que publicaron el tema en las 24 h tras el aviso · últimos 7 días"} />
         </section>}
 
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
