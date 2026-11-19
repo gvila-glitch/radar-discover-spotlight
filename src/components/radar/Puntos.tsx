@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Puntuacion } from "@/lib/prioridad";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { usePopoverAlPasar } from "./usePopoverAlPasar";
 
 const mayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const palabra = (n: number) => `${n} ${Math.abs(n) === 1 ? "punto" : "puntos"}`;
@@ -23,44 +24,16 @@ export function DesglosePuntos({
   /** Frase al pie: la regla que se aplica con esos puntos. */
   nota?: ReactNode;
 }) {
-  const [abierto, setAbierto] = useState(false);
-  const porRaton = useRef(false);
-  const espera = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(espera.current), []);
-  const entrar = (e: PointerEvent) => {
-    if (e.pointerType !== "mouse") return;
-    clearTimeout(espera.current);
-    if (!abierto) {
-      porRaton.current = true;
-      setAbierto(true);
-    }
-  };
-  const salir = (e: PointerEvent) => {
-    if (e.pointerType !== "mouse" || !porRaton.current) return;
-    espera.current = setTimeout(() => setAbierto(false), 150);
-  };
+  const { abierto, onOpenChange, entrar, salir, alPulsar } = usePopoverAlPasar();
   return (
-    <Popover
-      open={abierto}
-      onOpenChange={(v) => {
-        setAbierto(v);
-        if (!v) porRaton.current = false;
-      }}
-    >
+    <Popover open={abierto} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
           aria-label={`${palabra(p.puntos)}: ver el desglose`}
           onPointerEnter={entrar}
           onPointerLeave={salir}
-          onClick={(e) => {
-            // Abierto al pasar el ratón: el clic lo deja fijo en vez de cerrarlo.
-            if (abierto && porRaton.current) {
-              e.preventDefault();
-              porRaton.current = false;
-              clearTimeout(espera.current);
-            }
-          }}
+          onClick={alPulsar}
           className={cn(
             "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground underline decoration-dotted underline-offset-[3px] hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
             abierto && "bg-muted text-foreground",

@@ -2,6 +2,8 @@ import { createContext, useContext, useState } from "react";
 import { ExternalLink, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BloqueFicha, Etiqueta, Pliegue } from "./ui";
+import { InfoAyuda } from "./InfoAyuda";
+import { AYUDA_HISTORIAL, AyudaAutoridad } from "./textosAyuda";
 import {
   mesCorto,
   nombreMes,
@@ -66,12 +68,17 @@ export function EtiquetaAutoridad({ entidad }: { entidad: string }) {
   const a = useAutoridad(entidad);
   if (!a) return null;
   const { nivel, total } = a.r;
+  const ayuda = (
+    <InfoAyuda tema="Autoridad">
+      <AyudaAutoridad />
+    </InfoAyuda>
+  );
   if (nivel === "nuevo") {
-    return <Etiqueta punto="bg-muted-foreground/40">Tema nuevo para nosotros</Etiqueta>;
+    return <Etiqueta punto="bg-muted-foreground/40">Tema nuevo para nosotros {ayuda}</Etiqueta>;
   }
   return (
     <Etiqueta punto={nivel === "alta" ? "bg-ok" : "bg-warn"}>
-      Autoridad {nivel} · {n(total)} {total === 1 ? "pieza" : "piezas"}
+      Autoridad {nivel} · {n(total)} {total === 1 ? "pieza" : "piezas"} {ayuda}
     </Etiqueta>
   );
 }
@@ -99,6 +106,7 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
       titulo="Nuestro historial en Discover"
       icono={Trophy}
       derecha={`Tráfico ${textoPeriodo(periodo)} · Search Console`}
+      ayuda={AYUDA_HISTORIAL}
     >
       {r.nivel === "nuevo" ? (
         <p className="text-sm text-muted-foreground">

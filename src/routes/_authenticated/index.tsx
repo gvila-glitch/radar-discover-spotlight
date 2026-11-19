@@ -1,21 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Moon, Sun } from "lucide-react";
+import { Ban, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { guardarMotivoRuido, listAlertas, valorar } from "@/lib/alertasRepo";
 import { anadirNoCubrimos } from "@/lib/ruido.functions";
 import type { MotivoRuido } from "@/lib/ruido";
 import { desdePeriodo, claveDia, esHoy } from "@/lib/fechas";
-import { kpis } from "@/lib/metricas";
+import { kpis, nombreVisible } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
-import { Selector } from "@/components/radar/ui";
+import { ESTADO_LABEL, Selector } from "@/components/radar/ui";
 import { usePanelEmail } from '@/lib/panelAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Detalle } from "@/components/radar/Detalle";
-import { Leyenda, PrimerosPasos } from "@/components/radar/Ayuda";
+import { EnlaceComoSeUsa, PrimerosPasos } from "@/components/radar/Ayuda";
+import { usePrimerosPasos } from "@/components/radar/usePrimerosPasos";
+import { avisarRuido } from "@/components/radar/avisarRuido";
+import { InfoAyuda } from "@/components/radar/InfoAyuda";
+import { AYUDA_KPI_MEDIOS } from "@/components/radar/textosAyuda";
 import { useServerFn } from "@tanstack/react-start";
 import { esAdmin as leerEsAdmin } from "@/lib/configRepo";
 import { listarDescartes } from "@/lib/descartes.functions";
@@ -53,7 +57,8 @@ export function Index() {
   // Al entrar se ve lo de hoy.
   const [periodo, setPeriodo] = useState<Periodo>("hoy");
   const [prio, setPrio] = useState<"todas" | Prioridad>("todas");
-  const [estado, setEstado] = useState<FiltroEstado>("todos");
+  // Lo marcado como ruido sale de la lista (sigue contando para medir el radar; se ve en Estado › Ruido).
+  const [estado, setEstado] = useState<FiltroEstado>("sin_ruido");
   const [fuente, setFuente] = useState<FiltroFuente>("todas");
   const [autoridad, setAutoridad] = useState<FiltroAutoridad>("todas");
   // «?alerta=123» (desde Discover ahora): se lee de la dirección para no depender del enrutador.
@@ -67,6 +72,7 @@ export function Index() {
   const [revision, setRevision] = useState<"todos" | "marcados" | "sin_marcar">("todos");
   const leerDescartes = useServerFn(listarDescartes);
   const { data: admin = false } = useQuery({ queryKey: ["es_admin"], queryFn: leerEsAdmin });
+  const pasos = usePrimerosPasos();
   const [dark, setDark] = useState(false);
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
@@ -94,22 +100,46 @@ export function Index() {
   }, [data]);
   const visibles = delPeriodo.filter((a) => (prio === "todas" || a.prioridad === prio) && pasaEstado(a.estado, estado) && pasaFuente(a, fuente) && pasaAutoridad(qa.data?.temas[a.entidad]?.nivel, autoridad));
   const actual = visibles.find((a) => a.id === sel) ?? visibles[0];
-  const filtrosActivos = prio !== "todas" || estado !== "todos" || fuente !== "todas" || autoridad !== "todas" || periodo !== "hoy" || senal !== "todas" || revision !== "todos";
-  const restablecer = () => { setPrio("todas"); setEstado("todos"); setFuente("todas"); setAutoridad("todas"); setPeriodo("hoy"); setSenal("todas"); setRevision("todos"); };
+  const filtrosActivos = prio !== "todas" || estado !== "sin_ruido" || fuente !== "todas" || autoridad !== "todas" || periodo !== "hoy" || senal !== "todas" || revision !== "todos";
+  const restablecer = () => { setPrio("todas"); setEstado("sin_ruido"); setFuente("todas"); setAutoridad("todas"); setPeriodo("hoy"); setSenal("todas"); setRevision("todos"); };
+
+  // La siguiente de la lista (o la anterior, si era la última): se selecciona cuando la actual deja de verse.
+  function siguienteDe(a: Alerta): Alerta | undefined {
+    const i = visibles.findIndex((x) => x.id === a.id);
+    return visibles[i + 1] ?? visibles[i - 1];
+  }
 
   async function onValorar(a: Alerta, nuevo: Estado, pieza_url: string | null = null) {
+    // Si con el filtro de Estado deja de verse (p. ej., ruido con «Todos menos ruido»), se pasa a la siguiente.
+    const saleDeLista = !pasaEstado(nuevo, estado);
+    const pasaALaSiguiente = saleDeLista && a.id === actual?.id;
+    if (pasaALaSiguiente) setSel(siguienteDe(a)?.id ?? null);
     const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: email };
     const prev = qc.getQueryData<Alerta[]>(key);
     qc.setQueryData<Alerta[]>(key, (l) => l?.map((x) => (x.id === a.id ? { ...x, ...cambios } : x)));
     try {
       const saved = await valorar(a.id, cambios); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? saved : x));
-      // «Ruido» no borra la alerta: se dice para que nadie espere que desaparezca (salvo con el filtro que las oculta).
       // Si deja de ser ruido, su motivo ya no vale.
       if (nuevo !== "ruido" && a.motivo_ruido) { try { const sinMotivo = await guardarMotivoRuido(a.id, null); qc.setQueryData<Alerta[]>(key, l => l?.map(x => x.id === a.id ? sinMotivo : x)); } catch { /* se queda; no afecta a la valoración */ } }
-      if (nuevo === "ruido") toast(estado === "sin_ruido" ? "Marcada como ruido. Con el filtro «Todos menos ruido» deja de verse; cámbialo en Estado si la necesitas." : "Marcada como ruido. Sigue en la lista y sirve para medir si el radar acierta; puedes cambiarlo cuando quieras.");
+      // Aviso con «Deshacer» y, opcional, el motivo con un clic.
+      if (nuevo === "ruido" && a.estado !== "ruido") avisarRuido({ nombre: nombreVisible(a.entidad), saleDeLista, onDeshacer: () => void deshacer(a), onMotivo: (m) => void onMotivo(a, m) });
     }
-    catch { qc.setQueryData(key, prev); toast.error("No se pudo guardar la valoración. Inténtalo de nuevo."); }
+    catch { qc.setQueryData(key, prev); if (pasaALaSiguiente) setSel(a.id); toast.error("No se pudo guardar la valoración. Inténtalo de nuevo."); }
     finally { qc.invalidateQueries({ queryKey: ["alertas"], refetchType: "none" }); }
+  }
+
+  // «Deshacer»: vuelve al estado de antes (quitando el motivo, si se eligió en el aviso) y la deja seleccionada.
+  async function deshacer(antes: Alerta) {
+    const ahora = qc.getQueryData<Alerta[]>(key)?.find((x) => x.id === antes.id);
+    setSel(antes.id);
+    await onValorar({ ...antes, motivo_ruido: ahora?.motivo_ruido ?? null }, antes.estado, antes.pieza_url);
+  }
+
+  // Descarte rápido desde la lista (botón «Es ruido» al pasar el ratón o tecla R). Solo para las pendientes, para no
+  // pisar sin querer una valoración ya hecha; esas se cambian desde la ficha.
+  function ruidoRapido(a: Alerta) {
+    if (a.estado !== "pendiente") { toast(`Ya está valorada como «${ESTADO_LABEL[a.estado]}». Si hace falta, cámbiala desde la ficha.`); return; }
+    void onValorar(a, "ruido");
   }
 
   async function onMotivo(a: Alerta, motivo: MotivoRuido | null) {
@@ -134,6 +164,14 @@ export function Index() {
 
   const listRef = useRef<HTMLUListElement>(null);
   function onKey(e: React.KeyboardEvent) {
+    if ((e.key === "r" || e.key === "R") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (!actual) return;
+      e.preventDefault();
+      ruidoRapido(actual);
+      // La seleccionada puede haber cambiado (la siguiente): el foco va con ella para seguir con las flechas y la R.
+      setTimeout(() => listRef.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus(), 0);
+      return;
+    }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     e.preventDefault();
     const i = visibles.findIndex((a) => a.id === actual?.id);
@@ -160,9 +198,11 @@ export function Index() {
       <AutoridadProvider value={qa.data ?? null}>
       <main className="mx-auto max-w-7xl px-4 py-6">
         <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Qué empieza a subir antes de llegar a Discover · España · X, Google Trends y Wikipedia</p>
-        <Leyenda />
-        <PrimerosPasos />
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span>Qué empieza a subir antes de llegar a Discover · España · X, Google Trends y Wikipedia</span>
+          <EnlaceComoSeUsa abiertos={pasos.abiertos} onPulsar={pasos.alternar} />
+        </p>
+        {pasos.abiertos && <PrimerosPasos onCerrar={pasos.cerrar} />}
         <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />
         {vista === "descartes" && <AvisoDescartes />}
 
@@ -170,7 +210,7 @@ export function Index() {
           <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
           <Kpi titulo="Útiles" valor={pct(k.pctUtiles)} ok={k.pctUtiles == null ? null : k.pctUtiles >= 50} sub="valoradas en los últimos 7 días · objetivo ≥ 50 %" />
           <Kpi titulo="Acabaron en pieza" valor={pct(k.pctPublicadas)} ok={k.pctPublicadas == null ? null : k.pctPublicadas >= 20} sub="del total de los últimos 7 días · objetivo ≥ 20 %" />
-          <Kpi titulo="Medios en Discover" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={null} sub={k.medianaLlegada == null ? "sin datos de Discover en los últimos 7 días" : "mediana de medios que publicaron el tema en las 24 h tras el aviso · últimos 7 días"} />
+          <Kpi titulo="Medios en Discover" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={null} ayuda={AYUDA_KPI_MEDIOS} sub={k.medianaLlegada == null ? "sin datos de Discover en los últimos 7 días" : "mediana en las 24 h tras el aviso · últimos 7 días"} />
         </section>}
 
         <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
@@ -201,21 +241,34 @@ export function Index() {
             {isError ? <p role="alert" className="p-4 text-sm text-destructive">No se pudieron cargar las alertas. Inténtalo de nuevo.</p>
               : isLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando alertas…</p>
               : visibles.length === 0 ? <p className="p-4 text-sm text-muted-foreground">{periodo === "hoy" && delPeriodo.length === 0 ? "Hoy todavía no hay alertas. Cambia el periodo para ver las anteriores." : "No hay alertas con estos filtros."}</p>
-              : (
-                <ul ref={listRef} role="listbox" aria-label="Alertas" onKeyDown={onKey} className="divide-y">
+              : (<>
+                <ul ref={listRef} role="listbox" aria-label="Alertas" aria-describedby="atajos-lista" onKeyDown={onKey} className="divide-y">
                   {visibles.map((a) => {
                     const on = a.id === actual?.id;
                     return (
                       <li key={a.id} data-id={a.id} role="option" aria-selected={on} tabIndex={on ? 0 : -1}
                         onClick={() => setSel(a.id)}
-                        className={cn("flex cursor-pointer gap-3 px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                        className={cn("group relative flex cursor-pointer gap-3 px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                           on ? "bg-accent shadow-[inset_3px_0_0_var(--primary)]" : "hover:bg-muted")}>
                         <ContenidoAlerta a={a} />
+                        {/* Al pasar el ratón, «Es ruido» tapa las etiquetas de la fila (como la fecha en Gmail); fuera del botón, el clic selecciona. */}
+                        {a.estado === "pendiente" && (
+                          <div className="absolute inset-y-0 right-0 hidden w-32 items-center justify-end bg-inherit pr-3 group-hover:flex">
+                            <button type="button" tabIndex={-1} title="Marcar como ruido (tecla R)" aria-label={`Marcar «${nombreVisible(a.entidad)}» como ruido`}
+                              onClick={(e) => { e.stopPropagation(); ruidoRapido(a); }}
+                              className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1.5 text-xs font-medium shadow-sm hover:bg-muted">
+                              <Ban aria-hidden className="size-3.5 text-muted-foreground" />Es ruido
+                            </button>
+                          </div>
+                        )}
                       </li>
                     );
                   })}
                 </ul>
-              )}
+                <p id="atajos-lista" className="flex flex-wrap items-center gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground">
+                  <Tecla>↑</Tecla><Tecla>↓</Tecla> cambiar de alerta <span aria-hidden>·</span> <Tecla>R</Tecla> marcar como ruido la seleccionada
+                </p>
+              </>)}
           </div>
           <div className="min-w-0">{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} esAdmin={admin} onMotivo={(m) => onMotivo(actual, m)} onNoCubrimos={(t, x) => onNoCubrimos(actual, t, x)} /> : null}</div>
         </div>
@@ -226,10 +279,14 @@ export function Index() {
   );
 }
 
-function Kpi({ titulo, valor, sub, ok }: { titulo: string; valor: string; sub: string; ok: boolean | null }) {
+function Tecla({ children }: { children: string }) {
+  return <kbd className="rounded border border-b-2 bg-background px-1.5 py-px font-mono text-[11px] text-foreground">{children}</kbd>;
+}
+
+function Kpi({ titulo, valor, sub, ok, ayuda }: { titulo: string; valor: string; sub: string; ok: boolean | null; ayuda?: string }) {
   return (
     <div className="p-4">
-      <div className="text-sm text-muted-foreground">{titulo}</div>
+      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">{titulo}{ayuda && <InfoAyuda tema={titulo}>{ayuda}</InfoAyuda>}</div>
       <div className={cn("mt-1 font-mono text-3xl font-medium", ok == null ? "" : ok ? "text-ok" : "text-bad")}>{valor}</div>
       <div className="mt-1 text-xs text-muted-foreground">{ok != null && <span className={ok ? "text-ok" : "text-bad"}>{ok ? "✓ " : "✗ "}</span>}{sub}</div>
     </div>

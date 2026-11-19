@@ -7,6 +7,8 @@ import { HORAS_SEGUIMIENTO, llegada, nombreVisible, seguimientoCerrado, sinDatos
 import { BloqueFicha, Etiqueta, Pliegue } from "./ui";
 import { puntuarAlerta, UMBRAL_ALTA } from "@/lib/prioridad";
 import { DesglosePuntos } from "./Puntos";
+import { InfoAyuda } from "./InfoAyuda";
+import { AYUDA_COMPETENCIA, AYUDA_INTERESA, AYUDA_POR_QUE_AHORA, AyudaMedios, AyudaValoracion } from "./textosAyuda";
 import { BloqueAutoridad, EtiquetaAutoridad } from "./Autoridad";
 import { enlaceX, leerContexto } from "@/lib/contexto";
 import { MOTIVOS_RUIDO, sugerenciaNoCubrimos, type MotivoRuido } from "@/lib/ruido";
@@ -52,6 +54,7 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
   const seccion = a.seccion_sugerida && a.seccion_sugerida !== "Sin sugerir" ? a.seccion_sugerida : null;
   const cerrado = seguimientoCerrado(a.creada_en);
   const medios = a.medios_discover === 0 ? "Nadie" : `${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`;
+  const ayudaMedios = <InfoAyuda tema="Medios en Discover"><AyudaMedios /></InfoAyuda>;
 
   const btn = (estado: Estado, label: string, onClick?: () => void) => (
     <button aria-pressed={a.estado === estado} onClick={onClick ?? (() => onValorar(estado))}
@@ -74,21 +77,22 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
             <DesglosePuntos p={puntuarAlerta(a)} titulo="Prioridad por puntos" nota={`Alta: ${UMBRAL_ALTA} puntos o más, que encaje con la línea o venga de 2 fuentes, y como mucho 2 medios en Discover.`} />
           </Etiqueta>
           {sinDatosDiscover(a)
-            ? <Etiqueta punto={GRIS}>Sin datos de Discover todavía</Etiqueta>
+            ? <Etiqueta punto={GRIS}>Sin datos de Discover todavía {ayudaMedios}</Etiqueta>
             : cerrado
-              ? <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{medios} en Discover en sus primeras {HORAS_SEGUIMIENTO} h · {LLEGADA_PASADA[l.nivel]}</Etiqueta>
-              : <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{a.medios_discover === 0 ? "Nadie en Discover aún" : `${medios} en Discover`} · {LLEGADA_TEXTO[l.nivel]}</Etiqueta>}
+              ? <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{medios} en Discover en sus primeras {HORAS_SEGUIMIENTO} h · {LLEGADA_PASADA[l.nivel]} {ayudaMedios}</Etiqueta>
+              : <Etiqueta punto={LLEGADA_PUNTO[l.nivel]}>{a.medios_discover === 0 ? "Nadie en Discover aún" : `${medios} en Discover`} · {LLEGADA_TEXTO[l.nivel]} {ayudaMedios}</Etiqueta>}
           <EtiquetaAutoridad entidad={a.entidad} />
         </div>
         {(a.motivo_afinidad || seccion) && (
           <p className="mt-3 text-sm">
             {motivoLegible(a.motivo_afinidad)}
             {seccion && <>{a.motivo_afinidad && <span className="text-muted-foreground"> · </span>}<span className="text-muted-foreground">Sección sugerida:</span> <span className="font-medium">{seccion}</span></>}
+            <InfoAyuda tema="Por qué nos interesa" className="ml-1.5 align-[-2px]">{AYUDA_INTERESA}</InfoAyuda>
           </p>
         )}
       </div>
 
-      <BloqueFicha titulo="Por qué ahora" icono={TrendingUp}>
+      <BloqueFicha titulo="Por qué ahora" icono={TrendingUp} ayuda={AYUDA_POR_QUE_AHORA}>
         {c.seHabla && <p className="mb-1 text-sm">Se habla de: <span className="font-medium">«{c.seHabla.titular}»</span>{c.seHabla.medio && <span className="text-muted-foreground"> ({c.seHabla.medio})</span>}</p>}
         {c.resto && <p className="mb-1 text-sm text-muted-foreground">{c.resto}</p>}
         {vacias.length < 3 && (
@@ -112,7 +116,7 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
         {vacias.length > 0 && <p className="mt-1 text-xs text-muted-foreground">Sin señal en {sinSenalEn(vacias)}.</p>}
       </BloqueFicha>
 
-      <BloqueFicha titulo="Competencia en Discover" icono={Newspaper}>
+      <BloqueFicha titulo="Competencia en Discover" icono={Newspaper} ayuda={AYUDA_COMPETENCIA}>
         <Competencia key={a.id} a={a} />
         {cerrado && <p className="mt-2 text-xs text-muted-foreground">Medido en las {HORAS_SEGUIMIENTO} horas siguientes a la alerta, hasta el {fechaLarga(new Date(Date.parse(a.creada_en) + HORAS_SEGUIMIENTO * 3_600_000).toISOString())}. Si ha vuelto a Discover, lo verás en «Discover ahora».</p>}
       </BloqueFicha>
@@ -121,7 +125,7 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
 
       <div className="sticky bottom-0 z-10 border-t bg-card px-6 py-3 shadow-[0_-6px_12px_-10px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto text-[15px] font-semibold">¿Te sirve esta alerta?</span>
+          <span className="mr-auto inline-flex items-center gap-1.5 text-[15px] font-semibold">¿Te sirve esta alerta?<InfoAyuda tema="¿Te sirve esta alerta?"><AyudaValoracion /></InfoAyuda></span>
           {btn("util", "Sí, útil")}
           {btn("ruido", "No, es ruido")}
           {btn("publicada", "La publicamos", () => { onValorar("publicada", a.estado === "publicada" ? a.pieza_url : null); setEditUrl(true); })}

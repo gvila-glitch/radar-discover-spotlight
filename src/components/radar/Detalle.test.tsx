@@ -87,6 +87,26 @@ describe("Detalle (ficha de la alerta)", () => {
     expect(container.querySelectorAll("section h3 svg")).toHaveLength(2);
   });
 
+  it("cada etiqueta y bloque tiene su ⓘ con una explicación corta (no hay leyenda larga)", async () => {
+    render(<Detalle a={YOLANDA} onValorar={nada} />);
+    for (const tema of [
+      "Medios en Discover",
+      "Por qué nos interesa",
+      "Por qué ahora",
+      "Competencia en Discover",
+      "¿Te sirve esta alerta?",
+    ]) {
+      expect(screen.getByRole("button", { name: `Qué es: ${tema}` })).toBeInTheDocument();
+    }
+    // Se abre al pulsar; la de los medios enseña la escala con sus colores.
+    fireEvent.click(screen.getByRole("button", { name: "Qué es: Medios en Discover" }));
+    expect(await screen.findByText("3–5 · justo")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Qué es: ¿Te sirve esta alerta?" }));
+    expect(
+      await screen.findByText(/Sale de la lista; la verás en Estado › Ruido/),
+    ).toBeInTheDocument();
+  });
+
   it("por qué ahora (desplegado): titular, fuentes con señal y, en gris, las que no tienen", () => {
     render(<Detalle a={YOLANDA} onValorar={nada} />);
     const bloque = screen.getByRole("region", { name: "Por qué ahora" });
@@ -101,7 +121,12 @@ describe("Detalle (ficha de la alerta)", () => {
       "https://x.com/search?q=Yolanda%20D%C3%ADaz",
     );
     expect(within(bloque).getByText("Sin señal en Wikipedia.")).toBeInTheDocument();
-    expect(within(bloque).queryByRole("button")).not.toBeInTheDocument();
+    // Desplegado siempre: el único botón es la ⓘ del título, no un pliegue.
+    expect(
+      within(bloque)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Qué es: Por qué ahora"]);
   });
 
   it("alerta de Wikipedia: qué es y la frase salen del contexto; nadie en Discover", () => {

@@ -2,6 +2,7 @@ import { ChevronDown, Info, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { llegada, sinDatosDiscover } from "@/lib/metricas";
+import { InfoAyuda } from "./InfoAyuda";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
 
 const nivelCls = { ok: "text-ok", warn: "text-warn", bad: "text-bad" };
@@ -9,7 +10,8 @@ const nivelCls = { ok: "text-ok", warn: "text-warn", bad: "text-bad" };
 export function LlegadaTag({ a }: { a: Pick<Alerta, "entidad" | "medios_discover"> }) {
   if (sinDatosDiscover(a)) return null;
   const l = llegada(a.medios_discover);
-  return <span className={cn("font-mono text-xs whitespace-nowrap", nivelCls[l.nivel])}>{l.label}</span>;
+  const ya = a.medios_discover === 1 ? "Ya hay 1 medio" : `Ya hay ${a.medios_discover} medios`;
+  return <span title={`${ya} en Discover: llegaríamos los ${l.puesto}.º`} className={cn("font-mono text-xs whitespace-nowrap", nivelCls[l.nivel])}>{l.label}</span>;
 }
 
 export function PrioridadTag({ p }: { p: Prioridad }) {
@@ -68,7 +70,7 @@ export function Etiqueta({ punto, children }: { punto: string; children: ReactNo
  * Bloque de la ficha: icono azul y título, un dato opcional a la derecha y el contenido. La línea de arriba es la única
  * que separa bloques (dentro, las filas van sin líneas) y hay más aire entre bloques que dentro de ellos.
  */
-export function BloqueFicha({ titulo, icono: Icono, derecha, children }: { titulo: string; icono?: LucideIcon; derecha?: ReactNode; children: ReactNode }) {
+export function BloqueFicha({ titulo, icono: Icono, derecha, ayuda, children }: { titulo: string; icono?: LucideIcon; derecha?: ReactNode; ayuda?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={titulo} className="border-t px-6 py-5.5">
       <div className="mb-2.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -76,6 +78,7 @@ export function BloqueFicha({ titulo, icono: Icono, derecha, children }: { titul
           {Icono && <Icono aria-hidden strokeWidth={2.25} className="mr-2 inline-block size-[18px] align-[-3px] text-primary" />}
           {titulo}
         </h3>
+        {ayuda && <InfoAyuda tema={titulo} className="self-center">{ayuda}</InfoAyuda>}
         {derecha && <span className="ml-auto text-xs text-muted-foreground">{derecha}</span>}
       </div>
       {children}

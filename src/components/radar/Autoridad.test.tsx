@@ -63,7 +63,10 @@ describe("BloqueAutoridad", () => {
   it("autoridad media con una sola pieza, sin pliegue", () => {
     conDatos(datos(["Marcial Dorado"]), <BloqueAutoridad entidad="Marcial Dorado" />);
     expect(screen.getAllByRole("link")).toHaveLength(1);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // El único botón es la ⓘ del título: no hay pliegue.
+    expect(screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Qué es: Nuestro historial en Discover",
+    ]);
   });
 
   it("tema nuevo: lo dice en gris, sin piezas", () => {

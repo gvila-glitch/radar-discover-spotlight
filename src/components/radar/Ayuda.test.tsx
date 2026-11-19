@@ -1,71 +1,64 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
-import { Leyenda, PrimerosPasos } from "./Ayuda";
+import { EnlaceComoSeUsa, PrimerosPasos } from "./Ayuda";
+import { usePrimerosPasos } from "./usePrimerosPasos";
 import { LlegadaTag } from "./ui";
 import { kpis, sinDatosDiscover } from "@/lib/metricas";
 import type { Alerta } from "@/lib/types";
 
 const CLAVE = "radar_primeros_pasos_v1";
 
-describe("PrimerosPasos", () => {
+// Como en la página: el enlace «¿Cómo se usa?» y los pasos debajo.
+function Ayuda() {
+  const p = usePrimerosPasos();
+  return (
+    <>
+      <EnlaceComoSeUsa abiertos={p.abiertos} onPulsar={p.alternar} />
+      {p.abiertos && <PrimerosPasos onCerrar={p.cerrar} />}
+    </>
+  );
+}
+const pasos = () => screen.queryByRole("region", { name: "Primeros pasos" });
+
+describe("Primeros pasos y «¿Cómo se usa?»", () => {
   beforeEach(() => window.localStorage.clear());
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
 
-  it("sale la primera vez y explica los tres pasos", () => {
-    render(<PrimerosPasos />);
-    expect(screen.getByRole("region", { name: "Primeros pasos" })).toBeInTheDocument();
+  it("salen solos la primera vez y explican los tres pasos", () => {
+    render(<Ayuda />);
+    expect(pasos()).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(3);
   });
 
-  it("al pulsar «Entendido» se cierra y no vuelve a salir", () => {
-    const { unmount } = render(<PrimerosPasos />);
+  it("al pulsar «Entendido» se cierran, no vuelven a salir solos y «¿Cómo se usa?» los abre otra vez", () => {
+    const { unmount } = render(<Ayuda />);
     fireEvent.click(screen.getByRole("button", { name: "Entendido" }));
-    expect(screen.queryByRole("region", { name: "Primeros pasos" })).not.toBeInTheDocument();
+    expect(pasos()).not.toBeInTheDocument();
     expect(window.localStorage.getItem(CLAVE)).toBe("1");
     unmount();
-    render(<PrimerosPasos />);
-    expect(screen.queryByRole("region", { name: "Primeros pasos" })).not.toBeInTheDocument();
+    render(<Ayuda />);
+    expect(pasos()).not.toBeInTheDocument();
+    const enlace = screen.getByRole("button", { name: /¿Cómo se usa\?/ });
+    expect(enlace).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(enlace);
+    expect(pasos()).toBeInTheDocument();
+    expect(enlace).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("si el navegador no deja guardar, funciona igual (se cierra en esa visita)", () => {
+  it("si el navegador no deja guardar, funciona igual (se cierran en esa visita)", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("bloqueado");
     });
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("bloqueado");
     });
-    render(<PrimerosPasos />);
-    expect(screen.getByRole("region", { name: "Primeros pasos" })).toBeInTheDocument();
+    render(<Ayuda />);
+    expect(pasos()).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Entendido" }));
-    expect(screen.queryByRole("region", { name: "Primeros pasos" })).not.toBeInTheDocument();
-  });
-});
-
-describe("Leyenda", () => {
-  afterEach(cleanup);
-  it("está plegada por defecto y explica todos los conceptos", () => {
-    const { container } = render(<Leyenda />);
-    const detalles = container.querySelector("details");
-    expect(detalles).not.toBeNull();
-    expect(detalles?.open).toBe(false);
-    expect(screen.getByText("Cómo leer este panel")).toBeInTheDocument();
-    // ⓘ delante y flecha detrás: se ve que se puede pulsar y que se despliega.
-    expect(container.querySelectorAll("summary svg")).toHaveLength(2);
-    for (const t of [
-      "Prioridad",
-      "Por qué ahora",
-      "Llegada",
-      "Autoridad",
-      "Competencia en Discover",
-      "Por qué nos interesa",
-      "Valoración",
-      "Indicadores",
-    ]) {
-      expect(screen.getByText(t)).toBeInTheDocument();
-    }
+    expect(pasos()).not.toBeInTheDocument();
   });
 });
 
@@ -87,7 +80,11 @@ describe("llegada sin datos de Discover", () => {
     rerender(<LlegadaTag a={{ ...base, medios_discover: 0 }} />);
     expect(screen.getByText("1.º · a tiempo")).toBeInTheDocument();
     rerender(<LlegadaTag a={{ ...base, medios_discover: 4 }} />);
-    expect(screen.getByText("5.º · justo")).toBeInTheDocument();
+    // Al pasar el ratón, dice qué significa «5.º».
+    expect(screen.getByText("5.º · justo")).toHaveAttribute(
+      "title",
+      "Ya hay 4 medios en Discover: llegaríamos los 5.º",
+    );
   });
   it("la mediana de llegada solo cuenta alertas con datos de Discover", () => {
     const sin = {
