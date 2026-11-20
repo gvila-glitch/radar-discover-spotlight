@@ -30,10 +30,6 @@ function motivoLegible(m: string): ReactNode {
   return m;
 }
 
-/** «X», «X ni en Google», «X, Google ni Wikipedia». */
-const sinSenalEn = (fuentes: string[]) =>
-  fuentes.length < 3 ? fuentes.join(" ni en ") : `${fuentes.slice(0, -1).join(", ")} ni ${fuentes[fuentes.length - 1]}`;
-
 export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos }: {
   a: Alerta; onValorar: (estado: Estado, pieza_url?: string | null) => void;
   /** Para «Añadir a lo que no cubrimos», solo administradores. */
@@ -50,7 +46,10 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
   const c = leerContexto(a);
   const l = llegada(a.medios_discover);
   const hayTrends = a.trends_activo && !!a.trends_crecimiento;
-  const vacias = [!a.x_posicion && "X", !hayTrends && "Google", !a.wikipedia_ratio && "Wikipedia"].filter((f): f is string => !!f);
+  // Solo se enseñan las fuentes con señal: las que no tienen no se nombran.
+  const conSenal = !!a.x_posicion || hayTrends || !!a.wikipedia_ratio;
+  // Competencia: el bloque solo sale si algún medio está ya en Discover (si no, la cabecera ya dice «Nadie en Discover aún»).
+  const hayCompetencia = !sinDatosDiscover(a) && a.medios_discover > 0;
   const seccion = a.seccion_sugerida && a.seccion_sugerida !== "Sin sugerir" ? a.seccion_sugerida : null;
   const cerrado = seguimientoCerrado(a.creada_en);
   const medios = a.medios_discover === 0 ? "Nadie" : `${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`;
@@ -66,9 +65,9 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
   );
 
   return (
-    <article className="break-words border bg-card" aria-label={`Detalle: ${a.entidad}`}>
+    <article className="break-words border border-caja bg-card" aria-label={`Detalle: ${a.entidad}`}>
       <div className="px-6 pt-5 pb-4">
-        <time dateTime={a.creada_en} title={fechaLarga(a.creada_en)} className="font-mono text-xs text-muted-foreground underline decoration-dotted underline-offset-4">{hace(a.creada_en)}</time>
+        <time dateTime={a.creada_en} title={fechaLarga(a.creada_en)} className="tabular-nums text-xs text-muted-foreground underline decoration-dotted underline-offset-4">{hace(a.creada_en)}</time>
         <h2 className="mt-1.5 tracking-tight text-3xl font-semibold leading-tight">{nombreVisible(a.entidad)}</h2>
         {c.queEs && <p className="mt-1 text-muted-foreground">{c.queEs}</p>}
         {c.frase && <p className="mt-1 text-sm text-muted-foreground">«{c.frase}»</p>}
@@ -93,34 +92,33 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
         )}
       </div>
 
-      <BloqueFicha titulo="Por qué ahora" icono={TrendingUp} ayuda={AYUDA_POR_QUE_AHORA}>
+      {(c.seHabla || c.resto || conSenal) && <BloqueFicha titulo="Por qué ahora" icono={TrendingUp} ayuda={AYUDA_POR_QUE_AHORA}>
         {c.seHabla && <p className="mb-1 text-sm">Se habla de: <span className="font-medium">«{c.seHabla.titular}»</span>{c.seHabla.medio && <span className="text-muted-foreground"> ({c.seHabla.medio})</span>}</p>}
         {c.resto && <p className="mb-1 text-sm text-muted-foreground">{c.resto}</p>}
-        {vacias.length < 3 && (
+        {conSenal && (
           <ul className="grid grid-cols-[max-content_minmax(0,1fr)_auto] gap-x-3">
             {a.x_posicion ? (
               <Fuente nombre="X" enlace={<a href={enlaceX(nombreVisible(a.entidad))} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-primary underline underline-offset-4">Ver en X <ExternalLink aria-hidden className="size-3" /></a>}>
-                puesto <span className="font-mono">{a.x_posicion}</span>
-                {a.x_desde && (esHoy(a.x_desde) ? <> desde las <span className="font-mono">{hora24(a.x_desde)}</span></> : <> desde el <span className="font-mono">{fechaLarga(a.x_desde)}</span></>)}
+                puesto <span className="tabular-nums">{a.x_posicion}</span>
+                {a.x_desde && (esHoy(a.x_desde) ? <> desde las <span className="tabular-nums">{hora24(a.x_desde)}</span></> : <> desde el <span className="tabular-nums">{fechaLarga(a.x_desde)}</span></>)}
                 {c.x?.categoria && <> · {c.x.categoria}</>}
                 {c.x?.publicaciones && <> · {c.x.publicaciones}</>}
               </Fuente>
             ) : null}
-            {hayTrends && <Fuente nombre="Google"><span className="font-mono">{a.trends_crecimiento}</span> búsquedas</Fuente>}
+            {hayTrends && <Fuente nombre="Google"><span className="tabular-nums">{a.trends_crecimiento}</span> búsquedas</Fuente>}
             {a.wikipedia_ratio ? (
               <Fuente nombre="Wikipedia">
-                <span className="font-mono">{(a.wikipedia_visitas ?? 0).toLocaleString("es-ES")}</span> visitas en un día, <span className="font-mono">×{Number(a.wikipedia_ratio).toLocaleString("es-ES")}</span> sobre su media
+                <span className="tabular-nums">{(a.wikipedia_visitas ?? 0).toLocaleString("es-ES")}</span> visitas en un día, <span className="tabular-nums">×{Number(a.wikipedia_ratio).toLocaleString("es-ES")}</span> sobre su media
               </Fuente>
             ) : null}
           </ul>
         )}
-        {vacias.length > 0 && <p className="mt-1 text-xs text-muted-foreground">Sin señal en {sinSenalEn(vacias)}.</p>}
-      </BloqueFicha>
+      </BloqueFicha>}
 
-      <BloqueFicha titulo="Competencia en Discover" icono={Newspaper} ayuda={AYUDA_COMPETENCIA}>
+      {hayCompetencia && <BloqueFicha titulo="Competencia en Discover" icono={Newspaper} ayuda={AYUDA_COMPETENCIA}>
         <Competencia key={a.id} a={a} />
         {cerrado && <p className="mt-2 text-xs text-muted-foreground">Medido en las {HORAS_SEGUIMIENTO} horas siguientes a la alerta, hasta el {fechaLarga(new Date(Date.parse(a.creada_en) + HORAS_SEGUIMIENTO * 3_600_000).toISOString())}. Si ha vuelto a Discover, lo verás en «Discover ahora».</p>}
-      </BloqueFicha>
+      </BloqueFicha>}
 
       <BloqueAutoridad key={a.id} entidad={a.entidad} />
 
@@ -137,7 +135,7 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
             <label className="flex min-w-64 flex-1 flex-col gap-1 text-sm">
               Enlace a nuestra pieza (opcional)
               <input autoFocus type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://"
-                aria-invalid={!urlValida} className="rounded-md border border-input bg-background px-3 py-1.5 font-mono text-sm focus-visible:outline-2 focus-visible:outline-ring aria-invalid:border-destructive" />
+                aria-invalid={!urlValida} className="rounded-md border border-input bg-background px-3 py-1.5 tabular-nums text-sm focus-visible:outline-2 focus-visible:outline-ring aria-invalid:border-destructive" />
             </label>
             <button type="submit" disabled={!urlValida} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">Guardar</button>
             <button type="button" onClick={() => setEditUrl(false)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">Cancelar</button>
@@ -146,7 +144,7 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
         )}
         {a.estado === "publicada" && !editUrl && (
           <p className="mt-3 text-sm">
-            {a.pieza_url ? <a href={a.pieza_url} target="_blank" rel="noreferrer" className="font-mono text-primary underline">{a.pieza_url}</a> : <span className="text-muted-foreground">Sin enlace a la pieza.</span>}
+            {a.pieza_url ? <a href={a.pieza_url} target="_blank" rel="noreferrer" className="tabular-nums text-primary underline">{a.pieza_url}</a> : <span className="text-muted-foreground">Sin enlace a la pieza.</span>}
             {" "}<button onClick={() => setEditUrl(true)} className="text-primary hover:underline">{a.pieza_url ? "Editar" : "Añadir enlace"}</button>
           </p>
         )}
@@ -228,8 +226,6 @@ function SeccionRuido({ a, esAdmin, onMotivo, onNoCubrimos }: {
 
 function Competencia({ a }: { a: Alerta }) {
   const [abierto, setAbierto] = useState(false);
-  if (sinDatosDiscover(a)) return <p className="text-sm text-muted-foreground">Sin datos de Discover todavía.</p>;
-  if (a.medios_discover === 0) return <p className="text-sm text-muted-foreground">Ningún medio ha llegado todavía a Discover con este tema.</p>;
   const titulares = a.titulares_seo;
   if (!titulares.length) {
     return <p className="text-sm">{a.medios_lista.length ? a.medios_lista.join(", ") : `${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`}<span className="text-muted-foreground"> · sin titulares todavía</span></p>;
@@ -241,7 +237,7 @@ function Competencia({ a }: { a: Alerta }) {
     <>
       <ul className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3">
         {(abierto ? titulares : titulares.slice(0, 2)).map((t, i) => (
-          <li key={i} className="col-span-full grid grid-cols-subgrid py-1.5 text-sm"><span className="max-w-40 truncate font-mono text-xs leading-5 text-muted-foreground" title={t.medio}>{t.medio}</span><span>{t.titular}</span></li>
+          <li key={i} className="col-span-full grid grid-cols-subgrid py-1.5 text-sm"><span className="max-w-40 truncate tabular-nums text-xs leading-5 text-muted-foreground" title={t.medio}>{t.medio}</span><span>{t.titular}</span></li>
         ))}
       </ul>
       {abierto && sinTitular.length > 0 && <p className="mt-1 text-xs text-muted-foreground">Sin titular todavía: {sinTitular.join(", ")}</p>}

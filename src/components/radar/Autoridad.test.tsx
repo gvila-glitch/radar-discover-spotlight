@@ -69,12 +69,12 @@ describe("BloqueAutoridad", () => {
     ]);
   });
 
-  it("tema nuevo: lo dice en gris, sin piezas", () => {
-    conDatos(datos(["[SIN DISCOVER] Pedri"]), <BloqueAutoridad entidad="[SIN DISCOVER] Pedri" />);
-    expect(
-      screen.getByText("No tenemos historial en Discover sobre «Pedri» en estas fechas."),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  it("tema nuevo (sin historial): el bloque no sale", () => {
+    const { container } = conDatos(
+      datos(["[SIN DISCOVER] Pedri"]),
+      <BloqueAutoridad entidad="[SIN DISCOVER] Pedri" />,
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("avisa si el nombre es una sola palabra", () => {
@@ -98,7 +98,7 @@ describe("BloqueAutoridad", () => {
 
 describe("EtiquetaAutoridad", () => {
   afterEach(cleanup);
-  it("en la cabecera de la ficha: nivel y piezas, o tema nuevo; sin datos, nada", () => {
+  it("en la cabecera de la ficha: nivel y piezas solo si hay autoridad; tema nuevo o sin datos, nada", () => {
     conDatos(
       datos(["Yolanda Díaz", "Marcial Dorado", "Pedri"]),
       <>
@@ -109,7 +109,7 @@ describe("EtiquetaAutoridad", () => {
     );
     expect(screen.getByText("Autoridad alta · 4 piezas")).toBeInTheDocument();
     expect(screen.getByText("Autoridad media · 1 pieza")).toBeInTheDocument();
-    expect(screen.getByText("Tema nuevo para nosotros")).toBeInTheDocument();
+    expect(screen.queryByText("Tema nuevo para nosotros")).not.toBeInTheDocument();
     cleanup();
     expect(render(<EtiquetaAutoridad entidad="Ayuso" />).container).toBeEmptyDOMElement();
   });

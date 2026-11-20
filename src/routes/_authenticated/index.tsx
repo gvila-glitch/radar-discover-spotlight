@@ -1,14 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Ban, ChevronLeft, ChevronRight, Moon, SlidersHorizontal, Sun } from "lucide-react";
+import { Ban, ChevronDown, ChevronLeft, ChevronRight, Moon, SlidersHorizontal, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { guardarMotivoRuido, listAlertas, valorar } from "@/lib/alertasRepo";
 import { anadirNoCubrimos } from "@/lib/ruido.functions";
 import type { MotivoRuido } from "@/lib/ruido";
-import { desdePeriodo, claveDia, esHoy } from "@/lib/fechas";
-import { kpis, nombreVisible } from "@/lib/metricas";
+import { desdePeriodo, esHoy } from "@/lib/fechas";
+import { nombreVisible } from "@/lib/metricas";
 import type { Alerta, Estado, Prioridad } from "@/lib/types";
 import { ESTADO_LABEL, Selector } from "@/components/radar/ui";
 import { usePanelEmail } from '@/lib/panelAuth';
@@ -19,14 +19,12 @@ import { EnlaceComoSeUsa, PrimerosPasos } from "@/components/radar/Ayuda";
 import { usePrimerosPasos } from "@/components/radar/usePrimerosPasos";
 import { useFichaMovil } from "@/components/radar/useFichaMovil";
 import { avisarRuido } from "@/components/radar/avisarRuido";
-import { InfoAyuda } from "@/components/radar/InfoAyuda";
-import { AYUDA_KPI_MEDIOS } from "@/components/radar/textosAyuda";
 import { useServerFn } from "@tanstack/react-start";
 import { esAdmin as leerEsAdmin } from "@/lib/configRepo";
 import { listarDescartes } from "@/lib/descartes.functions";
 import { diaMadrid, OPCIONES_SENAL, pasaSenal, type FiltroSenal } from "@/lib/descartes";
 import { OPCIONES_AUTORIDAD, OPCIONES_ESTADO, OPCIONES_FUENTE, pasaAutoridad, pasaEstado, pasaFuente, type FiltroAutoridad, type FiltroEstado, type FiltroFuente } from "@/lib/filtrosAlertas";
-import { AvisoDescartes, SelectorVistas, VistaDescartes, VistaTodas, type Vista } from "@/components/radar/Descartes";
+import { SelectorVistas, VistaDescartes, VistaTodas, type Vista } from "@/components/radar/Descartes";
 import { ContenidoAlerta } from "@/components/radar/ItemAlerta";
 import { leerAutoridad } from "@/lib/autoridad.functions";
 import { AutoridadProvider } from "@/components/radar/Autoridad";
@@ -79,11 +77,12 @@ export function Index() {
   const ficha = useFichaMovil((id) => setSel(id));
   const fichaRef = useRef<HTMLDivElement>(null);
   const [filtrosMovil, setFiltrosMovil] = useState(false);
+  const [masFiltros, setMasFiltros] = useState(false);
   const [dark, setDark] = useState(false);
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
   const qc = useQueryClient();
-  // Se piden al menos 7 días: los indicadores usan siempre los últimos 7 días, sea cual sea el periodo de la lista.
+  // Se piden al menos 7 días: al pasar de «Hoy» a «Últimos 7 días» la lista sale sin volver a cargar.
   const periodoConsulta: Periodo = periodo === "hoy" ? "7d" : periodo;
   const key = ["alertas", periodoConsulta];
   const { data = [], isLoading, isError } = useQuery({ queryKey: key, queryFn: () => listAlertas(desdePeriodo(periodoConsulta)) });
@@ -100,10 +99,6 @@ export function Index() {
   const qa = useQuery({ queryKey: ["autoridad", entidades], queryFn: () => leerAut({ data: { entidades } }), enabled: entidades.length > 0, staleTime: 10 * 60_000, retry: false });
   const descartes = (qd.data ?? []).filter((d) => pasaSenal(d, senal) && (revision === "todos" || (revision === "marcados" ? !!d.veredicto : !d.veredicto)));
 
-  const k = useMemo(() => {
-    const desde7 = desdePeriodo("7d")?.getTime() ?? 0;
-    return kpis(data.filter((a) => Date.parse(a.creada_en) >= desde7), claveDia, claveDia(new Date()));
-  }, [data]);
   const visibles = delPeriodo.filter((a) => (prio === "todas" || a.prioridad === prio) && pasaEstado(a.estado, estado) && pasaFuente(a, fuente) && pasaAutoridad(qa.data?.temas[a.entidad]?.nivel, autoridad));
   const actual = visibles.find((a) => a.id === sel) ?? visibles[0];
   const filtrosActivos = prio !== "todas" || estado !== "sin_ruido" || fuente !== "todas" || autoridad !== "todas" || periodo !== "hoy" || senal !== "todas" || revision !== "todos";
@@ -196,11 +191,58 @@ export function Index() {
     if (n) { setSel(n.id); listRef.current?.querySelector<HTMLElement>(`[data-id="${n.id}"]`)?.focus(); }
   }
 
-  const pct = (v: number | null) => (v == null ? "—" : `${Math.round(v)} %`);
+  // Arriba, la tarea (cuántas quedan por valorar en el periodo elegido), no la descripción del radar.
+  const porValorar = delPeriodo.filter((a) => a.estado === "pendiente").length;
+  const fraseTarea = isLoading || isError ? null
+    : porValorar > 0 ? <>Tienes <b>{porValorar} {porValorar === 1 ? "alerta" : "alertas"} por valorar</b>. {porValorar === 1 ? "Ábrela" : "Abre cada una"} y decide si nos sirve.</>
+    : delPeriodo.length > 0 ? "Todo valorado. Las alertas nuevas aparecerán aquí."
+    : "Aún no hay alertas que valorar.";
+  // «Más filtros»: Autoridad y Fuente, plegados. Si alguno está en uso, se ven siempre (para no esconder un filtro activo).
+  const nMasFiltros = [autoridad !== "todas", fuente !== "todas"].filter(Boolean).length;
+  const verMasFiltros = masFiltros || nMasFiltros > 0;
+
+  // Cabecera de la caja de la lista, igual en las tres pestañas: las pestañas y, debajo, los filtros de esa pestaña.
+  const cabeceraLista = (
+    <div className="border-b">
+      <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />
+      {/* En el móvil, los filtros van tras un botón para que la lista se vea enseguida. */}
+      <div className="flex items-center gap-2 border-t px-3 py-2 lg:hidden">
+        <button type="button" aria-expanded={filtrosMovil} onClick={() => setFiltrosMovil((v) => !v)} className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-medium">
+          <SlidersHorizontal aria-hidden className="size-4" />Filtros{nFiltros > 0 && ` (${nFiltros})`}
+        </button>
+        <span className="text-xs text-muted-foreground">{resumenFiltros}</span>
+      </div>
+      <div className={cn("flex flex-wrap items-center gap-x-5 gap-y-2 border-t bg-muted/60 px-3 py-2", !filtrosMovil && "max-lg:hidden")}>
+        <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={OPCIONES_PERIODO} />
+        {vista !== "descartes" && <>
+          <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={OPCIONES_ESTADO} />
+          <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />
+          <button type="button" aria-expanded={verMasFiltros} onClick={() => setMasFiltros((v) => !v)} className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+            <SlidersHorizontal aria-hidden className="size-3.5" />Más filtros{nMasFiltros > 0 && ` (${nMasFiltros})`}
+            <ChevronDown aria-hidden className={cn("size-3.5 transition-transform", verMasFiltros && "rotate-180")} />
+          </button>
+          {verMasFiltros && qa.data?.periodo && <Selector id="f-autoridad" label="Autoridad" value={autoridad} onChange={setAutoridad} options={OPCIONES_AUTORIDAD} />}
+          {verMasFiltros && <Selector id="f-fuente" label="Fuente" value={fuente} onChange={setFuente} options={OPCIONES_FUENTE} />}
+        </>}
+        {vista === "descartes" && <>
+          <Selector id="f-senal" label="Señal" value={senal} onChange={setSenal} options={OPCIONES_SENAL} />
+          <Selector id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />
+        </>}
+        <span className="ml-auto flex items-center gap-4">
+          <span className="tabular-nums text-xs text-muted-foreground">{vista === "descartes" ? `${descartes.length} descartes` : `${visibles.length} de ${delPeriodo.length}`}</span>
+          {filtrosActivos && (
+            <button onClick={restablecer} className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
+              Restablecer filtros
+            </button>
+          )}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen">
-      <header className="border-b bg-card">
+      <header className="border-b border-caja bg-card">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
           <h1 className="tracking-tight text-xl font-semibold">Radar Discover</h1>
           <span className="text-xs text-muted-foreground">prototipo</span>
@@ -215,53 +257,20 @@ export function Index() {
       <AutoridadProvider value={qa.data ?? null}>
       <main className="mx-auto max-w-7xl px-4 py-6">
         <h2 className="tracking-tight text-3xl font-semibold">Alertas</h2>
-        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span>Qué empieza a subir antes de llegar a Discover · España · X, Google Trends y Wikipedia</span>
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {fraseTarea && <span>{fraseTarea}</span>}
           <EnlaceComoSeUsa abiertos={pasos.abiertos} onPulsar={pasos.alternar} />
         </p>
         {pasos.abiertos && <PrimerosPasos onCerrar={pasos.cerrar} />}
-        <SelectorVistas vista={vista} onCambio={setVista} cuentas={{ alertas: isLoading ? null : visibles.length, descartes: qd.isLoading ? null : descartes.length, todas: isLoading || qd.isLoading ? null : visibles.length + descartes.length }} />
-        {vista === "descartes" && <AvisoDescartes />}
-
-        {vista !== "descartes" && <section aria-label="Indicadores" className="mt-4 grid grid-cols-2 divide-x divide-y border bg-card lg:grid-cols-4 lg:divide-y-0">
-          <Kpi titulo="Alertas hoy" valor={String(k.hoy)} ok={k.hoy >= 3 && k.hoy <= 8} sub={`${k.pendientesHoy} pendientes de valorar · objetivo 3–8 al día`} />
-          <Kpi titulo="Útiles" valor={pct(k.pctUtiles)} ok={k.pctUtiles == null ? null : k.pctUtiles >= 50} sub="valoradas en los últimos 7 días · objetivo ≥ 50 %" />
-          <Kpi titulo="Acabaron en pieza" valor={pct(k.pctPublicadas)} ok={k.pctPublicadas == null ? null : k.pctPublicadas >= 20} sub="del total de los últimos 7 días · objetivo ≥ 20 %" />
-          <Kpi titulo="Medios en Discover" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={null} ayuda={AYUDA_KPI_MEDIOS} sub={k.medianaLlegada == null ? "sin datos de Discover en los últimos 7 días" : "mediana en las 24 h tras el aviso · últimos 7 días"} />
-        </section>}
-
-        {/* En el móvil, los filtros van tras un botón para que la lista se vea enseguida. */}
-        <div className="mt-4 flex items-center gap-2 lg:hidden">
-          <button type="button" aria-expanded={filtrosMovil} onClick={() => setFiltrosMovil((v) => !v)} className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-medium">
-            <SlidersHorizontal aria-hidden className="size-4" />Filtros{nFiltros > 0 && ` (${nFiltros})`}
-          </button>
-          <span className="text-xs text-muted-foreground">{resumenFiltros}</span>
-        </div>
-        <div className={cn("mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2 max-lg:mt-2", !filtrosMovil && "max-lg:hidden")}>
-          <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={OPCIONES_PERIODO} />
-          {vista !== "descartes" && <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={OPCIONES_ESTADO} />}
-          {vista !== "descartes" && <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />}
-          {vista !== "descartes" && qa.data?.periodo && <Selector id="f-autoridad" label="Autoridad" value={autoridad} onChange={setAutoridad} options={OPCIONES_AUTORIDAD} />}
-          {vista !== "descartes" && <Selector id="f-fuente" label="Fuente" value={fuente} onChange={setFuente} options={OPCIONES_FUENTE} />}
-          {vista === "descartes" && <Selector id="f-senal" label="Señal" value={senal} onChange={setSenal} options={OPCIONES_SENAL} />}
-          {vista === "descartes" && <Selector id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />}
-          <span className="ml-auto flex items-center gap-4">
-            <span className="font-mono text-xs text-muted-foreground">{vista === "descartes" ? `${descartes.length} descartes` : `${visibles.length} de ${delPeriodo.length}`}</span>
-            {filtrosActivos && (
-              <button onClick={restablecer} className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-                Restablecer filtros
-              </button>
-            )}
-          </span>
-        </div>
 
         {vista === "descartes" ? (
-          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} />
+          <VistaDescartes descartes={descartes} cargando={qd.isLoading} error={qd.isError} esAdmin={admin} cabecera={cabeceraLista} />
         ) : vista === "todas" ? (
-          <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} onMotivo={onMotivo} onNoCubrimos={onNoCubrimos} />
+          <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} onMotivo={onMotivo} onNoCubrimos={onNoCubrimos} cabecera={cabeceraLista} />
         ) : (
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <div className="min-w-0 border bg-card">
+          <div className="min-w-0 self-start border border-caja bg-card">
+            {cabeceraLista}
             {isError ? <p role="alert" className="p-4 text-sm text-destructive">No se pudieron cargar las alertas. Inténtalo de nuevo.</p>
               : isLoading ? <p className="p-4 text-sm text-muted-foreground">Cargando alertas…</p>
               : visibles.length === 0 ? <p className="p-4 text-sm text-muted-foreground">{periodo === "hoy" && delPeriodo.length === 0 ? "Hoy todavía no hay alertas. Cambia el periodo para ver las anteriores." : "No hay alertas con estos filtros."}</p>
@@ -302,7 +311,7 @@ export function Index() {
                 <button type="button" onClick={ficha.cerrar} aria-label="Volver a la lista" className="inline-flex items-center gap-0.5 py-1 text-sm font-medium text-primary"><ChevronLeft aria-hidden className="size-5" />Alertas</button>
                 <span className="inline-flex items-center gap-1">
                   <button type="button" aria-label="Alerta anterior" disabled={posicion <= 0} onClick={() => irA(visibles[posicion - 1])} className="grid size-9 place-items-center rounded-md border disabled:opacity-40"><ChevronLeft aria-hidden className="size-4" /></button>
-                  <span className="px-1 font-mono text-xs text-muted-foreground">{posicion + 1} de {visibles.length}</span>
+                  <span className="px-1 tabular-nums text-xs text-muted-foreground">{posicion + 1} de {visibles.length}</span>
                   <button type="button" aria-label="Alerta siguiente" disabled={posicion >= visibles.length - 1} onClick={() => irA(visibles[posicion + 1])} className="grid size-9 place-items-center rounded-md border disabled:opacity-40"><ChevronRight aria-hidden className="size-4" /></button>
                 </span>
               </div>
@@ -318,16 +327,5 @@ export function Index() {
 }
 
 function Tecla({ children }: { children: string }) {
-  return <kbd className="rounded border border-b-2 bg-background px-1.5 py-px font-mono text-[11px] text-foreground">{children}</kbd>;
-}
-
-function Kpi({ titulo, valor, sub, ok, ayuda }: { titulo: string; valor: string; sub: string; ok: boolean | null; ayuda?: string }) {
-  return (
-    <div className="p-3 lg:p-4">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground lg:text-sm">{titulo}{ayuda && <InfoAyuda tema={titulo}>{ayuda}</InfoAyuda>}</div>
-      <div className={cn("mt-1 font-mono text-xl font-medium lg:text-3xl", ok == null ? "" : ok ? "text-ok" : "text-bad")}>{valor}</div>
-      {/* En el móvil, compactos: sin la línea de detalle (el color ya dice si se cumple el objetivo). */}
-      <div className="mt-1 text-xs text-muted-foreground max-lg:hidden">{ok != null && <span className={ok ? "text-ok" : "text-bad"}>{ok ? "✓ " : "✗ "}</span>}{sub}</div>
-    </div>
-  );
+  return <kbd className="rounded border border-b-2 bg-background px-1.5 py-px tabular-nums text-[11px] text-foreground">{children}</kbd>;
 }

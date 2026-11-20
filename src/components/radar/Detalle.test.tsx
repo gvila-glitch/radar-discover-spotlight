@@ -107,7 +107,7 @@ describe("Detalle (ficha de la alerta)", () => {
     ).toBeInTheDocument();
   });
 
-  it("por qué ahora (desplegado): titular, fuentes con señal y, en gris, las que no tienen", () => {
+  it("por qué ahora (desplegado): titular y solo las fuentes con señal (las que no tienen no se nombran)", () => {
     render(<Detalle a={YOLANDA} onValorar={nada} />);
     const bloque = screen.getByRole("region", { name: "Por qué ahora" });
     expect(within(bloque).getByText(/Los sindicatos europeos respaldan/)).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe("Detalle (ficha de la alerta)", () => {
       "href",
       "https://x.com/search?q=Yolanda%20D%C3%ADaz",
     );
-    expect(within(bloque).getByText("Sin señal en Wikipedia.")).toBeInTheDocument();
+    expect(within(bloque).queryByText(/Sin señal|Wikipedia/)).not.toBeInTheDocument();
     // Desplegado siempre: el único botón es la ⓘ del título, no un pliegue.
     expect(
       within(bloque)
@@ -129,7 +129,7 @@ describe("Detalle (ficha de la alerta)", () => {
     ).toEqual(["Qué es: Por qué ahora"]);
   });
 
-  it("alerta de Wikipedia: qué es y la frase salen del contexto; nadie en Discover", () => {
+  it("alerta de Wikipedia: qué es y la frase salen del contexto; nadie en Discover, sin bloque de competencia", () => {
     render(
       <Detalle
         a={alerta({
@@ -146,12 +146,13 @@ describe("Detalle (ficha de la alerta)", () => {
     expect(screen.getByText("Narcotraficante gallego")).toBeInTheDocument();
     expect(screen.getByText("«Marcial Dorado es un empresario gallego.»")).toBeInTheDocument();
     expect(screen.queryByText(/Pico en Wikipedia/)).not.toBeInTheDocument();
-    expect(screen.getByText("Sin señal en X ni en Google.")).toBeInTheDocument();
+    expect(screen.queryByText(/Sin señal/)).not.toBeInTheDocument();
     expect(screen.getByText("19.000")).toBeInTheDocument();
     expect(screen.getByText("Nadie en Discover aún · vas a tiempo")).toBeInTheDocument();
+    // La cabecera ya dice que no hay nadie: el bloque de competencia no sale.
     expect(
-      screen.getByText("Ningún medio ha llegado todavía a Discover con este tema."),
-    ).toBeInTheDocument();
+      screen.queryByRole("region", { name: "Competencia en Discover" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("(por las reglas de Configuración)")).toBeInTheDocument();
   });
 
@@ -177,20 +178,27 @@ describe("Detalle (ficha de la alerta)", () => {
     );
     expect(screen.getByRole("heading", { level: 2, name: "Pedri" })).toBeInTheDocument();
     expect(screen.getByText("Sin datos de Discover todavía")).toBeInTheDocument();
-    expect(screen.getByText("Sin datos de Discover todavía.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Competencia en Discover" }),
+    ).not.toBeInTheDocument();
   });
 
   it("pasadas 24 horas, dice que Discover se midió en las 24 horas siguientes a la alerta", () => {
     render(
       <Detalle
-        a={alerta({ entidad: "maría tardón", creada_en: hace(30 * 60) })}
+        a={alerta({
+          entidad: "maría tardón",
+          creada_en: hace(30 * 60),
+          medios_discover: 2,
+          medios_lista: ["elpais.com", "abc.es"],
+        })}
         onValorar={nada}
       />,
     );
     expect(
-      screen.getByText("Nadie en Discover en sus primeras 24 h · a tiempo"),
+      screen.getByText("2 medios en Discover en sus primeras 24 h · a tiempo"),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/Nadie en Discover aún/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/en Discover · vas a tiempo/)).not.toBeInTheDocument();
     expect(screen.getByText(/Medido en las 24 horas siguientes a la alerta/)).toBeInTheDocument();
   });
 
@@ -308,11 +316,16 @@ describe("Detalle (ficha de la alerta)", () => {
     expect(onNoCubrimos).toHaveBeenLastCalledWith("nombre", expect.any(String));
   });
 
-  it("sin ninguna fuente con señal lo dice en una línea, y enseña tal cual el contexto que no reconoce", () => {
+  it("sin ninguna fuente con señal no lo anuncia: enseña tal cual el contexto que no reconoce", () => {
     render(<Detalle a={alerta({ contexto: "Aviso manual: revisar portada" })} onValorar={nada} />);
     const bloque = screen.getByRole("region", { name: "Por qué ahora" });
     expect(within(bloque).getByText("Aviso manual: revisar portada")).toBeInTheDocument();
-    expect(within(bloque).getByText("Sin señal en X, Google ni Wikipedia.")).toBeInTheDocument();
+    expect(within(bloque).queryByText(/Sin señal/)).not.toBeInTheDocument();
     expect(within(bloque).queryByRole("list")).not.toBeInTheDocument();
+  });
+
+  it("sin señal ni contexto, el bloque «Por qué ahora» no sale", () => {
+    render(<Detalle a={alerta({ contexto: "" })} onValorar={nada} />);
+    expect(screen.queryByRole("region", { name: "Por qué ahora" })).not.toBeInTheDocument();
   });
 });

@@ -63,19 +63,19 @@ export function AutoridadLista({ entidad }: { entidad: string }) {
   );
 }
 
-/** Etiqueta de la cabecera de la ficha: «Autoridad alta · 6 piezas» o «Tema nuevo para nosotros». Sin datos, nada. */
+/**
+ * Etiqueta de la cabecera de la ficha: «Autoridad alta · 6 piezas». Solo con autoridad alta o media: sin historial
+ * («tema nuevo») o sin datos, nada, para no llenar la cabecera (el filtro de Autoridad sigue permitiendo buscarlos).
+ */
 export function EtiquetaAutoridad({ entidad }: { entidad: string }) {
   const a = useAutoridad(entidad);
-  if (!a) return null;
+  if (!a || a.r.nivel === "nuevo") return null;
   const { nivel, total } = a.r;
   const ayuda = (
     <InfoAyuda tema="Autoridad">
       <AyudaAutoridad />
     </InfoAyuda>
   );
-  if (nivel === "nuevo") {
-    return <Etiqueta punto="bg-muted-foreground/40">Tema nuevo para nosotros {ayuda}</Etiqueta>;
-  }
   return (
     <Etiqueta punto={nivel === "alta" ? "bg-ok" : "bg-warn"}>
       Autoridad {nivel} · {n(total)} {total === 1 ? "pieza" : "piezas"} {ayuda}
@@ -86,12 +86,12 @@ export function EtiquetaAutoridad({ entidad }: { entidad: string }) {
 /**
  * Bloque «Nuestro historial en Discover» de la ficha: piezas ANTERIORES nuestras que tuvieron tráfico de Discover
  * (Search Console), no lo conseguido con la alerta. La mejor pieza con su enlace y, plegadas, las demás. El nivel va
- * en la etiqueta de la cabecera; los umbrales, en «Cómo leer este panel».
+ * en la etiqueta de la cabecera; los umbrales, en su ⓘ. Sin historial («tema nuevo»), el bloque no sale.
  */
 export function BloqueAutoridad({ entidad }: { entidad: string }) {
   const a = useAutoridad(entidad);
   const [todas, setTodas] = useState(false);
-  if (!a) return null;
+  if (!a || a.r.nivel === "nuevo") return null;
   const { r, periodo } = a;
   const nombre = entidad.replace(/^\[(SIN DISCOVER|PRUEBA)\]\s*/i, "");
   const visibles = todas ? r.piezas : r.piezas.slice(0, 1);
@@ -108,51 +108,43 @@ export function BloqueAutoridad({ entidad }: { entidad: string }) {
       derecha={`Tráfico ${textoPeriodo(periodo)} · Search Console`}
       ayuda={AYUDA_HISTORIAL}
     >
-      {r.nivel === "nuevo" ? (
-        <p className="text-sm text-muted-foreground">
-          No tenemos historial en Discover sobre «{nombre}» en estas fechas.
-        </p>
-      ) : (
-        <>
-          {/* Tabla (subgrid): la columna de secciones mide lo que la más larga, así el título queda cerca. */}
-          <ul className="grid grid-cols-[max-content_minmax(0,1fr)_auto] gap-x-3">
-            {visibles.map((p) => (
-              <li
-                key={p.url}
-                className="col-span-full grid grid-cols-subgrid items-baseline py-1.5 text-sm"
-              >
-                <span className="max-w-32 truncate text-xs text-muted-foreground">{p.seccion}</span>
-                <a
-                  href={p.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={p.titulo}
-                  className="inline-flex min-w-0 items-baseline gap-1.5 text-primary underline-offset-4 hover:underline"
-                >
-                  <span className="truncate">{p.titulo}</span>
-                  <ExternalLink aria-hidden className="size-3.5 shrink-0 self-center" />
-                </a>
-                <span className="text-right font-mono text-xs text-muted-foreground">
-                  {n(p.clics)}
-                  {p.mes && ` · ${mesCorto(p.mes)}`}
-                </span>
-              </li>
-            ))}
-          </ul>
-          {r.piezas.length > 1 && (
-            <Pliegue
-              abierto={todas}
-              onCambio={() => setTodas((t) => !t)}
-              abrir={
-                r.total > r.piezas.length
-                  ? `Ver las ${r.piezas.length} mejores (de ${n(r.total)})`
-                  : `Ver las ${r.total} piezas`
-              }
-              cerrar="Ver solo la mejor"
-              resumen={resumen}
-            />
-          )}
-        </>
+      {/* Tabla (subgrid): la columna de secciones mide lo que la más larga, así el título queda cerca. */}
+      <ul className="grid grid-cols-[max-content_minmax(0,1fr)_auto] gap-x-3">
+        {visibles.map((p) => (
+          <li
+            key={p.url}
+            className="col-span-full grid grid-cols-subgrid items-baseline py-1.5 text-sm"
+          >
+            <span className="max-w-32 truncate text-xs text-muted-foreground">{p.seccion}</span>
+            <a
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={p.titulo}
+              className="inline-flex min-w-0 items-baseline gap-1.5 text-primary underline-offset-4 hover:underline"
+            >
+              <span className="truncate">{p.titulo}</span>
+              <ExternalLink aria-hidden className="size-3.5 shrink-0 self-center" />
+            </a>
+            <span className="text-right tabular-nums text-xs text-muted-foreground">
+              {n(p.clics)}
+              {p.mes && ` · ${mesCorto(p.mes)}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {r.piezas.length > 1 && (
+        <Pliegue
+          abierto={todas}
+          onCambio={() => setTodas((t) => !t)}
+          abrir={
+            r.total > r.piezas.length
+              ? `Ver las ${r.piezas.length} mejores (de ${n(r.total)})`
+              : `Ver las ${r.total} piezas`
+          }
+          cerrar="Ver solo la mejor"
+          resumen={resumen}
+        />
       )}
       {r.unaPalabra && (
         <p className="mt-2 text-xs text-warn">

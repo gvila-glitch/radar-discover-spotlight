@@ -45,11 +45,11 @@ describe("selectores de filtros", () => {
     expect(selector("Estado").value).toBe("sin_ruido");
     expect(selector("Prioridad").value).toBe("todas");
     const orden = screen.getAllByRole("combobox").map((c) => c.id);
-    expect(orden).toEqual(["f-periodo", "f-estado", "f-prioridad", "f-fuente"]);
+    expect(orden).toEqual(["f-periodo", "f-estado", "f-prioridad"]);
     expect(screen.queryByText("Restablecer filtros")).not.toBeInTheDocument();
   });
 
-  it("si hoy aún no hay alertas lo dice, y los indicadores siguen usando los últimos 7 días", async () => {
+  it("si hoy aún no hay alertas lo dice arriba y en la lista", async () => {
     vi.mocked(listAlertas).mockResolvedValueOnce(
       crearDemoAlertas().map((a) => ({ ...a, creada_en: haceDias(3) })),
     );
@@ -57,8 +57,7 @@ describe("selectores de filtros", () => {
     expect(
       await screen.findByText("Hoy todavía no hay alertas. Cambia el periodo para ver las anteriores."),
     ).toBeInTheDocument();
-    // Ejemplo: 5 valoradas, 4 útiles o publicadas → 80 %.
-    expect(screen.getByText("80 %")).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay alertas que valorar.")).toBeInTheDocument();
   });
 
   it("Estado Ruido deja solo la alerta de ruido", async () => {
@@ -99,8 +98,9 @@ describe("selectores de filtros", () => {
     expect((await textos()).some((t) => t.includes("Comparecencia en el Congreso"))).toBe(true);
   });
 
-  it("Fuente: «X» es tener señal en X; «Varias fuentes», dos o más", async () => {
+  it("Fuente (en «Más filtros»): «X» es tener señal en X; «Varias fuentes», dos o más", async () => {
     await panelSieteDias();
+    fireEvent.click(screen.getByRole("button", { name: /Más filtros/ }));
     expect(selector("Fuente").value).toBe("todas");
     fireEvent.change(selector("Fuente"), { target: { value: "varias" } });
     await waitFor(() => expect(screen.getByText("4 de 8")).toBeInTheDocument());
@@ -115,7 +115,28 @@ describe("selectores de filtros", () => {
   it("sin datos de Search Console no sale el filtro de Autoridad", async () => {
     renderPanel();
     await screen.findByLabelText("Periodo");
+    fireEvent.click(screen.getByRole("button", { name: /Más filtros/ }));
+    expect(screen.getByLabelText("Fuente")).toBeInTheDocument();
     expect(screen.queryByLabelText("Autoridad")).not.toBeInTheDocument();
+  });
+
+  it("Autoridad y Fuente van plegadas en «Más filtros»", async () => {
+    renderPanel();
+    await screen.findByLabelText("Periodo");
+    expect(screen.queryByLabelText("Fuente")).not.toBeInTheDocument();
+    const mas = screen.getByRole("button", { name: /Más filtros/ });
+    expect(mas).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(mas);
+    expect(mas).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Fuente")).toBeInTheDocument();
+  });
+
+  it("arriba, la tarea: cuántas quedan por valorar en el periodo", async () => {
+    await panelSieteDias();
+    // Ejemplo: 3 pendientes en los últimos 7 días.
+    expect(
+      screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "Tienes 3 alertas por valorar. Abre cada una y decide si nos sirve."),
+    ).toBeInTheDocument();
   });
 
 });

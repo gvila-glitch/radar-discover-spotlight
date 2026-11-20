@@ -17,7 +17,10 @@ import { DesglosePuntos } from "./Puntos";
 
 export type Vista = "alertas" | "descartes" | "todas";
 
-/** «Alertas (12) | Descartadas por la IA (7) | Todas (19)» */
+/**
+ * «Alertas (12) | Descartes IA (7) | Todas (19)»: pestañas en la cabecera de la caja de la lista (cambian lo que se
+ * lista), con la elegida subrayada.
+ */
 export function SelectorVistas({
   vista,
   onCambio,
@@ -29,15 +32,11 @@ export function SelectorVistas({
 }) {
   const opciones: { v: Vista; t: string }[] = [
     { v: "alertas", t: "Alertas" },
-    { v: "descartes", t: "Descartadas por la IA" },
+    { v: "descartes", t: "Descartes IA" },
     { v: "todas", t: "Todas" },
   ];
   return (
-    <div
-      role="tablist"
-      aria-label="Qué ver"
-      className="mt-4 inline-flex flex-wrap rounded-md border bg-card p-1 text-sm"
-    >
+    <div role="tablist" aria-label="Qué ver" className="flex flex-wrap px-1 text-sm">
       {opciones.map((o) => (
         <button
           key={o.v}
@@ -46,13 +45,13 @@ export function SelectorVistas({
           aria-selected={vista === o.v}
           onClick={() => onCambio(o.v)}
           className={cn(
-            "rounded-md px-3 py-1.5 focus-visible:outline-2 focus-visible:outline-ring",
+            "-mb-px border-b-2 px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-ring",
             vista === o.v
-              ? "bg-accent font-medium text-foreground"
-              : "text-muted-foreground hover:text-foreground",
+              ? "border-primary font-semibold text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >
-          {o.t} <span className="font-mono">({cuentas[o.v] ?? "…"})</span>
+          {o.t} <span className="font-normal tabular-nums">({cuentas[o.v] ?? "…"})</span>
         </button>
       ))}
     </div>
@@ -80,10 +79,10 @@ export function SenalTag({ fuerte }: { fuerte: boolean }) {
   );
 }
 
-/** Aviso que explica la vista de descartes y qué significa cada color. */
+/** Aviso que explica la vista de descartes y qué significa cada color (franja bajo los filtros, dentro de la lista). */
 export function AvisoDescartes() {
   return (
-    <div className="mt-4 border bg-card p-4 text-sm">
+    <div className="border-b bg-muted/40 px-3 py-2.5 text-sm">
       <p>
         Temas que la IA dejó fuera por no encajar con la línea editorial o por ser noticia de
         agencia, ordenados por día y por puntos.
@@ -111,7 +110,7 @@ function ContenidoDescarte({ d, gris = false }: { d: Descarte; gris?: boolean })
     .join(" · ");
   return (
     <>
-      <span className="w-12 shrink-0 pt-0.5 font-mono text-xs text-muted-foreground">
+      <span className="w-12 shrink-0 pt-0.5 tabular-nums text-xs text-muted-foreground">
         {horaOFecha(d.creada_en)}
       </span>
       <div className="min-w-0 flex-1">
@@ -130,7 +129,7 @@ function ContenidoDescarte({ d, gris = false }: { d: Descarte; gris?: boolean })
       <div className="flex shrink-0 flex-col items-end gap-1 text-xs">
         {gris && <span className="font-medium text-bad">Descartada por la IA</span>}
         <SenalTag fuerte={d.fuerte} />
-        <span className="font-mono text-muted-foreground">
+        <span className="tabular-nums text-muted-foreground">
           {d.puntos} pts{senal ? ` · ${senal}` : ""}
         </span>
         {d.veredicto && <span className="font-medium text-bad">Debería haber pasado</span>}
@@ -210,7 +209,10 @@ export function FichaDescarte({ d, esAdmin }: { d: Descarte; esAdmin: boolean })
     </div>
   );
   return (
-    <article className="break-words border bg-card p-6" aria-label={`Descarte: ${d.tema}`}>
+    <article
+      className="break-words border border-caja bg-card p-6"
+      aria-label={`Descarte: ${d.tema}`}
+    >
       <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         <span className="text-xs font-medium text-bad">● Descartada por la IA</span>
         <span className="inline-flex items-center gap-1">
@@ -221,7 +223,7 @@ export function FichaDescarte({ d, esAdmin }: { d: Descarte; esAdmin: boolean })
             nota={`Sin contar la línea editorial ni Discover. Señal fuerte: ${UMBRAL_FUERTE} puntos o más.`}
           />
         </span>
-        <span className="font-mono">{fechaLarga(d.creada_en)}</span>
+        <span className="tabular-nums">{fechaLarga(d.creada_en)}</span>
         <span>·</span>
         <span>{hace(d.creada_en)}</span>
       </div>
@@ -249,7 +251,7 @@ export function FichaDescarte({ d, esAdmin }: { d: Descarte; esAdmin: boolean })
             "X (España)",
             d.x_posicion ? (
               <>
-                <span className="font-mono">#{d.x_posicion}</span>
+                <span className="tabular-nums">#{d.x_posicion}</span>
                 <div className="mt-1 text-xs">
                   <a
                     href={enlaceX(d.tema)}
@@ -267,13 +269,17 @@ export function FichaDescarte({ d, esAdmin }: { d: Descarte; esAdmin: boolean })
           )}
           {bloque(
             "Volumen en Google",
-            d.trends_crecimiento ? <span className="font-mono">{d.trends_crecimiento}</span> : "No",
+            d.trends_crecimiento ? (
+              <span className="tabular-nums">{d.trends_crecimiento}</span>
+            ) : (
+              "No"
+            ),
           )}
           {bloque(
             "Wikipedia",
             d.wikipedia_ratio ? (
               <>
-                <span className="font-mono">
+                <span className="tabular-nums">
                   ×{Number(d.wikipedia_ratio).toLocaleString("es-ES")}
                 </span>{" "}
                 sobre su media
@@ -433,23 +439,30 @@ function EstadoLista({
   return null;
 }
 
-/** Vista «Descartadas por la IA»: lista a la izquierda y ficha a la derecha. */
+/**
+ * Vista «Descartes IA»: lista a la izquierda y ficha a la derecha. `cabecera` (pestañas y filtros) va dentro de la caja
+ * de la lista, arriba, igual que en «Alertas».
+ */
 export function VistaDescartes({
   descartes,
   cargando,
   error,
   esAdmin,
+  cabecera,
 }: {
   descartes: Descarte[];
   cargando: boolean;
   error: boolean;
   esAdmin: boolean;
+  cabecera?: ReactNode;
 }) {
   const [sel, setSel] = useState<number | null>(null);
   const actual = descartes.find((d) => d.id === sel) ?? descartes[0];
   return (
     <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-      <div className="min-w-0 border bg-card">
+      <div className="min-w-0 self-start border border-caja bg-card">
+        {cabecera}
+        <AvisoDescartes />
         <EstadoLista
           cargando={cargando}
           error={error}
@@ -488,6 +501,7 @@ export function VistaTodas({
   onValorar,
   onMotivo,
   onNoCubrimos,
+  cabecera,
 }: {
   alertas: Alerta[];
   descartes: Descarte[];
@@ -495,6 +509,8 @@ export function VistaTodas({
   onValorar: (a: Alerta, e: Estado, url?: string | null) => void;
   onMotivo?: (a: Alerta, motivo: MotivoRuido | null) => void;
   onNoCubrimos?: (a: Alerta, tipo: "criterio" | "nombre", texto: string) => Promise<boolean>;
+  /** Pestañas y filtros, dentro de la caja de la lista. */
+  cabecera?: ReactNode;
 }) {
   type Item = { k: string; ms: number } & (
     { tipo: "alerta"; a: Alerta } | { tipo: "descarte"; d: Descarte }
@@ -517,11 +533,12 @@ export function VistaTodas({
   const actual = items.find((i) => i.k === sel) ?? items[0];
   return (
     <>
-      <p className="mt-3 text-xs text-muted-foreground">
-        «Todas»: alertas y descartes, por hora. Los indicadores cuentan solo las alertas.
-      </p>
-      <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="min-w-0 border bg-card">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="min-w-0 self-start border border-caja bg-card">
+          {cabecera}
+          <p className="border-b px-3 py-2 text-xs text-muted-foreground">
+            Alertas y descartes de la IA, por hora.
+          </p>
           {!items.length ? (
             <p className="p-4 text-sm text-muted-foreground">No hay nada con estos filtros.</p>
           ) : (

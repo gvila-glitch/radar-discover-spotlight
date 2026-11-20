@@ -11,7 +11,7 @@ export function LlegadaTag({ a }: { a: Pick<Alerta, "entidad" | "medios_discover
   if (sinDatosDiscover(a)) return null;
   const l = llegada(a.medios_discover);
   const ya = a.medios_discover === 1 ? "Ya hay 1 medio" : `Ya hay ${a.medios_discover} medios`;
-  return <span title={`${ya} en Discover: llegaríamos los ${l.puesto}.º`} className={cn("font-mono text-xs whitespace-nowrap", nivelCls[l.nivel])}>{l.label}</span>;
+  return <span title={`${ya} en Discover: llegaríamos los ${l.puesto}.º`} className={cn("tabular-nums text-xs whitespace-nowrap", nivelCls[l.nivel])}>{l.label}</span>;
 }
 
 export function PrioridadTag({ p }: { p: Prioridad }) {
@@ -25,9 +25,10 @@ export function PrioridadTag({ p }: { p: Prioridad }) {
 
 export const ESTADO_LABEL: Record<Estado, string> = { pendiente: "Pendiente", util: "Útil", ruido: "Ruido", publicada: "Publicada" };
 
+/** «Pendiente» en azul (lo que falta por hacer destaca); lo ya valorado, en gris. */
 export function EstadoTag({ e }: { e: Estado }) {
   return (
-    <span className={cn("text-xs whitespace-nowrap", e === "pendiente" ? "text-muted-foreground italic" : "text-foreground")}>
+    <span className={cn("text-xs whitespace-nowrap", e === "pendiente" ? "font-medium text-primary" : "text-muted-foreground")}>
       {ESTADO_LABEL[e]}
     </span>
   );

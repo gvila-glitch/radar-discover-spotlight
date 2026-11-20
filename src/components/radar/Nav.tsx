@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Bell, Settings, PanelLeftClose, PanelLeftOpen, ChevronDown, Activity } from "lucide-react";
+import { Bell, Settings, PanelLeftClose, PanelLeftOpen, ChevronDown, Activity, ChartColumn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { esAdmin } from "@/lib/configRepo";
 import { APARTADOS } from "@/lib/configApartados";
@@ -32,7 +32,7 @@ export function Sidebar() {
   const item = "flex items-center gap-3 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground";
   const act = { className: "bg-accent font-medium text-foreground" };
   return (
-    <aside className={cn("sticky top-0 flex h-screen shrink-0 flex-col border-r bg-card p-2 transition-[width]", abierta ? "w-52" : "w-14")}>
+    <aside className={cn("sticky top-0 flex h-screen shrink-0 flex-col border-r border-caja bg-card p-2 transition-[width]", abierta ? "w-52" : "w-14")}>
       <button onClick={alternar} aria-label={abierta ? "Plegar menú" : "Desplegar menú"} className="mb-3 self-end rounded-md p-2 text-muted-foreground hover:bg-muted">
         {abierta ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
       </button>
@@ -42,6 +42,9 @@ export function Sidebar() {
         </Link>
         <Link to="/discover-map" className={item} activeProps={act} title="Discover ahora">
           <Activity className="size-4 shrink-0" />{abierta && "Discover ahora"}
+        </Link>
+        <Link to="/resultados" className={item} activeProps={act} title="Resultados">
+          <ChartColumn className="size-4 shrink-0" />{abierta && "Resultados"}
         </Link>
         {admin && (
           <div>

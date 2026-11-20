@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import type { Descarte } from "@/lib/descartes";
@@ -94,7 +94,7 @@ describe("SelectorVistas", () => {
       "aria-selected",
       "true",
     );
-    expect(screen.getByRole("tab", { name: "Descartadas por la IA (7)" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Descartes IA (7)" })).toHaveAttribute(
       "aria-selected",
       "false",
     );
@@ -121,8 +121,8 @@ describe("Descartes", () => {
     const lista = screen.getByRole("list", { name: "Descartes" });
     expect(lista).toHaveTextContent("Pedri");
     expect(lista).toHaveTextContent("flugzeug");
-    expect(screen.getAllByText("Señal fuerte").length).toBeGreaterThan(0);
-    expect(screen.getByText("Poca señal")).toBeInTheDocument();
+    expect(within(lista).getAllByText("Señal fuerte").length).toBeGreaterThan(0);
+    expect(within(lista).getByText("Poca señal")).toBeInTheDocument();
     expect([fuerte, debil].filter((d) => pasaSenal(d, "todas"))).toHaveLength(2);
     expect([fuerte, debil].filter((d) => pasaSenal(d, "fuertes"))).toEqual([fuerte]);
     expect([fuerte, debil].filter((d) => pasaSenal(d, "debiles"))).toEqual([debil]);

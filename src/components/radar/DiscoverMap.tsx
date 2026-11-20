@@ -52,7 +52,7 @@ export function SelectorPestanas({
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {p.titulo} <span className="font-mono">({off ? "—" : cuentas[p.id]})</span>
+            {p.titulo} <span className="tabular-nums">({off ? "—" : cuentas[p.id]})</span>
           </button>
         );
       })}
@@ -141,7 +141,7 @@ function FilaTema({
           </span>
           {ultimo && (
             <span className="mt-0.5 block truncate text-sm text-muted-foreground">
-              <span className="font-mono text-xs">{ultimo.medio}</span> · «{ultimo.titular}»
+              <span className="tabular-nums text-xs">{ultimo.medio}</span> · «{ultimo.titular}»
             </span>
           )}
         </span>
@@ -226,7 +226,7 @@ export function DetalleTema({
                 key={x.url}
                 className="col-span-full grid grid-cols-subgrid items-baseline py-1 text-sm"
               >
-                <span className="font-mono text-xs text-muted-foreground">{x.medio}</span>
+                <span className="tabular-nums text-xs text-muted-foreground">{x.medio}</span>
                 <a
                   href={x.url}
                   target="_blank"
@@ -236,7 +236,7 @@ export function DetalleTema({
                   {x.titular}
                   <ExternalLink aria-hidden className="size-3 shrink-0 self-center text-primary" />
                 </a>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="tabular-nums text-xs text-muted-foreground">
                   {horaOFecha(x.recibido_en)}
                 </span>
               </li>
@@ -264,7 +264,7 @@ export function DetalleTema({
                 key={m.medio}
                 className="col-span-full grid grid-cols-subgrid items-baseline py-0.5"
               >
-                <span className="font-mono text-xs text-muted-foreground">{i + 1}.º</span>
+                <span className="tabular-nums text-xs text-muted-foreground">{i + 1}.º</span>
                 <span
                   className={cn(
                     "inline-flex min-w-0 items-center gap-1.5",
@@ -279,21 +279,21 @@ export function DetalleTema({
                     />
                   )}
                 </span>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="tabular-nums text-xs text-muted-foreground">
                   {horaOFecha(m.hora)}
                 </span>
               </li>
             ))}
             {propio && (!t.nosotros || nosotrosFuera) && (
               <li className="col-span-full grid grid-cols-subgrid items-baseline py-0.5">
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="tabular-nums text-xs text-muted-foreground">
                   {t.nosotros ? `${t.nosotros.puesto}.º` : "—"}
                 </span>
                 <span className={t.nosotros ? "font-semibold text-ok" : "font-semibold"}>
                   {propio}
                   {t.nosotros ? "" : " · todavía no"}
                 </span>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className="tabular-nums text-xs text-muted-foreground">
                   {t.nosotros ? horaOFecha(t.nosotros.hora) : ""}
                 </span>
               </li>

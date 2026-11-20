@@ -15,6 +15,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authenticated/configuracion'
 import { Route as AuthenticatedDiscoverMapRouteImport } from './routes/_authenticated/discover-map'
+import { Route as AuthenticatedResultadosRouteImport } from './routes/_authenticated/resultados'
 import { Route as ApiPublicSnoopReceptorRouteImport } from './routes/api/public/snoop-receptor'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
@@ -52,6 +53,11 @@ const AuthenticatedDiscoverMapRoute =
     path: '/discover-map',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedResultadosRoute = AuthenticatedResultadosRouteImport.update({
+  id: '/resultados',
+  path: '/resultados',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicSnoopReceptorRoute = ApiPublicSnoopReceptorRouteImport.update({
   id: '/api/public/snoop-receptor',
   path: '/api/public/snoop-receptor',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
   '/discover-map': typeof AuthenticatedDiscoverMapRoute
+  '/resultados': typeof AuthenticatedResultadosRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/configuracion': typeof AuthenticatedConfiguracionRoute
   '/discover-map': typeof AuthenticatedDiscoverMapRoute
+  '/resultados': typeof AuthenticatedResultadosRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/configuracion': typeof AuthenticatedConfiguracionRoute
   '/_authenticated/discover-map': typeof AuthenticatedDiscoverMapRoute
+  '/_authenticated/resultados': typeof AuthenticatedResultadosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/configuracion'
     | '/discover-map'
+    | '/resultados'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/configuracion'
     | '/discover-map'
+    | '/resultados'
     | '/'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/configuracion'
     | '/_authenticated/discover-map'
+    | '/_authenticated/resultados'
     | '/_authenticated/'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
@@ -212,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDiscoverMapRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/resultados': {
+      id: '/_authenticated/resultados'
+      path: '/resultados'
+      fullPath: '/resultados'
+      preLoaderRoute: typeof AuthenticatedResultadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/snoop-receptor': {
       id: '/api/public/snoop-receptor'
       path: '/api/public/snoop-receptor'
@@ -253,12 +272,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedConfiguracionRoute: typeof AuthenticatedConfiguracionRoute
   AuthenticatedDiscoverMapRoute: typeof AuthenticatedDiscoverMapRoute
+  AuthenticatedResultadosRoute: typeof AuthenticatedResultadosRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedConfiguracionRoute: AuthenticatedConfiguracionRoute,
   AuthenticatedDiscoverMapRoute: AuthenticatedDiscoverMapRoute,
+  AuthenticatedResultadosRoute: AuthenticatedResultadosRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 

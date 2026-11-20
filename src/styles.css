@@ -68,9 +68,12 @@
   --color-warn-soft: var(--warn-soft);
   --color-bad: var(--bad);
   --color-bad-soft: var(--bad-soft);
-  --font-sans: "Geist", system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, monospace;
-  --font-serif: "Geist", system-ui, sans-serif;
+  --color-fondo: var(--fondo);
+  --color-caja: var(--caja);
+  /* IBM Plex Sans: distingue la I, la l y el 1. Las cifras van con la misma letra (clase tabular-nums para alinearlas). */
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --font-serif: "IBM Plex Sans", system-ui, sans-serif;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -109,6 +112,10 @@
   --warn-soft: oklch(0.96 0.05 85);
   --bad: oklch(0.55 0.19 27);
   --bad-soft: oklch(0.95 0.03 27);
+  /* Fondo de la página y borde exterior de las cajas: más contraste por fuera para que cada bloque se vea separado.
+     Las líneas de dentro (entre alertas, entre bloques de la ficha) siguen con --border, más suave. */
+  --fondo: oklch(0.93 0 0);
+  --caja: oklch(0.83 0 0);
 }
 
 .dark {
@@ -138,6 +145,8 @@
   --warn-soft: oklch(0.32 0.05 80);
   --bad: oklch(0.72 0.16 25);
   --bad-soft: oklch(0.32 0.06 25);
+  --fondo: oklch(0.14 0 0);
+  --caja: oklch(1 0 0 / 20%);
 }
 
 @layer base {
@@ -146,7 +155,7 @@
   }
 
   body {
-    background-color: var(--color-background);
+    background-color: var(--color-fondo);
     color: var(--color-foreground);
     font-family: var(--font-sans);
   }

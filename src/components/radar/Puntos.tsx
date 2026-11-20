@@ -51,7 +51,7 @@ export function DesglosePuntos({
       >
         <div className="flex items-baseline justify-between gap-3">
           <span className="font-semibold">{titulo}</span>
-          <span className="font-mono text-xs text-muted-foreground">{palabra(p.puntos)}</span>
+          <span className="tabular-nums text-xs text-muted-foreground">{palabra(p.puntos)}</span>
         </div>
         <table className="mt-2 w-full">
           <tbody>
@@ -61,7 +61,7 @@ export function DesglosePuntos({
                   <td className="py-1.5 pr-3">{mayuscula(x.texto)}</td>
                   <td
                     className={cn(
-                      "py-1.5 text-right font-mono",
+                      "py-1.5 text-right tabular-nums",
                       x.puntos > 0 ? "text-ok" : "text-bad",
                     )}
                   >
@@ -79,7 +79,7 @@ export function DesglosePuntos({
             )}
             <tr className="border-t border-foreground/60">
               <td className="py-1.5 pr-3 font-semibold">Total</td>
-              <td className="py-1.5 text-right font-mono font-semibold">{p.puntos}</td>
+              <td className="py-1.5 text-right tabular-nums font-semibold">{p.puntos}</td>
             </tr>
           </tbody>
         </table>

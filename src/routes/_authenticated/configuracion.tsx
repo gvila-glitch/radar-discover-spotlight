@@ -32,7 +32,7 @@ function Configuracion() {
   const admin = useQuery({ queryKey: ["es_admin"], queryFn: esAdmin });
   return (
     <div className="min-h-screen">
-      <header className="border-b bg-card">
+      <header className="border-b border-caja bg-card">
         <div className="mx-auto flex max-w-7xl items-center px-4 py-3">
           <h1 className="tracking-tight text-xl font-semibold">Radar Discover</h1>
         </div>
@@ -98,7 +98,7 @@ function FormAjustes({ tab }: { tab: Exclude<Pestana, "medios" | "usuarios"> }) 
   const num = (k: keyof Ajustes, label: string, ayuda: string) => (
     <label className="block text-sm">
       <span className="font-medium">{label}</span>
-      <Input type="number" min={0} value={f[k]} onChange={set(k)} className="mt-1 w-28 font-mono" />
+      <Input type="number" min={0} value={f[k]} onChange={set(k)} className="mt-1 w-28 tabular-nums" />
       <span className="mt-1 block text-xs text-muted-foreground">{ayuda}</span>
     </label>
   );
@@ -159,7 +159,7 @@ function Medios() {
           <ul className="mt-3 divide-y border">
             {q.data.map((m) => (
               <li key={m.dominio} className="flex items-center gap-3 px-3 py-2 text-sm">
-                <div className="min-w-0 flex-1"><span className="font-mono">{m.dominio}</span>{m.nombre && <span className="ml-2 text-muted-foreground">{m.nombre}</span>}</div>
+                <div className="min-w-0 flex-1"><span className="tabular-nums">{m.dominio}</span>{m.nombre && <span className="ml-2 text-muted-foreground">{m.nombre}</span>}</div>
                 <label className="flex items-center gap-1 text-xs text-muted-foreground">
                   <input type="checkbox" checked={!!m.top5} onChange={(e) => top5(m.dominio, e.target.checked)} /> Top 5
                 </label>
@@ -201,7 +201,7 @@ function Usuarios() {
           <ul className="mt-3 divide-y border">
             {q.data?.map((u) => (
               <li key={u.email} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
-                <div className="min-w-0 flex-1"><span className="font-mono">{u.email}</span>
+                <div className="min-w-0 flex-1"><span className="tabular-nums">{u.email}</span>
                   <span className="ml-2 text-xs text-muted-foreground">{u.activado ? "Activa" : u.cuenta ? "Invitación pendiente" : "Sin cuenta"}</span></div>
                 <select aria-label={`Rol de ${u.email}`} value={u.rol} disabled={ocupado} onChange={(e) => accion(() => rol({ data: { email: u.email, rol: e.target.value as Rol } }), "Rol actualizado.")} className="h-8 rounded-md border bg-background px-2 text-xs">
                   <option value="usuario">Usuario</option><option value="admin">Admin</option>

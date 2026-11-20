@@ -91,7 +91,7 @@ function DiscoverAhoraPagina() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b bg-card">
+      <header className="border-b border-caja bg-card">
         <div className="mx-auto flex max-w-7xl items-center px-4 py-3">
           <h1 className="tracking-tight text-xl font-semibold">Radar Discover</h1>
         </div>
@@ -141,7 +141,7 @@ function DiscoverAhoraPagina() {
           )}
           <span className="ml-auto flex items-center gap-4">
             {datos && (
-              <span className="font-mono text-xs text-muted-foreground">
+              <span className="tabular-nums text-xs text-muted-foreground">
                 Actualizado {hora24(datos.generado)}
               </span>
             )}
