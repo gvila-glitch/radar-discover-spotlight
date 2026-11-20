@@ -212,31 +212,33 @@ export function Index() {
         </button>
         <span className="text-xs text-muted-foreground">{resumenFiltros}</span>
       </div>
-      <div className={cn("flex flex-wrap items-center gap-x-5 gap-y-2 border-t bg-muted/60 px-3 py-2", !filtrosMovil && "max-lg:hidden")}>
-        <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={OPCIONES_PERIODO} />
+      {/* Los filtros en una sola línea: el nombre encima de cada desplegable (al lado no caben en la caja de la lista). */}
+      <div className={cn("flex flex-wrap items-end gap-x-4 gap-y-2 border-t bg-muted/60 px-3 py-2", !filtrosMovil && "max-lg:hidden")}>
+        <Selector apilado id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={OPCIONES_PERIODO} />
         {vista !== "descartes" && <>
-          <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={OPCIONES_ESTADO} />
-          <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />
-          <button type="button" aria-expanded={verMasFiltros} onClick={() => setMasFiltros((v) => !v)} className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+          <Selector apilado id="f-estado" label="Estado" value={estado} onChange={setEstado} options={OPCIONES_ESTADO} />
+          <Selector apilado id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />
+          <button type="button" aria-expanded={verMasFiltros} onClick={() => setMasFiltros((v) => !v)} className="inline-flex items-center gap-1 py-1 text-xs font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-ring">
             <SlidersHorizontal aria-hidden className="size-3.5" />Más filtros{nMasFiltros > 0 && ` (${nMasFiltros})`}
             <ChevronDown aria-hidden className={cn("size-3.5 transition-transform", verMasFiltros && "rotate-180")} />
           </button>
-          {verMasFiltros && qa.data?.periodo && <Selector id="f-autoridad" label="Autoridad" value={autoridad} onChange={setAutoridad} options={OPCIONES_AUTORIDAD} />}
-          {verMasFiltros && <Selector id="f-fuente" label="Fuente" value={fuente} onChange={setFuente} options={OPCIONES_FUENTE} />}
+          {verMasFiltros && qa.data?.periodo && <Selector apilado id="f-autoridad" label="Autoridad" value={autoridad} onChange={setAutoridad} options={OPCIONES_AUTORIDAD} />}
+          {verMasFiltros && <Selector apilado id="f-fuente" label="Fuente" value={fuente} onChange={setFuente} options={OPCIONES_FUENTE} />}
         </>}
         {vista === "descartes" && <>
-          <Selector id="f-senal" label="Señal" value={senal} onChange={setSenal} options={OPCIONES_SENAL} />
-          <Selector id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />
+          <Selector apilado id="f-senal" label="Señal" value={senal} onChange={setSenal} options={OPCIONES_SENAL} />
+          <Selector apilado id="f-revision" label="Revisión" value={revision} onChange={setRevision} options={[{ value: "todos", label: "Todos" }, { value: "marcados", label: "Marcados" }, { value: "sin_marcar", label: "Sin marcar" }]} />
         </>}
-        <span className="ml-auto flex items-center gap-4">
-          <span className="tabular-nums text-xs text-muted-foreground">{vista === "descartes" ? `${descartes.length} descartes` : `${visibles.length} de ${delPeriodo.length}`}</span>
-          {filtrosActivos && (
-            <button onClick={restablecer} className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground">
-              Restablecer filtros
-            </button>
-          )}
-        </span>
       </div>
+      {/* Solo con algún filtro cambiado: cuántas se ven y cómo volver (sin filtros, el número ya va en la pestaña). */}
+      {filtrosActivos && (
+        <p className={cn("flex items-center gap-3 border-t bg-muted/60 px-3 py-1.5 text-xs text-muted-foreground", !filtrosMovil && "max-lg:hidden")}>
+          <span className="tabular-nums">{vista === "descartes" ? `${descartes.length} descartes` : `${visibles.length} de ${delPeriodo.length}`}</span>
+          <button onClick={restablecer} className="underline underline-offset-4 hover:text-foreground">
+            Restablecer filtros
+          </button>
+        </p>
+      )}
     </div>
   );
 
@@ -268,7 +270,7 @@ export function Index() {
         ) : vista === "todas" ? (
           <VistaTodas alertas={visibles} descartes={descartes} esAdmin={admin} onValorar={(a, e, u) => onValorar(a, e, u ?? null)} onMotivo={onMotivo} onNoCubrimos={onNoCubrimos} cabecera={cabeceraLista} />
         ) : (
-        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
           <div className="min-w-0 self-start border border-caja bg-card">
             {cabeceraLista}
             {isError ? <p role="alert" className="p-4 text-sm text-destructive">No se pudieron cargar las alertas. Inténtalo de nuevo.</p>

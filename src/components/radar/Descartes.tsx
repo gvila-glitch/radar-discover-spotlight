@@ -459,7 +459,7 @@ export function VistaDescartes({
   const [sel, setSel] = useState<number | null>(null);
   const actual = descartes.find((d) => d.id === sel) ?? descartes[0];
   return (
-    <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
       <div className="min-w-0 self-start border border-caja bg-card">
         {cabecera}
         <AvisoDescartes />
@@ -533,7 +533,7 @@ export function VistaTodas({
   const actual = items.find((i) => i.k === sel) ?? items[0];
   return (
     <>
-      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,9fr)_minmax(0,11fr)]">
         <div className="min-w-0 self-start border border-caja bg-card">
           {cabecera}
           <p className="border-b px-3 py-2 text-xs text-muted-foreground">

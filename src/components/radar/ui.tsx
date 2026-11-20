@@ -35,13 +35,14 @@ export function EstadoTag({ e }: { e: Estado }) {
 }
 
 /** Desplegable de filtro. El foco se marca con la línea de debajo en azul (no con un recuadro: Chrome lo deja visible
- * también después de elegir con el ratón y parecía un fallo). */
-export function Selector<T extends string>({ label, value, options, onChange, id }: {
-  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; id: string;
+ * también después de elegir con el ratón y parecía un fallo). `apilado`: el nombre encima del desplegable, para que
+ * quepan varios en una línea estrecha (la caja de la lista). */
+export function Selector<T extends string>({ label, value, options, onChange, id, apilado = false }: {
+  label: string; value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; id: string; apilado?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor={id} className="text-xs text-muted-foreground">{label}</label>
+    <div className={cn("flex", apilado ? "flex-col items-start" : "items-center gap-2")}>
+      <label htmlFor={id} className={cn("text-muted-foreground", apilado ? "text-[11px] leading-4" : "text-xs")}>{label}</label>
       <span className="relative inline-flex items-center">
         <select
           id={id}
