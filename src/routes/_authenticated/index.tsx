@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Ban, Moon, Sun } from "lucide-react";
+import { Ban, ChevronLeft, ChevronRight, Moon, SlidersHorizontal, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { guardarMotivoRuido, listAlertas, valorar } from "@/lib/alertasRepo";
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Detalle } from "@/components/radar/Detalle";
 import { EnlaceComoSeUsa, PrimerosPasos } from "@/components/radar/Ayuda";
 import { usePrimerosPasos } from "@/components/radar/usePrimerosPasos";
+import { useFichaMovil } from "@/components/radar/useFichaMovil";
 import { avisarRuido } from "@/components/radar/avisarRuido";
 import { InfoAyuda } from "@/components/radar/InfoAyuda";
 import { AYUDA_KPI_MEDIOS } from "@/components/radar/textosAyuda";
@@ -51,6 +52,7 @@ export const Route = createFileRoute("/_authenticated/")({
 });
 
 type Periodo = "hoy" | "7d" | "30d" | "todo";
+const OPCIONES_PERIODO: { value: Periodo; label: string }[] = [{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }];
 
 export function Index() {
   const email = usePanelEmail();
@@ -73,6 +75,10 @@ export function Index() {
   const leerDescartes = useServerFn(listarDescartes);
   const { data: admin = false } = useQuery({ queryKey: ["es_admin"], queryFn: leerEsAdmin });
   const pasos = usePrimerosPasos();
+  // En el móvil: la ficha a pantalla completa (el botón de atrás vuelve a la lista) y los filtros tras un botón.
+  const ficha = useFichaMovil((id) => setSel(id));
+  const fichaRef = useRef<HTMLDivElement>(null);
+  const [filtrosMovil, setFiltrosMovil] = useState(false);
   const [dark, setDark] = useState(false);
   useEffect(() => { document.documentElement.classList.toggle("dark", dark); }, [dark]);
 
@@ -114,6 +120,8 @@ export function Index() {
     const saleDeLista = !pasaEstado(nuevo, estado);
     const pasaALaSiguiente = saleDeLista && a.id === actual?.id;
     if (pasaALaSiguiente) setSel(siguienteDe(a)?.id ?? null);
+    // En el móvil, si la alerta sale de la lista, se vuelve a la lista (con el aviso de «Deshacer»).
+    if (pasaALaSiguiente && ficha.abierta) ficha.cerrar();
     const cambios = { estado: nuevo, pieza_url: nuevo === "publicada" ? pieza_url : null, estado_actualizado_en: new Date().toISOString(), estado_por: email };
     const prev = qc.getQueryData<Alerta[]>(key);
     qc.setQueryData<Alerta[]>(key, (l) => l?.map((x) => (x.id === a.id ? { ...x, ...cambios } : x)));
@@ -163,6 +171,15 @@ export function Index() {
   }
 
   const listRef = useRef<HTMLUListElement>(null);
+  // ‹ › de la ficha en el móvil: otra alerta sin volver a la lista, empezando por arriba.
+  const posicion = visibles.findIndex((a) => a.id === actual?.id);
+  function irA(a: Alerta | undefined) {
+    if (!a) return;
+    setSel(a.id); ficha.abrir(a.id);
+    const el = fichaRef.current; if (el && typeof el.scrollTo === "function") el.scrollTo({ top: 0 });
+  }
+  const nFiltros = [prio !== "todas", estado !== "sin_ruido", fuente !== "todas", autoridad !== "todas", periodo !== "hoy", senal !== "todas", revision !== "todos"].filter(Boolean).length;
+  const resumenFiltros = [OPCIONES_PERIODO.find((o) => o.value === periodo)?.label, vista === "descartes" ? `${descartes.length} descartes` : `${OPCIONES_ESTADO.find((o) => o.value === estado)?.label} · ${visibles.length} de ${delPeriodo.length}`].join(" · ");
   function onKey(e: React.KeyboardEvent) {
     if ((e.key === "r" || e.key === "R") && !e.metaKey && !e.ctrlKey && !e.altKey) {
       if (!actual) return;
@@ -213,8 +230,15 @@ export function Index() {
           <Kpi titulo="Medios en Discover" valor={k.medianaLlegada == null ? "—" : k.medianaLlegada.toLocaleString("es-ES")} ok={null} ayuda={AYUDA_KPI_MEDIOS} sub={k.medianaLlegada == null ? "sin datos de Discover en los últimos 7 días" : "mediana en las 24 h tras el aviso · últimos 7 días"} />
         </section>}
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2">
-          <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={[{ value: "hoy", label: "Hoy" }, { value: "7d", label: "Últimos 7 días" }, { value: "30d", label: "Últimos 30 días" }, { value: "todo", label: "Todo" }]} />
+        {/* En el móvil, los filtros van tras un botón para que la lista se vea enseguida. */}
+        <div className="mt-4 flex items-center gap-2 lg:hidden">
+          <button type="button" aria-expanded={filtrosMovil} onClick={() => setFiltrosMovil((v) => !v)} className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-sm font-medium">
+            <SlidersHorizontal aria-hidden className="size-4" />Filtros{nFiltros > 0 && ` (${nFiltros})`}
+          </button>
+          <span className="text-xs text-muted-foreground">{resumenFiltros}</span>
+        </div>
+        <div className={cn("mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 border bg-card px-3 py-2 max-lg:mt-2", !filtrosMovil && "max-lg:hidden")}>
+          <Selector id="f-periodo" label="Periodo" value={periodo} onChange={setPeriodo} options={OPCIONES_PERIODO} />
           {vista !== "descartes" && <Selector id="f-estado" label="Estado" value={estado} onChange={setEstado} options={OPCIONES_ESTADO} />}
           {vista !== "descartes" && <Selector id="f-prioridad" label="Prioridad" value={prio} onChange={setPrio} options={[{ value: "todas", label: "Todas" }, { value: "alta", label: "Alta" }, { value: "media", label: "Media" }]} />}
           {vista !== "descartes" && qa.data?.periodo && <Selector id="f-autoridad" label="Autoridad" value={autoridad} onChange={setAutoridad} options={OPCIONES_AUTORIDAD} />}
@@ -247,7 +271,7 @@ export function Index() {
                     const on = a.id === actual?.id;
                     return (
                       <li key={a.id} data-id={a.id} role="option" aria-selected={on} tabIndex={on ? 0 : -1}
-                        onClick={() => setSel(a.id)}
+                        onClick={() => { setSel(a.id); ficha.abrir(a.id); }}
                         className={cn("group relative flex cursor-pointer gap-3 px-3 py-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                           on ? "bg-accent shadow-[inset_3px_0_0_var(--primary)]" : "hover:bg-muted")}>
                         <ContenidoAlerta a={a} />
@@ -265,12 +289,26 @@ export function Index() {
                     );
                   })}
                 </ul>
-                <p id="atajos-lista" className="flex flex-wrap items-center gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground">
+                <p id="atajos-lista" className="flex flex-wrap items-center gap-1.5 border-t px-3 py-2 text-xs text-muted-foreground max-lg:hidden">
                   <Tecla>↑</Tecla><Tecla>↓</Tecla> cambiar de alerta <span aria-hidden>·</span> <Tecla>R</Tecla> marcar como ruido la seleccionada
                 </p>
               </>)}
           </div>
-          <div className="min-w-0">{actual ? <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} esAdmin={admin} onMotivo={(m) => onMotivo(actual, m)} onNoCubrimos={(t, x) => onNoCubrimos(actual, t, x)} /> : null}</div>
+          {/* En el móvil, la ficha solo se ve al pulsar una alerta, y entonces ocupa toda la pantalla. */}
+          <div ref={fichaRef} data-ficha-movil={ficha.abierta ? "abierta" : "cerrada"}
+            className={cn("min-w-0", ficha.abierta ? "max-lg:fixed max-lg:inset-0 max-lg:z-40 max-lg:overflow-y-auto max-lg:bg-background" : "max-lg:hidden")}>
+            {actual ? <>
+              <div className="sticky top-0 z-20 flex items-center justify-between border-b bg-card px-3 py-2 lg:hidden">
+                <button type="button" onClick={ficha.cerrar} aria-label="Volver a la lista" className="inline-flex items-center gap-0.5 py-1 text-sm font-medium text-primary"><ChevronLeft aria-hidden className="size-5" />Alertas</button>
+                <span className="inline-flex items-center gap-1">
+                  <button type="button" aria-label="Alerta anterior" disabled={posicion <= 0} onClick={() => irA(visibles[posicion - 1])} className="grid size-9 place-items-center rounded-md border disabled:opacity-40"><ChevronLeft aria-hidden className="size-4" /></button>
+                  <span className="px-1 font-mono text-xs text-muted-foreground">{posicion + 1} de {visibles.length}</span>
+                  <button type="button" aria-label="Alerta siguiente" disabled={posicion >= visibles.length - 1} onClick={() => irA(visibles[posicion + 1])} className="grid size-9 place-items-center rounded-md border disabled:opacity-40"><ChevronRight aria-hidden className="size-4" /></button>
+                </span>
+              </div>
+              <Detalle a={actual} onValorar={(e, u) => onValorar(actual, e, u)} esAdmin={admin} onMotivo={(m) => onMotivo(actual, m)} onNoCubrimos={(t, x) => onNoCubrimos(actual, t, x)} />
+            </> : null}
+          </div>
         </div>
         )}
       </main>
@@ -285,10 +323,11 @@ function Tecla({ children }: { children: string }) {
 
 function Kpi({ titulo, valor, sub, ok, ayuda }: { titulo: string; valor: string; sub: string; ok: boolean | null; ayuda?: string }) {
   return (
-    <div className="p-4">
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground">{titulo}{ayuda && <InfoAyuda tema={titulo}>{ayuda}</InfoAyuda>}</div>
-      <div className={cn("mt-1 font-mono text-3xl font-medium", ok == null ? "" : ok ? "text-ok" : "text-bad")}>{valor}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{ok != null && <span className={ok ? "text-ok" : "text-bad"}>{ok ? "✓ " : "✗ "}</span>}{sub}</div>
+    <div className="p-3 lg:p-4">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground lg:text-sm">{titulo}{ayuda && <InfoAyuda tema={titulo}>{ayuda}</InfoAyuda>}</div>
+      <div className={cn("mt-1 font-mono text-xl font-medium lg:text-3xl", ok == null ? "" : ok ? "text-ok" : "text-bad")}>{valor}</div>
+      {/* En el móvil, compactos: sin la línea de detalle (el color ya dice si se cumple el objetivo). */}
+      <div className="mt-1 text-xs text-muted-foreground max-lg:hidden">{ok != null && <span className={ok ? "text-ok" : "text-bad"}>{ok ? "✓ " : "✗ "}</span>}{sub}</div>
     </div>
   );
 }

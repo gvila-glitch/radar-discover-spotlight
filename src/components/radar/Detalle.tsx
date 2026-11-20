@@ -56,9 +56,10 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
   const medios = a.medios_discover === 0 ? "Nadie" : `${a.medios_discover} ${a.medios_discover === 1 ? "medio" : "medios"}`;
   const ayudaMedios = <InfoAyuda tema="Medios en Discover"><AyudaMedios /></InfoAyuda>;
 
+  // En el móvil, los tres botones del mismo ancho en una fila, fáciles de pulsar con el dedo.
   const btn = (estado: Estado, label: string, onClick?: () => void) => (
     <button aria-pressed={a.estado === estado} onClick={onClick ?? (() => onValorar(estado))}
-      className={cn("rounded-md border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+      className={cn("rounded-md border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring max-lg:flex-1 max-lg:basis-0 max-lg:whitespace-nowrap max-lg:px-2 max-lg:py-2",
         a.estado === estado ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}>
       {label}
     </button>
@@ -125,7 +126,7 @@ export function Detalle({ a, onValorar, esAdmin = false, onMotivo, onNoCubrimos 
 
       <div className="sticky bottom-0 z-10 border-t bg-card px-6 py-3 shadow-[0_-6px_12px_-10px_rgba(0,0,0,0.35)]">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto inline-flex items-center gap-1.5 text-[15px] font-semibold">¿Te sirve esta alerta?<InfoAyuda tema="¿Te sirve esta alerta?"><AyudaValoracion /></InfoAyuda></span>
+          <span className="mr-auto inline-flex items-center gap-1.5 text-[15px] font-semibold max-lg:basis-full">¿Te sirve esta alerta?<InfoAyuda tema="¿Te sirve esta alerta?"><AyudaValoracion /></InfoAyuda></span>
           {btn("util", "Sí, útil")}
           {btn("ruido", "No, es ruido")}
           {btn("publicada", "La publicamos", () => { onValorar("publicada", a.estado === "publicada" ? a.pieza_url : null); setEditUrl(true); })}

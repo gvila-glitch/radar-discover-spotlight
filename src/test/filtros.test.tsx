@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Index } from "@/routes/_authenticated/index";
 import { listAlertas, valorar } from "@/lib/alertasRepo";
@@ -177,3 +177,67 @@ describe("marcar como ruido desde la lista", () => {
     expect(screen.getByText("6 de 8")).toBeInTheDocument();
   });
 });
+
+// En el móvil (menos de 1024 px), la ficha se abre a pantalla completa y el botón de atrás vuelve a la lista.
+describe("en el móvil", () => {
+  const normal = window.matchMedia;
+  beforeEach(() => {
+    window.matchMedia = ((q: string) => ({
+      matches: true, media: q, onchange: null,
+      addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+    vi.mocked(toast.custom).mockClear();
+    vi.mocked(valorar).mockImplementation(async (id, cambios) => ({
+      ...crearDemoAlertas().find((a) => a.id === id)!,
+      ...cambios,
+    }));
+  });
+  afterEach(() => {
+    window.matchMedia = normal;
+    window.history.replaceState(null, "", "/");
+  });
+  const estadoFicha = () => document.querySelector("[data-ficha-movil]")?.getAttribute("data-ficha-movil");
+  const ficha = (nombre: string) => screen.getByRole("heading", { level: 2, name: nombre });
+  const pulsar = (nombre: string) =>
+    fireEvent.click(within(screen.getByRole("listbox", { name: "Alertas" })).getByText(nombre));
+
+  it("al pulsar una alerta, la ficha ocupa la pantalla; ‹ › cambian de alerta y «← Alertas» vuelve a la lista", async () => {
+    await panelSieteDias();
+    expect(estadoFicha()).toBe("cerrada");
+    pulsar("IPC adelantado");
+    expect(estadoFicha()).toBe("abierta");
+    expect(ficha("IPC adelantado")).toBeInTheDocument();
+    expect(window.location.search).toBe("?alerta=7");
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(screen.getByText("2 de 7")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Alerta siguiente" }));
+    expect(ficha("Ley de vivienda: topes al alquiler")).toBeInTheDocument();
+    expect(window.location.search).toBe("?alerta=6");
+    // «← Alertas» hace lo mismo que el botón de atrás del móvil: vuelve a la lista.
+    fireEvent.click(screen.getByRole("button", { name: "Volver a la lista" }));
+    await waitFor(() => expect(estadoFicha()).toBe("cerrada"));
+    expect(window.location.search).toBe("");
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("al marcar «No, es ruido» vuelve a la lista, con el aviso de «Deshacer»", async () => {
+    await panelSieteDias();
+    pulsar("IPC adelantado");
+    fireEvent.click(screen.getByRole("button", { name: "No, es ruido" }));
+    await waitFor(() => expect(estadoFicha()).toBe("cerrada"));
+    await waitFor(() => expect(screen.getByText("6 de 8")).toBeInTheDocument());
+    expect(vi.mocked(toast.custom)).toHaveBeenCalledOnce();
+  });
+
+  it("los filtros quedan tras el botón «Filtros», con un resumen al lado", async () => {
+    await panelSieteDias();
+    const boton = screen.getByRole("button", { name: /^Filtros/ });
+    expect(boton).toHaveAttribute("aria-expanded", "false");
+    expect(boton).toHaveTextContent("Filtros (1)"); // el periodo ya no es «Hoy»
+    expect(screen.getByText("Últimos 7 días · Todos menos ruido · 7 de 8")).toBeInTheDocument();
+    fireEvent.click(boton);
+    expect(boton).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
