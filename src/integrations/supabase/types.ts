@@ -27,6 +27,10 @@ export type Database = {
           medios_discover: number
           medios_lista: string[]
           motivo_afinidad: string
+          motivo_ruido: string | null
+          no_cubrimos: string | null
+          no_cubrimos_en: string | null
+          no_cubrimos_por: string | null
           pieza_url: string | null
           prioridad: string
           seccion_sugerida: string
@@ -50,6 +54,10 @@ export type Database = {
           medios_discover?: number
           medios_lista?: string[]
           motivo_afinidad?: string
+          motivo_ruido?: string | null
+          no_cubrimos?: string | null
+          no_cubrimos_en?: string | null
+          no_cubrimos_por?: string | null
           pieza_url?: string | null
           prioridad: string
           seccion_sugerida?: string
@@ -73,6 +81,10 @@ export type Database = {
           medios_discover?: number
           medios_lista?: string[]
           motivo_afinidad?: string
+          motivo_ruido?: string | null
+          no_cubrimos?: string | null
+          no_cubrimos_en?: string | null
+          no_cubrimos_por?: string | null
           pieza_url?: string | null
           prioridad?: string
           seccion_sugerida?: string
@@ -83,6 +95,33 @@ export type Database = {
           wikipedia_visitas?: number | null
           x_desde?: string | null
           x_posicion?: number | null
+        }
+        Relationships: []
+      }
+      autoridad_discover: {
+        Row: {
+          cargado_en: string
+          clics: number
+          desde: string
+          hasta: string
+          id: number
+          url: string
+        }
+        Insert: {
+          cargado_en?: string
+          clics: number
+          desde: string
+          hasta: string
+          id?: never
+          url: string
+        }
+        Update: {
+          cargado_en?: string
+          clics?: number
+          desde?: string
+          hasta?: string
+          id?: never
+          url?: string
         }
         Relationships: []
       }
