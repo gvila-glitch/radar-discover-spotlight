@@ -38,7 +38,25 @@ describe('Google Trends España', () => {
     await pending;
     expect(save).not.toHaveBeenCalled();
   });
-  it('rechaza sin credencial con 401 usando la configuración real sin revelarla', async () => {
-    expect((await authenticateCronRequest(new Request('https://example.com', { method: 'POST' })))?.status).toBe(401);
+  // La clave real (LOVABLE_CRON_SECRET) solo existe en el servidor: aquí se usa una de prueba, así la comprobación vale
+  // en cualquier ordenador y en GitHub, y la real nunca aparece en las pruebas.
+  it('rechaza sin credencial con 401', async () => {
+    vi.stubEnv('LOVABLE_CRON_SECRET', 'clave-de-prueba');
+    try {
+      expect((await authenticateCronRequest(new Request('https://example.com', { method: 'POST' })))?.status).toBe(401);
+      const otra = new Request('https://example.com', { method: 'POST', headers: { authorization: 'Bearer otra-clave' } });
+      expect((await authenticateCronRequest(otra))?.status).toBe(401);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it('sin la clave configurada en el servidor no deja pasar a nadie', async () => {
+    vi.stubEnv('LOVABLE_CRON_SECRET', '');
+    try {
+      const conClave = new Request('https://example.com', { method: 'POST', headers: { authorization: 'Bearer cualquiera' } });
+      expect((await authenticateCronRequest(conClave))?.status).toBe(500);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

@@ -1,5 +1,5 @@
--- ESTADO: PENDIENTE de aplicar a mano en el editor de SQL (17 nov 2026) y de registrar como migración. Se puede
--- ejecutar más de una vez.
+-- REGISTRADO como migración en drizzle/migrations/0017_registrar_autoridad_y_ruido.sql (21 nov 2026; aplicado a mano el
+-- 17 nov). Este archivo queda como referencia. Se puede ejecutar más de una vez.
 --
 -- AUTORIDAD EN DISCOVER: nuestras piezas que han tenido tráfico de Discover, según las exportaciones de Search Console
 -- (Rendimiento → Discover → Páginas → Exportar → Descargar CSV). Con ellas, la ficha de cada alerta dice si tenemos

@@ -1,5 +1,5 @@
--- ESTADO: APLICADO A MANO en el editor de SQL el 17 nov 2026. PENDIENTE de registrar como migración y de añadir a los
--- tipos generados. Se puede ejecutar más de una vez.
+-- REGISTRADO como migración en drizzle/migrations/0017_registrar_autoridad_y_ruido.sql (21 nov 2026; aplicado a mano el
+-- 17 nov). Este archivo queda como referencia. Se puede ejecutar más de una vez.
 --
 -- MOTIVO DEL RUIDO Y «LO QUE NO CUBRIMOS»
 -- 1) motivo_ruido: al marcar una alerta como ruido, el equipo puede decir por qué (opcional). Solo «no es nuestro tema»
