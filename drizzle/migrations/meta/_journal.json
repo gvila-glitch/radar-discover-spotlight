@@ -120,6 +120,13 @@
       "when": 1794828061673,
       "tag": "0016_registrar_cambios_manuales",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795252903219,
+      "tag": "0017_registrar_autoridad_y_ruido",
+      "breakpoints": true
     }
   ]
 }
