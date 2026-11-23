@@ -532,6 +532,44 @@ export type Database = {
         Args: { propietario: string; trabajo: string }
         Returns: boolean
       }
+      anadir_excepcion_descarte: {
+        Args: { p_id: number; p_linea: string; p_tipo: string }
+        Returns: {
+          actualizada_en: string
+          agencia: boolean
+          clave: string
+          contexto: string
+          creada_en: string
+          dia: string
+          excepcion: string | null
+          excepcion_en: string | null
+          excepcion_por: string | null
+          excepcion_tipo: string | null
+          fuente: string
+          fuerte: boolean
+          id: number
+          modelo: string
+          motivo_ia: string
+          nota: string | null
+          puntos: number
+          seccion_ia: string
+          tema: string
+          trends_crecimiento: string | null
+          veredicto: string | null
+          veredicto_en: string | null
+          veredicto_por: string | null
+          wikipedia_ratio: number | null
+          wikipedia_visitas: number | null
+          x_desde: string | null
+          x_posicion: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "descartes_ia"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       clave_entidad: { Args: { texto: string }; Returns: string }
       cruzar_snoop: { Args: { instante?: string }; Returns: Json }
       datos_discover: {
@@ -568,6 +606,44 @@ export type Database = {
       limpiar_trends: { Args: never; Returns: undefined }
       limpiar_wikipedia_picos: { Args: never; Returns: undefined }
       limpiar_x_tendencias: { Args: never; Returns: undefined }
+      marcar_descarte: {
+        Args: { p_id: number; p_marcar: boolean; p_nota: string }
+        Returns: {
+          actualizada_en: string
+          agencia: boolean
+          clave: string
+          contexto: string
+          creada_en: string
+          dia: string
+          excepcion: string | null
+          excepcion_en: string | null
+          excepcion_por: string | null
+          excepcion_tipo: string | null
+          fuente: string
+          fuerte: boolean
+          id: number
+          modelo: string
+          motivo_ia: string
+          nota: string | null
+          puntos: number
+          seccion_ia: string
+          tema: string
+          trends_crecimiento: string | null
+          veredicto: string | null
+          veredicto_en: string | null
+          veredicto_por: string | null
+          wikipedia_ratio: number | null
+          wikipedia_visitas: number | null
+          x_desde: string | null
+          x_posicion: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "descartes_ia"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       parentesis_entidad: { Args: { texto: string }; Returns: string }
       puntuar_alerta: {
         Args: {

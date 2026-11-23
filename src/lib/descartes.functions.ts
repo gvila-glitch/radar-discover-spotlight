@@ -1,22 +1,17 @@
-// Acciones del panel sobre los descartes de la IA. La tabla no es accesible desde el navegador: estas funciones del
-// servidor comprueban primero que quien pregunta es del equipo (o administrador, para añadir excepciones) y solo
-// entonces usan el cliente privilegiado, que nunca sale del servidor.
+// Acciones del panel sobre los descartes de la IA. Usan la sesión del usuario: la base de datos (RLS y las funciones
+// marcar_descarte / anadir_excepcion_descarte) decide quién puede leer, marcar o añadir excepciones.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { anadirLinea, criterioValido, lineaReglaSi, type Descarte } from "./descartes";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { criterioValido, lineaReglaSi, type Descarte } from "./descartes";
 
-type Ctx = {
-  supabase: {
-    rpc: (f: "es_equipo" | "es_admin") => PromiseLike<{ data: unknown; error: unknown }>;
-  };
-  claims: { email?: unknown };
-};
-async function exigir(context: unknown, permiso: "es_equipo" | "es_admin") {
-  const c = context as Ctx;
-  const { data, error } = await c.supabase.rpc(permiso);
+type Db = SupabaseClient<Database>;
+async function exigir(context: unknown, permiso: "es_equipo" | "es_admin"): Promise<Db> {
+  const db = (context as { supabase: Db }).supabase;
+  const { data, error } = await db.rpc(permiso);
   if (error || data !== true) throw new Error("Sin permiso");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return { db: supabaseAdmin, email: String(c.claims.email ?? "").toLowerCase() };
+  return db;
 }
 const fecha = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 const id = (v: unknown) => {
@@ -33,7 +28,7 @@ export const listarDescartes = createServerFn({ method: "POST" })
     todos: d?.todos === true,
   }))
   .handler(async ({ data, context }): Promise<Descarte[]> => {
-    const { db } = await exigir(context, "es_equipo");
+    const db = await exigir(context, "es_equipo");
     let q = db.from("descartes_ia").select("*");
     if (data.desde) q = q.gte("dia", data.desde);
     if (!data.todos) q = q.eq("fuerte", true);
@@ -56,23 +51,14 @@ export const marcarDescarte = createServerFn({ method: "POST" })
       typeof d?.nota === "string" ? d.nota.replace(/\s+/g, " ").trim().slice(0, 500) || null : null,
   }))
   .handler(async ({ data, context }): Promise<Descarte> => {
-    const { db, email } = await exigir(context, "es_equipo");
-    const cambios = data.marcar
-      ? {
-          veredicto: "deberia_pasar",
-          veredicto_por: email,
-          veredicto_en: new Date().toISOString(),
-          nota: data.nota,
-        }
-      : { veredicto: null, veredicto_por: null, veredicto_en: null, nota: null };
-    const { data: fila, error } = await db
-      .from("descartes_ia")
-      .update(cambios)
-      .eq("id", data.id)
-      .select("*")
-      .single();
+    const db = await exigir(context, "es_equipo");
+    const { data: fila, error } = await db.rpc("marcar_descarte", {
+      p_id: data.id,
+      p_marcar: data.marcar,
+      p_nota: data.nota ?? "",
+    });
     if (error || !fila) throw new Error("No se pudo guardar la revisión.");
-    return fila;
+    return fila as Descarte;
   });
 
 /**
@@ -87,39 +73,20 @@ export const anadirExcepcion = createServerFn({ method: "POST" })
     return { id: id(d?.id), tipo, texto } as const;
   })
   .handler(async ({ data, context }): Promise<Descarte> => {
-    const { db, email } = await exigir(context, "es_admin");
+    const db = await exigir(context, "es_admin");
     const { data: descarte, error: e1 } = await db
       .from("descartes_ia")
       .select("*")
       .eq("id", data.id)
       .single();
     if (e1 || !descarte) throw new Error("No se encontró el descarte.");
-    const clave = data.tipo === "nombre" ? "reglas_si" : "excepciones";
     const linea = data.tipo === "nombre" ? lineaReglaSi(descarte.tema) : criterioValido(data.texto);
     if (!linea) throw new Error("El criterio debe tener entre 10 y 300 caracteres.");
-    const { data: actual } = await db
-      .from("config")
-      .select("valor")
-      .eq("clave", clave)
-      .maybeSingle();
-    const ahora = new Date().toISOString();
-    const valor = anadirLinea(actual?.valor, data.tipo === "nombre" ? linea : `- ${linea}`);
-    const { error: e2 } = await db
-      .from("config")
-      .upsert({ clave, valor, actualizado_en: ahora }, { onConflict: "clave" });
-    if (e2) throw new Error("No se pudo guardar la excepción.");
-    const { data: fila, error: e3 } = await db
-      .from("descartes_ia")
-      .update({
-        excepcion: linea,
-        excepcion_tipo: data.tipo,
-        excepcion_por: email,
-        excepcion_en: ahora,
-      })
-      .eq("id", data.id)
-      .select("*")
-      .single();
-    if (e3 || !fila)
-      throw new Error("La excepción se guardó, pero no se pudo anotar en el descarte.");
-    return fila;
+    const { data: fila, error } = await db.rpc("anadir_excepcion_descarte", {
+      p_id: data.id,
+      p_tipo: data.tipo,
+      p_linea: linea,
+    });
+    if (error || !fila) throw new Error("No se pudo guardar la excepción.");
+    return fila as Descarte;
   });

@@ -162,3 +162,13 @@ describe("guardado", () => {
     });
   });
 });
+
+import { readFileSync } from "node:fs";
+import { describe as describeImport, it as itImport, expect as expectImport } from "vitest";
+describeImport("descartes.functions.ts", () => {
+  itImport("no importa el cliente privilegiado", () => {
+    const src = readFileSync("src/lib/descartes.functions.ts", "utf8");
+    expectImport(src).not.toMatch(/client\.server/);
+    expectImport(src).not.toMatch(/supabaseAdmin/);
+  });
+});
