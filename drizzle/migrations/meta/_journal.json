@@ -134,6 +134,13 @@
       "when": 1795438341234,
       "tag": "0018_descartes_con_sesion",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795446087793,
+      "tag": "0019_autoridad_con_sesion",
+      "breakpoints": true
     }
   ]
 }

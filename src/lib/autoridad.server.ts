@@ -1,5 +1,5 @@
-// Lectura de la tabla autoridad_discover (solo servidor). La tabla no es accesible desde el navegador (RLS sin
-// políticas); la usa src/lib/autoridad.functions.ts después de comprobar que quien pregunta es del equipo.
+// Lectura de la tabla autoridad_discover (solo servidor). Solo la lee el equipo (RLS con es_equipo());
+// la usa src/lib/autoridad.functions.ts después de comprobar que quien pregunta es del equipo.
 // La tabla se carga a mano en el editor de SQL (ver supabase/autoridad-discover.sql) y todavía no está en los tipos
 // generados de Supabase, por eso aquí se describe solo lo que se usa.
 import type { FilaAutoridad } from "./autoridad";

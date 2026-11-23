@@ -209,3 +209,12 @@ describe("leerFilasAutoridad", () => {
     );
   });
 });
+
+import { readFileSync as leerArchivoAutoridad } from "node:fs";
+describe("autoridad.functions.ts sin cliente privilegiado", () => {
+  it("no importa client.server ni usa supabaseAdmin", () => {
+    const src = leerArchivoAutoridad("src/lib/autoridad.functions.ts", "utf8");
+    expect(src).not.toContain("client.server");
+    expect(src).not.toContain("supabaseAdmin");
+  });
+});
