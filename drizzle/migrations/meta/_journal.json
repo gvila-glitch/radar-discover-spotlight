@@ -127,6 +127,13 @@
       "when": 1795252903219,
       "tag": "0017_registrar_autoridad_y_ruido",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795438341234,
+      "tag": "0018_descartes_con_sesion",
+      "breakpoints": true
     }
   ]
 }
