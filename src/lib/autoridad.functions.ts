@@ -1,6 +1,7 @@
-// Autoridad en Discover para las alertas del panel. La tabla no es accesible desde el navegador: esta función del
-// servidor comprueba primero que quien pregunta es del equipo y solo entonces lee con el cliente privilegiado, que
-// nunca sale del servidor. Solo lectura. Al navegador le llega el resultado por tema, no la tabla entera.
+// Autoridad en Discover para las alertas del panel. Esta función del servidor comprueba que quien pregunta es del
+// equipo (para dar un error claro) y lee con la sesión del propio usuario: la base de datos decide el acceso
+// (RLS con es_equipo() y permiso solo de lectura sobre las columnas necesarias). Sin cliente privilegiado.
+// Al navegador le llega el resultado por tema, no la tabla entera.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { calcularAutoridad, entidadesValidas, type Autoridad } from "./autoridad";
@@ -16,8 +17,7 @@ export const leerAutoridad = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<Autoridad> => {
     const { data: equipo, error } = await (context as unknown as Ctx).supabase.rpc("es_equipo");
     if (error || equipo !== true) throw new Error("Sin permiso");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { leerFilasAutoridad } = await import("./autoridad.server");
-    const filas = await leerFilasAutoridad(supabaseAdmin as unknown as LectorAutoridad);
+    const filas = await leerFilasAutoridad(context.supabase as unknown as LectorAutoridad);
     return calcularAutoridad(filas, data.entidades);
   });
