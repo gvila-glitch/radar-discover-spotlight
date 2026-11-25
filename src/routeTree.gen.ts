@@ -16,6 +16,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedConfiguracionRouteImport } from './routes/_authenticated/configuracion'
 import { Route as AuthenticatedDiscoverMapRouteImport } from './routes/_authenticated/discover-map'
 import { Route as AuthenticatedResultadosRouteImport } from './routes/_authenticated/resultados'
+import { Route as ApiPublicResumenEmailRouteImport } from './routes/api/public/resumen-email'
 import { Route as ApiPublicSnoopReceptorRouteImport } from './routes/api/public/snoop-receptor'
 import { Route as ApiPublicTrendsAAlertasRouteImport } from './routes/api/public/trends-a-alertas'
 import { Route as ApiPublicTrendsIngestaRouteImport } from './routes/api/public/trends-ingesta'
@@ -58,6 +59,11 @@ const AuthenticatedResultadosRoute = AuthenticatedResultadosRouteImport.update({
   path: '/resultados',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicResumenEmailRoute = ApiPublicResumenEmailRouteImport.update({
+  id: '/api/public/resumen-email',
+  path: '/api/public/resumen-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicSnoopReceptorRoute = ApiPublicSnoopReceptorRouteImport.update({
   id: '/api/public/snoop-receptor',
   path: '/api/public/snoop-receptor',
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/configuracion': typeof AuthenticatedConfiguracionRoute
   '/discover-map': typeof AuthenticatedDiscoverMapRoute
   '/resultados': typeof AuthenticatedResultadosRoute
+  '/api/public/resumen-email': typeof ApiPublicResumenEmailRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/discover-map': typeof AuthenticatedDiscoverMapRoute
   '/resultados': typeof AuthenticatedResultadosRoute
   '/': typeof AuthenticatedIndexRoute
+  '/api/public/resumen-email': typeof ApiPublicResumenEmailRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/_authenticated/discover-map': typeof AuthenticatedDiscoverMapRoute
   '/_authenticated/resultados': typeof AuthenticatedResultadosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/api/public/resumen-email': typeof ApiPublicResumenEmailRoute
   '/api/public/snoop-receptor': typeof ApiPublicSnoopReceptorRoute
   '/api/public/trends-a-alertas': typeof ApiPublicTrendsAAlertasRoute
   '/api/public/trends-ingesta': typeof ApiPublicTrendsIngestaRoute
@@ -135,6 +144,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/discover-map'
     | '/resultados'
+    | '/api/public/resumen-email'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/discover-map'
     | '/resultados'
     | '/'
+    | '/api/public/resumen-email'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/_authenticated/discover-map'
     | '/_authenticated/resultados'
     | '/_authenticated/'
+    | '/api/public/resumen-email'
     | '/api/public/snoop-receptor'
     | '/api/public/trends-a-alertas'
     | '/api/public/trends-ingesta'
@@ -173,6 +185,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicResumenEmailRoute: typeof ApiPublicResumenEmailRoute
   ApiPublicSnoopReceptorRoute: typeof ApiPublicSnoopReceptorRoute
   ApiPublicTrendsAAlertasRoute: typeof ApiPublicTrendsAAlertasRoute
   ApiPublicTrendsIngestaRoute: typeof ApiPublicTrendsIngestaRoute
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/resultados'
       preLoaderRoute: typeof AuthenticatedResultadosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/resumen-email': {
+      id: '/api/public/resumen-email'
+      path: '/api/public/resumen-email'
+      fullPath: '/api/public/resumen-email'
+      preLoaderRoute: typeof ApiPublicResumenEmailRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/snoop-receptor': {
       id: '/api/public/snoop-receptor'
@@ -290,6 +310,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicResumenEmailRoute: ApiPublicResumenEmailRoute,
   ApiPublicSnoopReceptorRoute: ApiPublicSnoopReceptorRoute,
   ApiPublicTrendsAAlertasRoute: ApiPublicTrendsAAlertasRoute,
   ApiPublicTrendsIngestaRoute: ApiPublicTrendsIngestaRoute,
