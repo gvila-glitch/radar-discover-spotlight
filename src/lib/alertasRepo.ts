@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { AlertaReciente, NuevaAlertaTrends } from "./trendsAlertas";
 import type { NuevaAlertaWikipedia } from "./wikipediaPicos";
+import type { AlertaResumen } from "./resumenEmail";
 const rowSchema = z
   .object({
     prioridad: z.enum(["alta", "media"]),
@@ -114,4 +115,21 @@ export async function guardarAlertasWikipedia(client: SupabaseClient<Database>, 
   const { data, error } = await client.rpc("guardar_alertas_wikipedia_atomicas", { candidatas: rows });
   if (error) throw new Error("No se pudieron guardar las alertas de Wikipedia.");
   return guardadoSchema.parse(data);
+}
+
+// Resumen por email: alertas creadas en (desde, hasta]. Solo con el cliente privilegiado tras autenticar la llamada.
+export async function leerAlertasParaResumen(client: SupabaseClient<Database>, desde: Date, hasta: Date) {
+  const rows: AlertaResumen[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await client
+      .from("alertas")
+      .select("id,entidad,prioridad,creada_en,x_posicion,x_desde,trends_activo,trends_crecimiento,medios_discover,motivo_afinidad,wikipedia_ratio")
+      .gt("creada_en", desde.toISOString())
+      .lte("creada_en", hasta.toISOString())
+      .order("id", { ascending: true })
+      .range(offset, offset + 999);
+    if (error) throw new Error("No se pudieron leer las alertas del resumen.");
+    rows.push(...((data ?? []) as AlertaResumen[]));
+    if (!data || data.length < 1000) return rows;
+  }
 }

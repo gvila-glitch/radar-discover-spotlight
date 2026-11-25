@@ -340,6 +340,42 @@ export type Database = {
         }
         Relationships: []
       }
+      resumenes_email: {
+        Row: {
+          desde: string
+          enviado_en: string
+          error: string | null
+          franja: string | null
+          hasta: string
+          id: number
+          num_alertas: number
+          ok: boolean | null
+          tipo: string
+        }
+        Insert: {
+          desde: string
+          enviado_en?: string
+          error?: string | null
+          franja?: string | null
+          hasta: string
+          id?: never
+          num_alertas?: number
+          ok?: boolean | null
+          tipo?: string
+        }
+        Update: {
+          desde?: string
+          enviado_en?: string
+          error?: string | null
+          franja?: string | null
+          hasta?: string
+          id?: never
+          num_alertas?: number
+          ok?: boolean | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       snoop_articulos: {
         Row: {
           alerta: string | null

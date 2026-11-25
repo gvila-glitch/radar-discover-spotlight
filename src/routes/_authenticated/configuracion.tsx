@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
+import { enviarResumenDePrueba } from "@/lib/resumenEmail.functions";
 import { listarUsuarios, altaUsuario, cambiarRol, bajaUsuario } from "@/lib/usuarios.functions";
 import type { Rol } from "@/lib/usuariosReglas";
 import { APARTADOS, apartadoValido, type Apartado } from "@/lib/configApartados";
@@ -55,7 +56,7 @@ function Paneles() {
   return (
     <div className="mt-5 space-y-6">
       <p className="text-sm text-muted-foreground">{titulo}</p>
-      <div className="min-w-0 space-y-6"><div hidden={tab === "medios" || tab === "usuarios"} className="space-y-6"><FormAjustes tab={tab === "medios" || tab === "usuarios" ? "perfil" : tab} /></div>{tab === "medios" && <Medios />}{tab === "usuarios" && <Usuarios />}</div>
+      <div className="min-w-0 space-y-6"><div hidden={tab === "medios" || tab === "usuarios"} className="space-y-6"><FormAjustes tab={tab === "medios" || tab === "usuarios" ? "perfil" : tab} /></div>{tab === "medios" && <Medios />}{tab === "usuarios" && <><Usuarios /><ResumenPrueba /></>}</div>
     </div>
   );
 }
@@ -173,6 +174,24 @@ function Medios() {
 }
 
 const errorTexto = (e: unknown) => (e instanceof Error && e.message && e.message.length < 120 ? e.message : "No se pudo completar la acción.");
+
+function ResumenPrueba() {
+  const enviar = useServerFn(enviarResumenDePrueba);
+  const [ocupado, setOcupado] = useState(false);
+  const [estado, setEstado] = useState<{ ok: boolean; mensaje: string } | null>(null);
+  async function probar() {
+    setOcupado(true); setEstado(null);
+    try { const r = await enviar(); setEstado(r); r.ok ? toast.success(r.mensaje) : toast.error(r.mensaje); }
+    catch (e) { const m = errorTexto(e); setEstado({ ok: false, mensaje: m }); toast.error(m); }
+    finally { setOcupado(false); }
+  }
+  return (
+    <Seccion titulo="Resumen por email" ayuda="Se envía a las 8:00 y a las 16:00. La prueba manda ya un resumen real con las alertas de las últimas 24 horas y no cuenta como último envío.">
+      <Button onClick={probar} disabled={ocupado}>{ocupado ? "Enviando…" : "Enviar resumen de prueba ahora"}</Button>
+      {estado && <p role="status" className={`mt-3 text-sm ${estado.ok ? "text-muted-foreground" : "text-destructive"}`}>{estado.ok ? "Ha ido bien. " : "No se pudo enviar. "}{estado.mensaje}</p>}
+    </Seccion>
+  );
+}
 
 function Usuarios() {
   const qc = useQueryClient();
