@@ -1,5 +1,4 @@
 // Resumen de alertas por email: lógica pura (franja, orden, montaje del HTML y del texto). Sin red ni base de datos.
-import { puntuarAlerta } from "./prioridad";
 import { nombreVisible } from "./metricas";
 import type { Alerta } from "./types";
 
@@ -34,12 +33,25 @@ export function inicioFranja(ultimoOk: Date | null, ahora: Date): Date {
 }
 
 export function ordenar<T extends AlertaResumen>(alertas: T[]): { altas: T[]; medias: T[] } {
-  const conPuntos = alertas.map((a) => ({ a, p: puntuarAlerta(a).puntos }));
-  const orden = (x: typeof conPuntos) => x.sort((m, n) => n.p - m.p || n.a.creada_en.localeCompare(m.a.creada_en)).map((x) => x.a);
+  const orden = (x: T[]) => [...x].sort((m, n) => Date.parse(n.creada_en) - Date.parse(m.creada_en));
   return {
-    altas: orden(conPuntos.filter((x) => x.a.prioridad === "alta")),
-    medias: orden(conPuntos.filter((x) => x.a.prioridad !== "alta")),
+    altas: orden(alertas.filter((a) => a.prioridad === "alta")),
+    medias: orden(alertas.filter((a) => a.prioridad !== "alta")),
   };
+}
+
+const diaMadrid = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: ZONA, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+
+/** «07:41 · hace 19 min», «Ayer, 23:30 · hace 8 h» o «23 nov, 10:05 · hace 50 h», en hora de España. */
+export function cuandoSeCreo(creadaEn: string, ahora: Date): string {
+  const d = new Date(creadaEn);
+  const hora = new Intl.DateTimeFormat("es-ES", { timeZone: ZONA, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+  const dias = Math.round((Date.parse(diaMadrid(ahora)) - Date.parse(diaMadrid(d))) / 86400_000);
+  const prefijo = dias <= 0 ? "" : dias === 1 ? "Ayer, " :
+    `${new Intl.DateTimeFormat("es-ES", { timeZone: ZONA, day: "numeric", month: "short" }).format(d).replace(".", "")}, `;
+  const min = Math.floor((ahora.getTime() - d.getTime()) / 60_000);
+  const hace = min < 60 ? `hace ${Math.max(1, min)} min` : `hace ${Math.floor(min / 60)} h`;
+  return `${prefijo}${hora} · ${hace}`;
 }
 
 export function fuentes(a: AlertaResumen): string {
@@ -79,16 +91,18 @@ export function montarEmail(alertas: AlertaResumen[], desde: Date, hasta: Date):
 <tr><td style="padding:0 0 10px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #d9e2ec;border-radius:6px"><tr><td style="padding:12px 14px">
 <span style="display:inline-block;background:#fde8e8;color:#9b1c1c;font-size:11px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:4px">Alta</span>
 <div style="font-size:16px;font-weight:700;margin:6px 0 4px">${esc(nombreVisible(a.entidad))}</div>
-<div style="font-size:13px;color:#52606d">${esc(fuentes(a))}</div>
+<div style="font-size:13px;color:#52606d">${esc(cuandoSeCreo(a.creada_en, hasta))} · ${esc(fuentes(a))}</div>
 <div style="font-size:13px;color:#52606d;margin-top:2px">${esc(medios(a.medios_discover))}</div>
 <div style="margin-top:8px"><a href="${esc(enlaceAlerta(a.id))}" style="color:${AZUL};font-size:13px;font-weight:600;text-decoration:none">Ver en el panel →</a></div>
 </td></tr></table></td></tr>`).join("");
 
   const lineas = medias.map((a) => `
 <tr><td style="padding:8px 0;border-bottom:1px solid #eef2f6">
-<a href="${esc(enlaceAlerta(a.id))}" style="color:${AZUL};font-weight:600;font-size:14px;text-decoration:none">${esc(nombreVisible(a.entidad))}</a>
-<span style="font-size:13px;color:#52606d"> · ${esc(medios(a.medios_discover))}</span>
-<div style="font-size:12px;color:#7b8794;margin-top:2px">${esc(fuentes(a))}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+<td style="text-align:left"><a href="${esc(enlaceAlerta(a.id))}" style="color:${AZUL};font-weight:600;font-size:14px;text-decoration:none">${esc(nombreVisible(a.entidad))}</a></td>
+<td style="text-align:right;white-space:nowrap;font-size:12px;color:#52606d;padding-left:8px">${esc(cuandoSeCreo(a.creada_en, hasta))}</td>
+</tr></table>
+<div style="font-size:12px;color:#7b8794;margin-top:2px">${esc(medios(a.medios_discover))} · ${esc(fuentes(a))}</div>
 </td></tr>`).join("");
 
   const bloques = total === 0 ? "" : `
@@ -112,11 +126,11 @@ ${bloques}
   const t: string[] = [titulo, franja + (total ? ` · ${recuento}` : ""), "", `Abrir el panel de alertas: ${PANEL_URL}`];
   if (altas.length) {
     t.push("", `PRIORIDAD ALTA · ${altas.length}`);
-    for (const a of altas) t.push("", `[ALTA] ${nombreVisible(a.entidad)}`, fuentes(a), medios(a.medios_discover), `Ver en el panel: ${enlaceAlerta(a.id)}`);
+    for (const a of altas) t.push("", `[ALTA] ${nombreVisible(a.entidad)}`, `${cuandoSeCreo(a.creada_en, hasta)} · ${fuentes(a)}`, medios(a.medios_discover), `Ver en el panel: ${enlaceAlerta(a.id)}`);
   }
   if (medias.length) {
     t.push("", `PRIORIDAD MEDIA · ${medias.length}`);
-    for (const a of medias) t.push(`- ${nombreVisible(a.entidad)} · ${medios(a.medios_discover)} · ${fuentes(a)} · ${enlaceAlerta(a.id)}`);
+    for (const a of medias) t.push(`- ${nombreVisible(a.entidad)} · ${cuandoSeCreo(a.creada_en, hasta)} · ${medios(a.medios_discover)} · ${fuentes(a)} · ${enlaceAlerta(a.id)}`);
   }
   if (total) t.push("", `Ver todas en el panel: ${PANEL_URL}`);
   t.push("", PIE);
