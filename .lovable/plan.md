@@ -1,8 +1,15 @@
 # Resumen de alertas por email (Brevo), 8:00 y 16:00 hora de España
 
 ## Qué verás
-- Dos emails al día con el asunto «Radar Discover · Resumen de alertas»: cabecera con fecha, franja cubierta y recuento (altas / medias), y por cada alerta su prioridad, entidad, contexto/fuentes, medios en Discover, ángulo sugerido y enlace «Ver en el panel» (`https://radar-discover-spotlight.lovable.app/?alerta=ID`).
-- Si no hay alertas nuevas: email corto «Sin alertas nuevas desde el último resumen».
+- Dos emails al día con el asunto «Radar Discover · Resumen de alertas», compactos para unas 25–30 alertas:
+  - Cabecera «N alertas desde el último resumen», franja (hora de España) y recuento de altas y medias; debajo, botón «Abrir el panel de alertas».
+  - «Prioridad alta · N»: una tarjeta por alerta con etiqueta, entidad, fuentes (X con su puesto, Google Trends, Wikipedia), medios en Discover y «Ver en el panel →».
+  - «Prioridad media · N»: una línea por alerta con la entidad enlazada y medios en Discover; debajo, en pequeño, las fuentes.
+  - Botón «Ver todas en el panel» y el pie pedido (horarios, cómo abrir fichas, aviso de Descartes IA).
+  - Sin ángulo sugerido. Enlaces a `https://radar-discover-spotlight.lovable.app` y `/?alerta=ID`.
+  - HTML con estilos en línea, una columna de ~600 px, legible en móvil, más versión en texto plano.
+- Si no hay alertas nuevas: email corto «Sin alertas nuevas desde el último resumen», con el botón al panel.
+- Destinatarios solo desde el secreto; no habrá ninguna opción para darse de baja o elegir recibirlo.
 - En Configuración (solo admins): botón «Enviar resumen de prueba ahora» (últimas 24 h, envío real, muestra si ha ido bien; no cuenta como último envío).
 - Nada más del panel cambia.
 
